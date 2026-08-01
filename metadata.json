@@ -1,0 +1,6 @@
+{
+  "name": "PanStock Española C.A",
+  "description": "Sistema Profesional de Control e Inventario para Panadería Española C.A (RIF: J-070054034)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
