@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Product, Warehouse, ProductLot } from '../types';
-import { getProducts, getWarehouses, saveProducts } from '../services/storage';
+import { Product, Warehouse, ProductLot, Category } from '../types';
+import { getProducts, getWarehouses, getCategories, saveProducts } from '../services/storage';
+import { ProductSearchSelect } from './Movements/ProductSearchSelect';
 import {
   X,
   Calendar,
@@ -14,7 +15,6 @@ import {
   Trash2,
   Boxes,
   RotateCcw,
-  Search,
 } from 'lucide-react';
 
 interface LotManagementModalProps {
@@ -34,11 +34,10 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
 }) => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
-  const [productSearch, setProductSearch] = useState<string>('');
-
   const [editingLotId, setEditingLotId] = useState<string | null>(null);
   const [lotNumber, setLotNumber] = useState<string>('');
   const [quantity, setQuantity] = useState<number | string>('');
@@ -103,13 +102,14 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
     if (isOpen) {
       const whs = getWarehouses();
       const prods = getProducts();
+      const cats = getCategories();
       setWarehouses(whs);
       setProducts(prods);
+      setCategories(cats);
 
       const defaultWh = initialWarehouseId || (whs.length > 0 ? whs[0].id : '00');
       const defaultProd = initialProductId || (prods.length > 0 ? prods[0].id : '');
 
-      setProductSearch('');
       setErrorMsg('');
       setSuccessMsg('');
 
@@ -141,24 +141,6 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
   const totalAssignedAllLots = warehouseLots.reduce((acc, l) => acc + Number(l.quantity || 0), 0);
   const unassignedStock = Math.max(0, totalWarehouseStock - totalAssignedAllLots);
   const maxAvailableForCurrentLot = Math.max(0, totalWarehouseStock - assignedInOtherLots);
-
-  const filteredProducts = products.filter((p) => {
-    if (!productSearch.trim()) return true;
-    const q = productSearch.toLowerCase();
-    return p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
-  });
-
-  const handleSearchChange = (q: string) => {
-    setProductSearch(q);
-    const matches = products.filter(
-      (p) => p.name.toLowerCase().includes(q.toLowerCase()) || p.code.toLowerCase().includes(q.toLowerCase())
-    );
-    if (matches.length > 0) {
-      if (!matches.some((p) => p.id === selectedProductId)) {
-        selectProductAndWarehouse(matches[0].id, selectedWarehouseId);
-      }
-    }
-  };
 
   const handleNewLotMode = () => {
     setEditingLotId(null);
@@ -341,37 +323,19 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
 
             {/* 2. Producto Selector */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-[11px] font-black text-slate-600 uppercase flex items-center gap-1.5">
-                  <Package className="w-3.5 h-3.5 text-red-600" />
-                  2. Seleccionar Producto
-                </label>
-                <div className="relative flex items-center">
-                  <Search className="w-3 h-3 text-slate-400 absolute left-2" />
-                  <input
-                    type="text"
-                    placeholder="Filtrar por nombre o código..."
-                    value={productSearch}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    className="text-[11px] pl-6 pr-2 py-0.5 bg-white border border-slate-300 rounded-md text-slate-700 font-medium w-44 focus:ring-1 focus:ring-red-500"
-                  />
-                </div>
-              </div>
+              <label className="block text-[11px] font-black text-slate-600 uppercase mb-1.5 flex items-center gap-1.5">
+                <Package className="w-3.5 h-3.5 text-red-600" />
+                2. Seleccionar Producto
+              </label>
 
-              <select
-                value={selectedProductId}
-                onChange={(e) => selectProductAndWarehouse(e.target.value, selectedWarehouseId)}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl font-bold text-xs text-slate-900 focus:ring-2 focus:ring-red-500 shadow-xs"
-              >
-                {filteredProducts.map((p) => {
-                  const stock = p.stockByWarehouse[selectedWarehouseId] || 0;
-                  return (
-                    <option key={p.id} value={p.id}>
-                      [{p.code}] {p.name} — Existencia: {stock} unidades
-                    </option>
-                  );
-                })}
-              </select>
+              <ProductSearchSelect
+                products={products}
+                categories={categories}
+                selectedProductId={selectedProductId}
+                onSelectProduct={(prodId) => selectProductAndWarehouse(prodId, selectedWarehouseId)}
+                warehouseId={selectedWarehouseId}
+                placeholder="Buscar por código, nombre o subgrupo..."
+              />
             </div>
           </div>
 

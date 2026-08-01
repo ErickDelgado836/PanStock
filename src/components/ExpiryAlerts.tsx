@@ -269,11 +269,11 @@ export const ExpiryAlerts: React.FC = () => {
         </div>
 
         {/* Row 2: Status Filter Tabs */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
-          <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-slate-100 pt-3">
+          <div className="flex bg-slate-100 p-1 rounded-xl gap-1 overflow-x-auto touch-pan-x max-w-full w-full sm:w-auto">
             <button
               onClick={() => setFilterStatus('ALL')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                 filterStatus === 'ALL'
                   ? 'bg-slate-900 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -283,7 +283,7 @@ export const ExpiryAlerts: React.FC = () => {
             </button>
             <button
               onClick={() => setFilterStatus('NEAR')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                 filterStatus === 'NEAR'
                   ? 'bg-amber-600 text-white shadow-sm'
                   : 'text-amber-700 hover:bg-amber-50'
@@ -294,7 +294,7 @@ export const ExpiryAlerts: React.FC = () => {
             </button>
             <button
               onClick={() => setFilterStatus('EXPIRED')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                 filterStatus === 'EXPIRED'
                   ? 'bg-red-600 text-white shadow-sm'
                   : 'text-red-700 hover:bg-red-50'
@@ -305,7 +305,7 @@ export const ExpiryAlerts: React.FC = () => {
             </button>
           </div>
 
-          <div className="text-xs text-slate-500 font-semibold">
+          <div className="text-xs text-slate-500 font-semibold shrink-0">
             Mostrando <strong className="text-slate-900">{filteredLots.length}</strong> resultado(s)
           </div>
         </div>
