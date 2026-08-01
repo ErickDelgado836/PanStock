@@ -86,22 +86,24 @@ export const ProductSearchSelect: React.FC<ProductSearchSelectProps> = ({
       {/* Selected Box / Trigger Button */}
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full min-h-[44px] px-3.5 py-2 bg-slate-50 hover:bg-white border rounded-xl cursor-pointer transition-all flex items-center justify-between gap-2 shadow-2xs ${
+        className={`w-full min-h-[46px] px-3 py-2 bg-slate-50 hover:bg-white border rounded-xl cursor-pointer transition-all flex items-center justify-between gap-2 shadow-2xs ${
           isOpen
             ? 'border-amber-500 ring-2 ring-amber-500/20 bg-white'
             : 'border-slate-300/80 hover:border-slate-400'
         }`}
       >
         {selectedProduct ? (
-          <div className="flex items-center gap-2 overflow-hidden flex-1">
-            <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300/80 rounded-md font-black text-xs shrink-0">
-              {selectedProduct.code}
-            </span>
-            <span className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">
-              {selectedProduct.name}
-            </span>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 overflow-hidden flex-1 py-0.5">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300/80 rounded-md font-black text-xs shrink-0">
+                {selectedProduct.code}
+              </span>
+              <span className="font-extrabold text-slate-900 text-xs sm:text-sm leading-tight break-words">
+                {selectedProduct.name}
+              </span>
+            </div>
             {warehouseId && (
-              <span className="ml-auto text-[11px] font-bold px-2 py-0.5 bg-slate-200/80 text-slate-700 rounded-md shrink-0">
+              <span className="text-[11px] font-bold px-2 py-0.5 bg-slate-200/80 text-slate-700 rounded-md shrink-0 self-start sm:self-center">
                 Stock: {selectedProduct.stockByWarehouse[warehouseId] || 0} {selectedProduct.unit}
               </span>
             )}
@@ -112,7 +114,7 @@ export const ProductSearchSelect: React.FC<ProductSearchSelectProps> = ({
           </span>
         )}
 
-        <div className="flex items-center gap-1 shrink-0 text-slate-400">
+        <div className="flex items-center gap-1 shrink-0 text-slate-400 self-center">
           {selectedProduct && (
             <button
               type="button"
@@ -233,22 +235,22 @@ export const ProductSearchSelect: React.FC<ProductSearchSelectProps> = ({
                       onSelectProduct(p.id);
                       setIsOpen(false);
                     }}
-                    className={`p-2.5 rounded-xl cursor-pointer transition-all flex items-center justify-between gap-3 border ${
+                    className={`p-2.5 rounded-xl cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 border ${
                       isSelected
-                        ? 'bg-amber-50 border-amber-300 text-amber-950 font-bold'
+                        ? 'bg-amber-50/90 border-amber-300 text-amber-950 font-bold'
                         : 'bg-white hover:bg-slate-50 border-slate-100 text-slate-800'
                     }`}
                   >
-                    <div className="flex items-center gap-2 overflow-hidden flex-1">
-                      <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-200 rounded font-black text-[11px] shrink-0">
+                    <div className="flex items-start gap-2 flex-1 min-w-0">
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-200 rounded font-black text-[11px] shrink-0 mt-0.5">
                         {p.code}
                       </span>
-                      <div className="overflow-hidden">
-                        <div className="text-xs font-extrabold text-slate-900 truncate">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug break-words">
                           {p.name}
                         </div>
                         {cat && (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black text-slate-500 uppercase tracking-wider mt-0.5">
                             <Tag className="w-2.5 h-2.5 text-amber-600" />
                             {cat.name}
                           </span>
@@ -256,7 +258,7 @@ export const ProductSearchSelect: React.FC<ProductSearchSelectProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                       {stockVal !== undefined && (
                         <span
                           className={`text-[11px] font-extrabold px-2 py-0.5 rounded-md ${
