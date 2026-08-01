@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Database, CheckCircle2, AlertTriangle, Copy, Check, RefreshCw, X, Code, Server, ShieldCheck } from 'lucide-react';
-import { SUPABASE_SETUP_SQL, isSupabaseConfigured } from '../lib/supabase';
+import { Database, CheckCircle2, AlertTriangle, Copy, Check, RefreshCw, X, Code, Server, ShieldCheck, Key, Link } from 'lucide-react';
+import { SUPABASE_SETUP_SQL, getSupabaseCredentials, updateSupabaseClient, checkIsSupabaseConfigured } from '../lib/supabase';
 import { getSupabaseSyncStatus, syncFromSupabase } from '../services/storage';
 
 interface SupabaseModalProps {
@@ -13,8 +13,14 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose })
   const [isSyncing, setIsSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState<'status' | 'sql' | 'guide'>('status');
 
+  const initialCreds = getSupabaseCredentials();
+  const [inputUrl, setInputUrl] = useState(initialCreds.url);
+  const [inputKey, setInputKey] = useState(initialCreds.key);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   if (!isOpen) return null;
 
+  const isConfigured = checkIsSupabaseConfigured();
   const status = getSupabaseSyncStatus();
 
   const handleCopySQL = () => {
@@ -27,6 +33,25 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose })
     setIsSyncing(true);
     await syncFromSupabase();
     setIsSyncing(false);
+  };
+
+  const handleSaveCredentials = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSyncing(true);
+    updateSupabaseClient(inputUrl, inputKey);
+    const success = await syncFromSupabase();
+    setIsSyncing(false);
+    if (success) {
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    }
+  };
+
+  const handleClearCredentials = async () => {
+    updateSupabaseClient('', '');
+    setInputUrl('');
+    setInputKey('');
+    await syncFromSupabase();
   };
 
   return (
@@ -97,33 +122,33 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose })
               {/* Connection Status Card */}
               <div
                 className={`p-5 rounded-2xl border ${
-                  isSupabaseConfigured
+                  isConfigured
                     ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
                     : 'bg-amber-50/80 border-amber-200 text-amber-950'
                 }`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    {isSupabaseConfigured ? (
+                    {isConfigured ? (
                       <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
                     ) : (
                       <AlertTriangle className="w-8 h-8 text-amber-600 shrink-0" />
                     )}
                     <div>
                       <h3 className="font-extrabold text-sm sm:text-base">
-                        {isSupabaseConfigured
+                        {isConfigured
                           ? 'Supabase Configurado y Activo'
-                          : 'Variables de Supabase Pendientes'}
+                          : 'Modo Local (Sin Supabase Conectado)'}
                       </h3>
                       <p className="text-xs font-semibold opacity-80 mt-0.5">
-                        {isSupabaseConfigured
-                          ? 'La aplicación está conectada con Supabase usando las variables de entorno oficiales.'
-                          : 'Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para sincronizar en tiempo real con la nube.'}
+                        {isConfigured
+                          ? 'Sincronización activa. Todos los cambios se comparten en tiempo real entre todos los dispositivos.'
+                          : 'Tus datos se están guardando solo en este navegador. Para sincronizar entre varios dispositivos, ingresa tus credenciales de Supabase a continuación.'}
                       </p>
                     </div>
                   </div>
 
-                  {isSupabaseConfigured && (
+                  {isConfigured && (
                     <button
                       onClick={handleManualSync}
                       disabled={isSyncing}
@@ -137,10 +162,83 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose })
 
                 {status.errorMessage && (
                   <div className="mt-3 p-3 bg-red-100 border border-red-200 rounded-xl text-xs text-red-800 font-bold">
-                    Error devuelto por la consola: {status.errorMessage}
+                    {status.errorMessage}
                   </div>
                 )}
               </div>
+
+              {/* Direct Supabase Credentials Form */}
+              <form onSubmit={handleSaveCredentials} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <div>
+                    <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                      <Key className="w-4 h-4 text-emerald-600" />
+                      Credenciales de Conexión Supabase
+                    </h4>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      Pega la URL y la Anon Key de tu proyecto de Supabase (Project Settings → API).
+                    </p>
+                  </div>
+                  {saveSuccess && (
+                    <span className="px-3 py-1 bg-emerald-100 text-emerald-800 font-extrabold text-xs rounded-full flex items-center gap-1.5 border border-emerald-300 animate-in fade-in">
+                      <Check className="w-3.5 h-3.5" /> Conectado exitosamente
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Link className="w-3.5 h-3.5 text-slate-500" />
+                      Supabase Project URL (VITE_SUPABASE_URL)
+                    </label>
+                    <input
+                      type="url"
+                      value={inputUrl}
+                      onChange={(e) => setInputUrl(e.target.value)}
+                      placeholder="https://tu-proyecto.supabase.co"
+                      required
+                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 font-mono focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Key className="w-3.5 h-3.5 text-slate-500" />
+                      Supabase Anon Key (VITE_SUPABASE_ANON_KEY)
+                    </label>
+                    <input
+                      type="password"
+                      value={inputKey}
+                      onChange={(e) => setInputKey(e.target.value)}
+                      placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      required
+                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 font-mono focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  {initialCreds.url ? (
+                    <button
+                      type="button"
+                      onClick={handleClearCredentials}
+                      className="text-xs text-slate-500 hover:text-red-600 font-bold transition-colors cursor-pointer"
+                    >
+                      Desconectar y volver a Modo Local
+                    </button>
+                  ) : <div />}
+
+                  <button
+                    type="submit"
+                    disabled={isSyncing}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl flex items-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                    <span>{isSyncing ? 'Conectando...' : 'Guardar y Conectar Supabase'}</span>
+                  </button>
+                </div>
+              </form>
 
               {/* Data Table Sync Overview */}
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">

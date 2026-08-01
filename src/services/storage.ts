@@ -15,7 +15,7 @@ import {
   INITIAL_PRODUCTS,
 } from '../data/seedData';
 import {
-  isSupabaseConfigured,
+  checkIsSupabaseConfigured,
   fetchUsersFromSupabase,
   saveUserToSupabase,
   deleteUserFromSupabase,
@@ -58,20 +58,21 @@ export function subscribeToStorage(callback: () => void) {
 // Global Supabase Sync status tracker
 export type SupabaseSyncState = 'idle' | 'syncing' | 'connected' | 'error' | 'not_configured';
 
-let currentSyncState: SupabaseSyncState = isSupabaseConfigured ? 'idle' : 'not_configured';
+let currentSyncState: SupabaseSyncState = checkIsSupabaseConfigured() ? 'idle' : 'not_configured';
 let lastSyncErrorMessage: string | null = null;
 
 export function getSupabaseSyncStatus() {
+  const isConfigured = checkIsSupabaseConfigured();
   return {
     state: currentSyncState,
-    isConfigured: isSupabaseConfigured,
+    isConfigured,
     errorMessage: lastSyncErrorMessage,
   };
 }
 
 // Master Async Sync Function to fetch all tables from Supabase
 export async function syncFromSupabase(): Promise<boolean> {
-  if (!isSupabaseConfigured) {
+  if (!checkIsSupabaseConfigured()) {
     currentSyncState = 'not_configured';
     return false;
   }
@@ -184,7 +185,7 @@ export async function syncFromSupabase(): Promise<boolean> {
 }
 
 // Auto-trigger sync on module load if Supabase is configured
-if (typeof window !== 'undefined' && isSupabaseConfigured) {
+if (typeof window !== 'undefined' && checkIsSupabaseConfigured()) {
   setTimeout(() => {
     syncFromSupabase();
   }, 100);
@@ -211,7 +212,7 @@ export function saveUsers(users: UserProfile[]) {
   notifyStorageChange();
 
   // Async push to Supabase
-  if (isSupabaseConfigured) {
+  if (checkIsSupabaseConfigured()) {
     users.forEach((u) => {
       saveUserToSupabase(u).catch((err) => console.error('[Supabase Push Error]', err));
     });
@@ -237,7 +238,7 @@ export function deleteUser(username: string) {
   const users = getUsers().filter((u) => u.username !== username);
   saveUsers(users);
 
-  if (isSupabaseConfigured) {
+  if (checkIsSupabaseConfigured()) {
     deleteUserFromSupabase(username).catch((err) => console.error('[Supabase Delete User Error]', err));
   }
 }
@@ -258,7 +259,7 @@ export function addCategory(category: Category) {
   localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(categories));
   notifyStorageChange();
 
-  if (isSupabaseConfigured) {
+  if (checkIsSupabaseConfigured()) {
     saveCategoryToSupabase(category).catch((err) => console.error('[Supabase Add Category Error]', err));
   }
 }
@@ -267,7 +268,7 @@ export function saveCategories(categories: Category[]) {
   localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(categories));
   notifyStorageChange();
 
-  if (isSupabaseConfigured) {
+  if (checkIsSupabaseConfigured()) {
     categories.forEach((cat) => {
       saveCategoryToSupabase(cat).catch((err) => console.error('[Supabase Save Category Error]', err));
     });
@@ -279,7 +280,7 @@ export function deleteCategory(id: string) {
   localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(categories));
   notifyStorageChange();
 
-  if (isSupabaseConfigured) {
+  if (checkIsSupabaseConfigured()) {
     deleteCategoryFromSupabase(id).catch((err) => console.error('[Supabase Delete Category Error]', err));
   }
 }
@@ -298,7 +299,7 @@ export function saveProducts(products: Product[]) {
   localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
   notifyStorageChange();
 
-  if (isSupabaseConfigured) {
+  if (checkIsSupabaseConfigured()) {
     saveProductsToSupabase(products).catch((err) => console.error('[Supabase Save Products Error]', err));
   }
 }
@@ -314,7 +315,7 @@ export function deleteProduct(id: string) {
   localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
   notifyStorageChange();
 
-  if (isSupabaseConfigured) {
+  if (checkIsSupabaseConfigured()) {
     deleteProductFromSupabase(id).catch((err) => console.error('[Supabase Delete Product Error]', err));
   }
 }
@@ -340,7 +341,7 @@ export function addMovement(movement: MovementRecord) {
   localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(movements));
   notifyStorageChange();
 
-  if (isSupabaseConfigured) {
+  if (checkIsSupabaseConfigured()) {
     saveMovementToSupabase(movement).catch((err) => console.error('[Supabase Add Movement Error]', err));
   }
 }
@@ -364,7 +365,7 @@ export function addPhysicalAudit(audit: PhysicalAuditRecord) {
 
   notifyStorageChange();
 
-  if (isSupabaseConfigured) {
+  if (checkIsSupabaseConfigured()) {
     saveAuditToSupabase(audit).catch((err) => console.error('[Supabase Add Audit Error]', err));
   }
 }

@@ -8,37 +8,82 @@ import {
   Warehouse,
 } from '../types';
 
-// Read Supabase credentials from Vite environment variables
-const env = (import.meta as any).env || {};
-const supabaseUrl = env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || '';
+// Helper to resolve Supabase credentials from localStorage or Vite env
+export function getSupabaseCredentials(): { url: string; key: string } {
+  const localUrl = typeof window !== 'undefined' ? localStorage.getItem('panstock_supabase_url') || '' : '';
+  const localKey = typeof window !== 'undefined' ? localStorage.getItem('panstock_supabase_anon_key') || '' : '';
 
-export const isSupabaseConfigured = Boolean(
-  supabaseUrl &&
-    supabaseAnonKey &&
-    supabaseUrl.startsWith('https://') &&
-    !supabaseUrl.includes('your-project-ref') &&
-    !supabaseAnonKey.includes('your-anon-key')
-);
+  const env = (import.meta as any).env || {};
+  const envUrl = env.VITE_SUPABASE_URL || '';
+  const envKey = env.VITE_SUPABASE_ANON_KEY || '';
+
+  return {
+    url: localUrl || envUrl,
+    key: localKey || envKey,
+  };
+}
+
+export function checkIsSupabaseConfigured(): boolean {
+  const { url, key } = getSupabaseCredentials();
+  return Boolean(
+    url &&
+      key &&
+      url.startsWith('https://') &&
+      !url.includes('your-project-ref') &&
+      !key.includes('your-anon-key')
+  );
+}
+
+export let isSupabaseConfigured = checkIsSupabaseConfigured();
+
+const initialCreds = getSupabaseCredentials();
+const safeUrl = checkIsSupabaseConfigured() ? initialCreds.url : 'https://placeholder.supabase.co';
+const safeKey = checkIsSupabaseConfigured() ? initialCreds.key : 'placeholder-anon-key';
+
+export let supabase = createClient(safeUrl, safeKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+});
+
+export function updateSupabaseClient(url: string, key: string) {
+  if (typeof window !== 'undefined') {
+    if (url && key) {
+      localStorage.setItem('panstock_supabase_url', url.trim());
+      localStorage.setItem('panstock_supabase_anon_key', key.trim());
+    } else {
+      localStorage.removeItem('panstock_supabase_url');
+      localStorage.removeItem('panstock_supabase_anon_key');
+    }
+  }
+
+  isSupabaseConfigured = checkIsSupabaseConfigured();
+  const currentCreds = getSupabaseCredentials();
+  const activeUrl = isSupabaseConfigured ? currentCreds.url : 'https://placeholder.supabase.co';
+  const activeKey = isSupabaseConfigured ? currentCreds.key : 'placeholder-anon-key';
+
+  supabase = createClient(activeUrl, activeKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  });
+
+  if (isSupabaseConfigured) {
+    console.log('[Supabase Configuration] Client re-initialized with URL:', activeUrl);
+  } else {
+    console.warn('[Supabase Configuration] Client reset to Local Sync mode.');
+  }
+}
 
 if (!isSupabaseConfigured) {
   console.warn(
     '[Supabase Configuration] VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing or invalid. Operating in Local Sync mode.'
   );
 } else {
-  console.log('[Supabase Configuration] Supabase credentials loaded successfully:', supabaseUrl);
+  console.log('[Supabase Configuration] Supabase credentials loaded successfully:', initialCreds.url);
 }
-
-// Fallback dummy URL to prevent createClient from throwing on boot if env variables are empty
-const safeUrl = isSupabaseConfigured ? supabaseUrl : 'https://placeholder.supabase.co';
-const safeKey = isSupabaseConfigured ? supabaseAnonKey : 'placeholder-anon-key';
-
-export const supabase = createClient(safeUrl, safeKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-});
 
 // Helper for logging execution results cleanly without throwing unhandled console errors
 const logSupabase = (action: string, success: boolean, dataOrError: any) => {

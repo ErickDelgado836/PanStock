@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { UserProfile } from '../types';
 import { EspañolaFullLogo } from './Logos';
 import { SupabaseModal } from './SupabaseModal';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { checkIsSupabaseConfigured } from '../lib/supabase';
 import {
   LogOut,
   User,
@@ -57,18 +57,23 @@ export const Header: React.FC<HeaderProps> = ({
 
           <div className="flex items-center gap-4">
             {/* Supabase Cloud Connection Indicator */}
-            <button
-              onClick={() => setShowSupabaseModal(true)}
-              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black border transition-all cursor-pointer ${
-                isSupabaseConfigured
-                  ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/90'
-                  : 'bg-amber-950/80 text-amber-300 border-amber-500/40 hover:bg-amber-900/90'
-              }`}
-              title="Ver estado de conexión con Supabase"
-            >
-              <Database className="w-3 h-3 text-emerald-400" />
-              <span>{isSupabaseConfigured ? 'Supabase Conectado' : 'Supabase SQL'}</span>
-            </button>
+            {(() => {
+              const isConfigured = checkIsSupabaseConfigured();
+              return (
+                <button
+                  onClick={() => setShowSupabaseModal(true)}
+                  className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black border transition-all cursor-pointer ${
+                    isConfigured
+                      ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/90'
+                      : 'bg-amber-950/80 text-amber-300 border-amber-500/40 hover:bg-amber-900/90'
+                  }`}
+                  title="Ver estado de conexión con Supabase"
+                >
+                  <Database className="w-3 h-3 text-emerald-400" />
+                  <span>{isConfigured ? 'Supabase Conectado' : 'Supabase SQL'}</span>
+                </button>
+              );
+            })()}
 
             <div className="flex items-center gap-1.5 text-slate-300">
               <User className="w-3.5 h-3.5 text-red-400" />
