@@ -11,6 +11,7 @@ import {
 } from '../../services/storage';
 import { ConfirmationModal } from '../ConfirmationModal';
 import { ProductSearchSelect } from './ProductSearchSelect';
+import { CustomSelect } from '../Common/CustomSelect';
 import {
   X,
   ArrowUpRight,
@@ -385,24 +386,23 @@ export const DescargosModal: React.FC<DescargosModalProps> = ({ isOpen, onClose,
                   <Building2 className="w-3.5 h-3.5 text-rose-700" />
                   <span>Almacén para Descargo (Salida)</span>
                 </label>
-                <select
+                <CustomSelect
                   value={warehouseId}
                   disabled={dischargeMode === 'MULTIPLE' && multiItems.length > 0}
-                  onChange={(e) => {
-                    setWarehouseId(e.target.value);
+                  onChange={(val) => {
+                    setWarehouseId(val);
                     setSelectedProductId('');
                     setAddSelectedProdId('');
                     setMultiItems([]);
                     setErrorMsg('');
                   }}
-                  className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl font-black text-xs text-slate-900 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
-                >
-                  {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.code} - {w.name}
-                    </option>
-                  ))}
-                </select>
+                  accentColor="rose"
+                  options={warehouses.map((w) => ({
+                    value: w.id,
+                    label: w.name,
+                    badge: w.code,
+                  }))}
+                />
               </div>
 
               {/* MODE 1: SINGLE DISCHARGE */}

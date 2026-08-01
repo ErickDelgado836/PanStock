@@ -5,6 +5,7 @@ import { matchesMovementSearch, parseAnyDate } from '../utils/movementSearch';
 import { NotePDFModal } from './NotePDFModal';
 import { generateMovementPDF } from '../utils/pdfGenerator';
 import { PhysicalAuditReport } from './PhysicalAuditReport';
+import { CustomSelect } from './Common/CustomSelect';
 
 const getLocalDateString = (d: Date = new Date()) => {
   const year = d.getFullYear();
@@ -308,18 +309,19 @@ export const MovementsHistory: React.FC = () => {
               <Filter className="w-3 h-3 text-red-500" />
               <span>Tipo de Operación</span>
             </label>
-            <select
+            <CustomSelect
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500"
-            >
-              <option value="ALL">Todos los Tipos de Operación</option>
-              <option value="ENTRADA">Entradas (Ingresos)</option>
-              <option value="TRASLADO">Traslados Internos</option>
-              <option value="DESCARGO">Descargos (Salidas)</option>
-              <option value="VENTA">Ventas Realizadas</option>
-              <option value="AJUSTE_INVENTARIO">Ajustes de Inventario (Auditorías)</option>
-            </select>
+              onChange={setFilterType}
+              accentColor="rose"
+              options={[
+                { value: 'ALL', label: 'Todos los Tipos de Operación' },
+                { value: 'ENTRADA', label: 'Entradas (Ingresos)' },
+                { value: 'TRASLADO', label: 'Traslados Internos' },
+                { value: 'DESCARGO', label: 'Descargos (Salidas)' },
+                { value: 'VENTA', label: 'Ventas Realizadas' },
+                { value: 'AJUSTE_INVENTARIO', label: 'Ajustes de Inventario (Auditorías)' },
+              ]}
+            />
           </div>
 
           {/* Almacén */}
@@ -328,18 +330,19 @@ export const MovementsHistory: React.FC = () => {
               <Building2 className="w-3 h-3 text-amber-500" />
               <span>Almacén Afectado</span>
             </label>
-            <select
+            <CustomSelect
               value={filterWarehouse}
-              onChange={(e) => setFilterWarehouse(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500"
-            >
-              <option value="ALL">Todos los Almacenes</option>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.code} - {w.name}
-                </option>
-              ))}
-            </select>
+              onChange={setFilterWarehouse}
+              accentColor="amber"
+              options={[
+                { value: 'ALL', label: 'Todos los Almacenes' },
+                ...warehouses.map((w) => ({
+                  value: w.id,
+                  label: w.name,
+                  badge: w.code,
+                })),
+              ]}
+            />
           </div>
 
           {/* Responsable */}
@@ -348,18 +351,18 @@ export const MovementsHistory: React.FC = () => {
               <User className="w-3 h-3 text-blue-500" />
               <span>Usuario Responsable</span>
             </label>
-            <select
+            <CustomSelect
               value={filterUser}
-              onChange={(e) => setFilterUser(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500"
-            >
-              <option value="ALL">Todos los Usuarios Responsables</option>
-              {distinctUsers.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
-            </select>
+              onChange={setFilterUser}
+              accentColor="blue"
+              options={[
+                { value: 'ALL', label: 'Todos los Usuarios Responsables' },
+                ...distinctUsers.map((u) => ({
+                  value: u,
+                  label: u,
+                })),
+              ]}
+            />
           </div>
         </div>
 

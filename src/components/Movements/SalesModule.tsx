@@ -11,6 +11,7 @@ import {
   isDocRefDuplicate,
 } from '../../services/storage';
 import { ConfirmationModal } from '../ConfirmationModal';
+import { CustomSelect } from '../Common/CustomSelect';
 import {
   ShoppingCart,
   Building2,
@@ -363,20 +364,21 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
               />
             </div>
 
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-slate-400" />
-              <select
+            <div className="flex items-center gap-2 min-w-[200px]">
+              <CustomSelect
                 value={selectedCategoryId}
-                onChange={(e) => setSelectedCategoryId(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="ALL">Todas las Categorías</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.codePrefix})
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedCategoryId}
+                accentColor="blue"
+                icon={<Filter className="w-4 h-4 text-slate-400" />}
+                options={[
+                  { value: 'ALL', label: 'Todas las Categorías' },
+                  ...categories.map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                    badge: c.codePrefix,
+                  })),
+                ]}
+              />
             </div>
           </div>
 

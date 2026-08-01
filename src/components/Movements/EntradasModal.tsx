@@ -13,6 +13,7 @@ import {
 } from '../../services/storage';
 import { ConfirmationModal } from '../ConfirmationModal';
 import { ProductSearchSelect } from './ProductSearchSelect';
+import { CustomSelect } from '../Common/CustomSelect';
 import {
   X,
   ArrowDownLeft,
@@ -616,17 +617,17 @@ export const EntradasModal: React.FC<EntradasModalProps> = ({ isOpen, onClose, c
                           <label className="block text-[11px] font-black text-slate-600 uppercase mb-1">
                             Categoría / Subgrupo
                           </label>
-                          <select
+                          <CustomSelect
                             value={categoryId}
-                            onChange={(e) => setCategoryId(e.target.value)}
-                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-extrabold text-xs text-slate-900"
-                          >
-                            {categories.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name} (Prefijo "{c.codePrefix}")
-                              </option>
-                            ))}
-                          </select>
+                            onChange={setCategoryId}
+                            accentColor="emerald"
+                            options={categories.map((c) => ({
+                              value: c.id,
+                              label: c.name,
+                              badge: c.codePrefix,
+                              sublabel: `Prefijo "${c.codePrefix}"`,
+                            }))}
+                          />
                         </div>
 
                         <div>
@@ -797,15 +798,16 @@ export const EntradasModal: React.FC<EntradasModalProps> = ({ isOpen, onClose, c
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <div>
                             <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Categoría</label>
-                            <select
+                            <CustomSelect
                               value={addCategoryId}
-                              onChange={(e) => setAddCategoryId(e.target.value)}
-                              className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold"
-                            >
-                              {categories.map((c) => (
-                                <option key={c.id} value={c.id}>{c.name} ({c.codePrefix})</option>
-                              ))}
-                            </select>
+                              onChange={setAddCategoryId}
+                              accentColor="emerald"
+                              options={categories.map((c) => ({
+                                value: c.id,
+                                label: c.name,
+                                badge: c.codePrefix,
+                              }))}
+                            />
                           </div>
                           <div>
                             <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 flex items-center justify-between">

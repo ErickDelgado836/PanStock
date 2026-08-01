@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Product, Warehouse, ProductLot, Category } from '../types';
 import { getProducts, getWarehouses, getCategories, saveProducts } from '../services/storage';
 import { ProductSearchSelect } from './Movements/ProductSearchSelect';
+import { CustomSelect } from './Common/CustomSelect';
 import {
   X,
   Calendar,
@@ -308,17 +309,16 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
                 <Building2 className="w-3.5 h-3.5 text-red-600" />
                 1. Seleccionar Almacén
               </label>
-              <select
+              <CustomSelect
                 value={selectedWarehouseId}
-                onChange={(e) => selectProductAndWarehouse(selectedProductId, e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl font-bold text-xs text-slate-900 focus:ring-2 focus:ring-red-500 shadow-xs"
-              >
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.code} - {w.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => selectProductAndWarehouse(selectedProductId, val)}
+                accentColor="rose"
+                options={warehouses.map((w) => ({
+                  value: w.id,
+                  label: w.name,
+                  badge: w.code,
+                }))}
+              />
             </div>
 
             {/* 2. Producto Selector */}

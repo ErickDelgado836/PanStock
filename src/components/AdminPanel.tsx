@@ -63,6 +63,7 @@ import {
 import { ConfirmationModal } from './ConfirmationModal';
 import { AdminProducts } from './AdminProducts';
 import { generateMovementPDF } from '../utils/pdfGenerator';
+import { CustomSelect } from './Common/CustomSelect';
 
 export const AdminPanel: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>(getUsers);
@@ -2451,31 +2452,25 @@ export const AdminPanel: React.FC = () => {
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                                     Acción con existencias:
                                   </label>
-                                  <select
+                                  <CustomSelect
                                     value={relocItem.action}
-                                    onChange={(e) => {
-                                      const val = e.target.value as any;
+                                    onChange={(val) => {
                                       setStockRelocations((prev) =>
                                         prev.map((r) =>
                                           r.productId === relocItem.productId &&
                                           r.sourceWhId === relocItem.sourceWhId
-                                            ? { ...r, action: val }
+                                            ? { ...r, action: val as any }
                                             : r
                                         )
                                       );
                                     }}
-                                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                  >
-                                    <option value="KEEP">
-                                      Mantener existencias en este almacén
-                                    </option>
-                                    <option value="TRANSFER">
-                                      Trasladar existencias a otro almacén
-                                    </option>
-                                    <option value="DISCHARGE">
-                                      Descargar / Dar de baja existencias
-                                    </option>
-                                  </select>
+                                    accentColor="blue"
+                                    options={[
+                                      { value: 'KEEP', label: 'Mantener existencias en este almacén' },
+                                      { value: 'TRANSFER', label: 'Trasladar existencias a otro almacén' },
+                                      { value: 'DISCHARGE', label: 'Descargar / Dar de baja existencias' },
+                                    ]}
+                                  />
                                 </div>
 
                                 {relocItem.action === 'TRANSFER' && (
@@ -2484,10 +2479,9 @@ export const AdminPanel: React.FC = () => {
                                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                                         Almacén Destino del Traslado:
                                       </label>
-                                      <select
+                                      <CustomSelect
                                         value={relocItem.targetWhId}
-                                        onChange={(e) => {
-                                          const val = e.target.value;
+                                        onChange={(val) => {
                                           setStockRelocations((prev) =>
                                             prev.map((r) =>
                                               r.productId === relocItem.productId &&
@@ -2497,16 +2491,15 @@ export const AdminPanel: React.FC = () => {
                                             )
                                           );
                                         }}
-                                        className="w-full px-2.5 py-1.5 bg-white border border-blue-300 rounded-lg text-xs font-bold text-blue-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                      >
-                                        {warehouses
+                                        accentColor="blue"
+                                        options={warehouses
                                           .filter((w) => w.id !== relocItem.sourceWhId)
-                                          .map((w) => (
-                                            <option key={w.id} value={w.id}>
-                                              {w.id} - {w.name}
-                                            </option>
-                                          ))}
-                                      </select>
+                                          .map((w) => ({
+                                            value: w.id,
+                                            label: w.name,
+                                            badge: w.code,
+                                          }))}
+                                      />
                                     </div>
 
                                     <div className="sm:col-span-2 flex items-center gap-2 bg-blue-50/60 p-2 rounded-lg border border-blue-100">

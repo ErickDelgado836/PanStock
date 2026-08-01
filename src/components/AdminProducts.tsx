@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Category, Warehouse, UnitOfMeasure } from '../types';
 import { getProducts, saveProducts, getCategories, getWarehouses, addMovement } from '../services/storage';
+import { CustomSelect } from './Common/CustomSelect';
 import {
   PackageSearch,
   Plus,
@@ -312,32 +313,32 @@ export const AdminProducts: React.FC = () => {
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                 Categoría
               </label>
-              <select
+              <CustomSelect
                 value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-900 focus:ring-2 focus:ring-red-500 focus:outline-none"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.codePrefix})
-                  </option>
-                ))}
-              </select>
+                onChange={setCategoryId}
+                accentColor="rose"
+                options={categories.map((c) => ({
+                  value: c.id,
+                  label: c.name,
+                  badge: c.codePrefix,
+                }))}
+              />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                 Unidad
               </label>
-              <select
+              <CustomSelect
                 value={unit}
-                onChange={(e) => setUnit(e.target.value as UnitOfMeasure)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-900 focus:ring-2 focus:ring-red-500 focus:outline-none"
-              >
-                <option value="unidades">Unidades (uds)</option>
-                <option value="kg">Kilogramos (kg)</option>
-                <option value="L">Litros (L)</option>
-              </select>
+                onChange={(val) => setUnit(val as UnitOfMeasure)}
+                accentColor="rose"
+                options={[
+                  { value: 'unidades', label: 'Unidades (uds)' },
+                  { value: 'kg', label: 'Kilogramos (kg)' },
+                  { value: 'L', label: 'Litros (L)' },
+                ]}
+              />
             </div>
           </div>
 
@@ -386,19 +387,20 @@ export const AdminProducts: React.FC = () => {
           </div>
 
           <div className="sm:col-span-5 relative">
-            <Filter className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <select
+            <CustomSelect
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full pl-8 pr-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-red-500 focus:outline-none"
-            >
-              <option value="ALL">Todas las Categorías</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.codePrefix})
-                </option>
-              ))}
-            </select>
+              onChange={setCategoryFilter}
+              accentColor="rose"
+              icon={<Filter className="w-3.5 h-3.5 text-slate-400" />}
+              options={[
+                { value: 'ALL', label: 'Todas las Categorías' },
+                ...categories.map((c) => ({
+                  value: c.id,
+                  label: c.name,
+                  badge: c.codePrefix,
+                })),
+              ]}
+            />
           </div>
         </div>
 
@@ -515,32 +517,32 @@ export const AdminProducts: React.FC = () => {
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                     Categoría
                   </label>
-                  <select
+                  <CustomSelect
                     value={editCategoryId}
-                    onChange={(e) => setEditCategoryId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  >
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.codePrefix})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setEditCategoryId}
+                    accentColor="blue"
+                    options={categories.map((c) => ({
+                      value: c.id,
+                      label: c.name,
+                      badge: c.codePrefix,
+                    }))}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                     Unidad de Medida
                   </label>
-                  <select
+                  <CustomSelect
                     value={editUnit}
-                    onChange={(e) => setEditUnit(e.target.value as UnitOfMeasure)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  >
-                    <option value="unidades">Unidades (uds)</option>
-                    <option value="kg">Kilogramos (kg)</option>
-                    <option value="L">Litros (L)</option>
-                  </select>
+                    onChange={(val) => setEditUnit(val as UnitOfMeasure)}
+                    accentColor="blue"
+                    options={[
+                      { value: 'unidades', label: 'Unidades (uds)' },
+                      { value: 'kg', label: 'Kilogramos (kg)' },
+                      { value: 'L', label: 'Litros (L)' },
+                    ]}
+                  />
                 </div>
               </div>
 

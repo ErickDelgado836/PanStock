@@ -11,6 +11,7 @@ import {
 } from '../../services/storage';
 import { ConfirmationModal } from '../ConfirmationModal';
 import { ProductSearchSelect } from './ProductSearchSelect';
+import { CustomSelect } from '../Common/CustomSelect';
 import {
   X,
   ArrowRightLeft,
@@ -410,24 +411,23 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
                     <Building2 className="w-3.5 h-3.5 text-amber-700" />
                     <span>Almacén Origen (Desde)</span>
                   </label>
-                  <select
+                  <CustomSelect
                     value={sourceWhId}
                     disabled={transferMode === 'MULTIPLE' && multiItems.length > 0}
-                    onChange={(e) => {
-                      setSourceWhId(e.target.value);
+                    onChange={(val) => {
+                      setSourceWhId(val);
                       setSelectedProductId('');
                       setAddSelectedProdId('');
                       setMultiItems([]);
                       setErrorMsg('');
                     }}
-                    className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl font-black text-xs text-slate-900 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
-                  >
-                    {warehouses.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.code} - {w.name}
-                      </option>
-                    ))}
-                  </select>
+                    accentColor="amber"
+                    options={warehouses.map((w) => ({
+                      value: w.id,
+                      label: w.name,
+                      badge: w.code,
+                    }))}
+                  />
                 </div>
 
                 <div>
@@ -435,21 +435,20 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
                     <Building2 className="w-3.5 h-3.5 text-amber-700" />
                     <span>Almacén Destino (Hacia)</span>
                   </label>
-                  <select
+                  <CustomSelect
                     value={targetWhId}
                     disabled={transferMode === 'MULTIPLE' && multiItems.length > 0}
-                    onChange={(e) => {
-                      setTargetWhId(e.target.value);
+                    onChange={(val) => {
+                      setTargetWhId(val);
                       setErrorMsg('');
                     }}
-                    className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl font-black text-xs text-slate-900 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
-                  >
-                    {getWarehouses().map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.code} - {w.name}
-                      </option>
-                    ))}
-                  </select>
+                    accentColor="amber"
+                    options={warehouses.map((w) => ({
+                      value: w.id,
+                      label: w.name,
+                      badge: w.code,
+                    }))}
+                  />
                 </div>
               </div>
 

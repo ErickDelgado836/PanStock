@@ -3,6 +3,7 @@ import { Product, Warehouse } from '../types';
 import { getProducts, getWarehouses, saveProducts, subscribeToStorage } from '../services/storage';
 import { LotManagementModal } from './LotManagementModal';
 import { ConfirmationModal } from './ConfirmationModal';
+import { CustomSelect } from './Common/CustomSelect';
 import {
   AlertTriangle,
   ShieldCheck,
@@ -238,21 +239,21 @@ export const ExpiryAlerts: React.FC = () => {
         {/* Row 1: Warehouse selector & Search */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           {/* Warehouse Selector */}
-          <div className="flex items-center gap-2 flex-1">
-            <Building2 className="w-5 h-5 text-red-600 shrink-0" />
-            <span className="text-xs font-extrabold text-slate-700 uppercase shrink-0">Almacén:</span>
-            <select
+          <div className="flex items-center gap-2 flex-1 min-w-[220px]">
+            <CustomSelect
               value={filterWarehouseId}
-              onChange={(e) => setFilterWarehouseId(e.target.value)}
-              className="w-full max-w-md px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-xs text-slate-900 focus:ring-2 focus:ring-red-500"
-            >
-              <option value="ALL">🏢 Todos los Almacenes ({warehouses.length})</option>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.code} - {w.name}
-                </option>
-              ))}
-            </select>
+              onChange={setFilterWarehouseId}
+              accentColor="rose"
+              icon={<Building2 className="w-4 h-4 text-red-600" />}
+              options={[
+                { value: 'ALL', label: `Todos los Almacenes (${warehouses.length})` },
+                ...warehouses.map((w) => ({
+                  value: w.id,
+                  label: w.name,
+                  badge: w.code,
+                })),
+              ]}
+            />
           </div>
 
           {/* Search Box */}

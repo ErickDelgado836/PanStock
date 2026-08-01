@@ -8,6 +8,7 @@ import {
   subscribeToStorage,
 } from '../services/storage';
 import { generateAuditReportPDF } from '../utils/pdfGenerator';
+import { CustomSelect } from './Common/CustomSelect';
 import {
   ClipboardCheck,
   Search,
@@ -344,18 +345,19 @@ export const PhysicalAuditReport: React.FC = () => {
             <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">
               Almacén
             </label>
-            <select
+            <CustomSelect
               value={selectedWarehouseId}
-              onChange={(e) => setSelectedWarehouseId(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-extrabold text-slate-800 focus:ring-2 focus:ring-red-500"
-            >
-              <option value="ALL">🏢 Todos los Almacenes</option>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  [{w.code}] {w.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedWarehouseId}
+              accentColor="rose"
+              options={[
+                { value: 'ALL', label: 'Todos los Almacenes' },
+                ...warehouses.map((w) => ({
+                  value: w.id,
+                  label: w.name,
+                  badge: w.code,
+                })),
+              ]}
+            />
           </div>
 
           {/* Subgroup / Category Filter */}
@@ -363,18 +365,19 @@ export const PhysicalAuditReport: React.FC = () => {
             <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">
               Subgrupo / Categoría
             </label>
-            <select
+            <CustomSelect
               value={selectedCategoryId}
-              onChange={(e) => setSelectedCategoryId(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-extrabold text-slate-800 focus:ring-2 focus:ring-red-500"
-            >
-              <option value="ALL">🏷️ Todas las Categorías</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  [{c.codePrefix}] {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedCategoryId}
+              accentColor="rose"
+              options={[
+                { value: 'ALL', label: 'Todas las Categorías' },
+                ...categories.map((c) => ({
+                  value: c.id,
+                  label: c.name,
+                  badge: c.codePrefix,
+                })),
+              ]}
+            />
           </div>
 
           {/* Audit Status Filter */}
@@ -382,17 +385,18 @@ export const PhysicalAuditReport: React.FC = () => {
             <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">
               Estado Auditoría
             </label>
-            <select
+            <CustomSelect
               value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-extrabold text-slate-800 focus:ring-2 focus:ring-red-500"
-            >
-              <option value="ALL">📋 Todos los Estados</option>
-              <option value="PENDING">⏳ Sin Hacer Inventario (Sin Conteo)</option>
-              <option value="CORRECT">✔️ Correcto (Sin Diferencia)</option>
-              <option value="MISSING">🔻 Con Faltante (-)</option>
-              <option value="SURPLUS">🔺 Con Sobrante (+)</option>
-            </select>
+              onChange={setSelectedStatus}
+              accentColor="rose"
+              options={[
+                { value: 'ALL', label: 'Todos los Estados' },
+                { value: 'PENDING', label: 'Sin Conteo (Pendiente)' },
+                { value: 'CORRECT', label: 'Correcto (Sin Diferencia)' },
+                { value: 'MISSING', label: 'Con Faltante (-)' },
+                { value: 'SURPLUS', label: 'Con Sobrante (+)' },
+              ]}
+            />
           </div>
 
           {/* Search Bar */}
