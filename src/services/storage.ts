@@ -14,6 +14,24 @@ import {
   INITIAL_MOVEMENTS,
   INITIAL_PRODUCTS,
 } from '../data/seedData';
+import {
+  isSupabaseConfigured,
+  fetchUsersFromSupabase,
+  saveUserToSupabase,
+  deleteUserFromSupabase,
+  fetchWarehousesFromSupabase,
+  saveWarehousesToSupabase,
+  fetchCategoriesFromSupabase,
+  saveCategoryToSupabase,
+  deleteCategoryFromSupabase,
+  fetchProductsFromSupabase,
+  saveProductsToSupabase,
+  deleteProductFromSupabase,
+  fetchMovementsFromSupabase,
+  saveMovementToSupabase,
+  fetchAuditsFromSupabase,
+  saveAuditToSupabase,
+} from '../lib/supabase';
 
 const KEYS = {
   USERS: 'panstock_users_v1',
@@ -37,6 +55,141 @@ export function subscribeToStorage(callback: () => void) {
   return () => window.removeEventListener(STORAGE_EVENT, callback);
 }
 
+// Global Supabase Sync status tracker
+export type SupabaseSyncState = 'idle' | 'syncing' | 'connected' | 'error' | 'not_configured';
+
+let currentSyncState: SupabaseSyncState = isSupabaseConfigured ? 'idle' : 'not_configured';
+let lastSyncErrorMessage: string | null = null;
+
+export function getSupabaseSyncStatus() {
+  return {
+    state: currentSyncState,
+    isConfigured: isSupabaseConfigured,
+    errorMessage: lastSyncErrorMessage,
+  };
+}
+
+// Master Async Sync Function to fetch all tables from Supabase
+export async function syncFromSupabase(): Promise<boolean> {
+  if (!isSupabaseConfigured) {
+    currentSyncState = 'not_configured';
+    return false;
+  }
+
+  currentSyncState = 'syncing';
+  notifyStorageChange();
+
+  console.log('[Supabase Sync] 🔄 Initializing real-time sync with Supabase...');
+
+  try {
+    // 1. Fetch Users
+    const remoteUsers = await fetchUsersFromSupabase();
+    if (remoteUsers) {
+      if (remoteUsers.length === 0) {
+        // Seed default admin if empty
+        console.log('[Supabase Sync] Seeding initial admin user to Supabase...');
+        await saveUserToSupabase(DEFAULT_ADMIN_USER);
+        localStorage.setItem(KEYS.USERS, JSON.stringify([DEFAULT_ADMIN_USER]));
+      } else {
+        localStorage.setItem(KEYS.USERS, JSON.stringify(remoteUsers));
+      }
+    }
+
+    // 2. Fetch Warehouses
+    const remoteWarehouses = await fetchWarehousesFromSupabase();
+    if (remoteWarehouses) {
+      if (remoteWarehouses.length === 0) {
+        console.log('[Supabase Sync] Seeding initial warehouses to Supabase...');
+        await saveWarehousesToSupabase(DEFAULT_WAREHOUSES);
+      }
+    }
+
+    // 3. Fetch Categories
+    const remoteCategories = await fetchCategoriesFromSupabase();
+    if (remoteCategories) {
+      if (remoteCategories.length === 0) {
+        console.log('[Supabase Sync] Seeding initial categories to Supabase...');
+        for (const cat of DEFAULT_CATEGORIES) {
+          await saveCategoryToSupabase(cat);
+        }
+        localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(DEFAULT_CATEGORIES));
+      } else {
+        localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(remoteCategories));
+      }
+    }
+
+    // 4. Fetch Products
+    const remoteProducts = await fetchProductsFromSupabase();
+    if (remoteProducts) {
+      if (remoteProducts.length === 0 && INITIAL_PRODUCTS.length > 0) {
+        console.log('[Supabase Sync] Seeding initial products to Supabase...');
+        await saveProductsToSupabase(INITIAL_PRODUCTS);
+        localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
+      } else {
+        localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(remoteProducts));
+      }
+    }
+
+    // 5. Fetch Movements
+    const remoteMovements = await fetchMovementsFromSupabase();
+    if (remoteMovements) {
+      if (remoteMovements.length === 0 && INITIAL_MOVEMENTS.length > 0) {
+        console.log('[Supabase Sync] Seeding initial movements to Supabase...');
+        for (const mov of INITIAL_MOVEMENTS) {
+          await saveMovementToSupabase(mov);
+        }
+        localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(INITIAL_MOVEMENTS));
+      } else {
+        localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(remoteMovements));
+      }
+    }
+
+    // 6. Fetch Audits
+    const remoteAudits = await fetchAuditsFromSupabase();
+    if (remoteAudits) {
+      localStorage.setItem(KEYS.AUDITS, JSON.stringify(remoteAudits));
+    }
+
+    const allFailed =
+      remoteUsers === null &&
+      remoteWarehouses === null &&
+      remoteCategories === null &&
+      remoteProducts === null &&
+      remoteMovements === null &&
+      remoteAudits === null;
+
+    if (allFailed) {
+      currentSyncState = 'error';
+      lastSyncErrorMessage =
+        'Las tablas aún no existen en tu proyecto de Supabase. Por favor abre el panel "Supabase SQL" y ejecuta el script de instalación.';
+      console.warn(
+        '[Supabase Sync] ⚠️ Supabase tables not found. Operating in local mode until SQL script is executed.'
+      );
+      notifyStorageChange();
+      return false;
+    }
+
+    currentSyncState = 'connected';
+    lastSyncErrorMessage = null;
+    console.log('[Supabase Sync] ✅ All tables successfully synced with Supabase!');
+    notifyStorageChange();
+    return true;
+  } catch (err: any) {
+    currentSyncState = 'error';
+    lastSyncErrorMessage = err?.message || 'Error al conectar con Supabase';
+    console.warn('[Supabase Sync] ⚠️ Error syncing data from Supabase:', err);
+    notifyStorageChange();
+    return false;
+  }
+}
+
+// Auto-trigger sync on module load if Supabase is configured
+if (typeof window !== 'undefined' && isSupabaseConfigured) {
+  setTimeout(() => {
+    syncFromSupabase();
+  }, 100);
+}
+
 // Warehouses
 export function getWarehouses(): Warehouse[] {
   return DEFAULT_WAREHOUSES;
@@ -56,6 +209,13 @@ export function getUsers(): UserProfile[] {
 export function saveUsers(users: UserProfile[]) {
   localStorage.setItem(KEYS.USERS, JSON.stringify(users));
   notifyStorageChange();
+
+  // Async push to Supabase
+  if (isSupabaseConfigured) {
+    users.forEach((u) => {
+      saveUserToSupabase(u).catch((err) => console.error('[Supabase Push Error]', err));
+    });
+  }
 }
 
 export function getCurrentUser(): UserProfile | null {
@@ -73,6 +233,15 @@ export function setCurrentUser(user: UserProfile | null) {
   notifyStorageChange();
 }
 
+export function deleteUser(username: string) {
+  const users = getUsers().filter((u) => u.username !== username);
+  saveUsers(users);
+
+  if (isSupabaseConfigured) {
+    deleteUserFromSupabase(username).catch((err) => console.error('[Supabase Delete User Error]', err));
+  }
+}
+
 // Categories
 export function getCategories(): Category[] {
   const data = localStorage.getItem(KEYS.CATEGORIES);
@@ -88,17 +257,31 @@ export function addCategory(category: Category) {
   categories.push(category);
   localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(categories));
   notifyStorageChange();
+
+  if (isSupabaseConfigured) {
+    saveCategoryToSupabase(category).catch((err) => console.error('[Supabase Add Category Error]', err));
+  }
 }
 
 export function saveCategories(categories: Category[]) {
   localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(categories));
   notifyStorageChange();
+
+  if (isSupabaseConfigured) {
+    categories.forEach((cat) => {
+      saveCategoryToSupabase(cat).catch((err) => console.error('[Supabase Save Category Error]', err));
+    });
+  }
 }
 
 export function deleteCategory(id: string) {
   const categories = getCategories().filter((c) => c.id !== id);
   localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(categories));
   notifyStorageChange();
+
+  if (isSupabaseConfigured) {
+    deleteCategoryFromSupabase(id).catch((err) => console.error('[Supabase Delete Category Error]', err));
+  }
 }
 
 // Products
@@ -114,12 +297,26 @@ export function getProducts(): Product[] {
 export function saveProducts(products: Product[]) {
   localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
   notifyStorageChange();
+
+  if (isSupabaseConfigured) {
+    saveProductsToSupabase(products).catch((err) => console.error('[Supabase Save Products Error]', err));
+  }
 }
 
 export function addProduct(product: Product) {
   const products = getProducts();
   products.push(product);
   saveProducts(products);
+}
+
+export function deleteProduct(id: string) {
+  const products = getProducts().filter((p) => p.id !== id);
+  localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
+  notifyStorageChange();
+
+  if (isSupabaseConfigured) {
+    deleteProductFromSupabase(id).catch((err) => console.error('[Supabase Delete Product Error]', err));
+  }
 }
 
 // Movements
@@ -140,7 +337,12 @@ export function saveMovements(movements: MovementRecord[]) {
 export function addMovement(movement: MovementRecord) {
   const movements = getMovements();
   movements.unshift(movement); // Newest first
-  saveMovements(movements);
+  localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(movements));
+  notifyStorageChange();
+
+  if (isSupabaseConfigured) {
+    saveMovementToSupabase(movement).catch((err) => console.error('[Supabase Add Movement Error]', err));
+  }
 }
 
 // Physical Audits
@@ -161,6 +363,10 @@ export function addPhysicalAudit(audit: PhysicalAuditRecord) {
   localStorage.setItem(KEYS.LAST_AUDITS, JSON.stringify(lastAudits));
 
   notifyStorageChange();
+
+  if (isSupabaseConfigured) {
+    saveAuditToSupabase(audit).catch((err) => console.error('[Supabase Add Audit Error]', err));
+  }
 }
 
 export function getLastAuditsMap(): WarehouseCategoryLastAudit {
