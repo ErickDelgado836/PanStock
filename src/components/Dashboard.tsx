@@ -73,8 +73,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <Sector
           cx={cx}
           cy={cy}
-          innerRadius={innerRadius - 6}
-          outerRadius={outerRadius + 20}
+          innerRadius={innerRadius - 4}
+          outerRadius={outerRadius + 12}
           startAngle={startAngle}
           endAngle={endAngle}
           fill={fill}
@@ -85,7 +85,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           cx={cx}
           cy={cy}
           innerRadius={innerRadius - 2}
-          outerRadius={outerRadius + 14}
+          outerRadius={outerRadius + 8}
           startAngle={startAngle}
           endAngle={endAngle}
           fill={fill}
@@ -96,18 +96,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
           cx={cx}
           cy={cy}
           innerRadius={innerRadius - 2}
-          outerRadius={outerRadius + 12}
+          outerRadius={outerRadius + 6}
           startAngle={startAngle}
           endAngle={endAngle}
           fill={fill}
           stroke="#ffffff"
-          strokeWidth={3.5}
+          strokeWidth={3}
         />
         {/* Bevel Highlight Top Arc */}
         <Sector
           cx={cx}
           cy={cy}
-          innerRadius={innerRadius - 8}
+          innerRadius={innerRadius - 6}
           outerRadius={innerRadius - 2}
           startAngle={startAngle}
           endAngle={endAngle}
@@ -318,41 +318,41 @@ export const Dashboard: React.FC<DashboardProps> = ({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="lg:col-span-5 relative bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col items-center justify-center overflow-hidden h-[360px] sm:h-[390px]"
+            className="lg:col-span-5 relative bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-slate-100 flex flex-col items-center justify-center overflow-hidden h-[340px] sm:h-[380px]"
           >
             {/* Center Donut Badge - Exactly Aligned to Center (50%, 50%) */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10">
               <div
-                className={`w-36 h-36 sm:w-40 sm:h-40 rounded-full bg-white/95 backdrop-blur-md border border-slate-100 shadow-xl flex flex-col items-center justify-center p-3 text-center transition-all duration-300 ${
+                className={`w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-white/95 backdrop-blur-md border border-slate-100 shadow-xl flex flex-col items-center justify-center p-2 sm:p-3 text-center transition-all duration-300 ${
                   activePieIndex !== null
-                    ? 'scale-105 shadow-2xl border-amber-300 ring-8 ring-amber-500/10'
+                    ? 'scale-105 shadow-2xl border-amber-300 ring-6 ring-amber-500/10'
                     : 'shadow-md ring-4 ring-slate-50'
                 }`}
               >
                 {activePieIndex !== null && warehouseDistribution[activePieIndex] ? (
-                  <div className="space-y-1 animate-fadeIn">
+                  <div className="space-y-0.5 animate-fadeIn">
                     <span className="text-[10px] sm:text-[11px] font-black uppercase block tracking-wider font-mono text-amber-700">
                       {warehouseDistribution[activePieIndex].code}
                     </span>
-                    <span className="text-2xl sm:text-3xl font-black text-slate-900 block leading-none font-mono tracking-tight">
+                    <span className="text-xl sm:text-2xl font-black text-slate-900 block leading-none font-mono tracking-tight">
                       {warehouseDistribution[activePieIndex].percentage}%
                     </span>
-                    <span className="text-xs font-extrabold text-slate-600 block leading-tight truncate max-w-[100px] sm:max-w-[120px] mx-auto">
+                    <span className="text-[11px] font-extrabold text-slate-600 block leading-tight truncate max-w-[95px] sm:max-w-[110px] mx-auto">
                       {warehouseDistribution[activePieIndex].totalUnits.toLocaleString()} u.
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400 block truncate max-w-[110px] mx-auto">
+                    <span className="text-[9px] font-bold text-slate-400 block truncate max-w-[100px] mx-auto">
                       {warehouseDistribution[activePieIndex].name}
                     </span>
                   </div>
                 ) : (
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-black uppercase text-slate-400 block tracking-wider">
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase text-slate-400 block tracking-wider">
                       Total Inventario
                     </span>
-                    <span className="text-lg sm:text-2xl font-black text-slate-900 block leading-none font-mono">
+                    <span className="text-base sm:text-xl font-black text-slate-900 block leading-none font-mono">
                       {grandTotalUnits.toLocaleString()}
                     </span>
-                    <span className="text-[11px] font-extrabold text-amber-600 block">
+                    <span className="text-[10px] sm:text-[11px] font-extrabold text-amber-600 block">
                       10 Depósitos
                     </span>
                   </div>
@@ -368,8 +368,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     data={warehouseDistribution}
                     cx="50%"
                     cy="50%"
-                    innerRadius={82}
-                    outerRadius={122}
+                    innerRadius={68}
+                    outerRadius={102}
                     paddingAngle={3.5}
                     dataKey="totalUnits"
                     nameKey="name"
@@ -381,6 +381,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     activeShape={renderCustom3DShape}
                     onMouseEnter={(_, index) => setActivePieIndex(index)}
                     onMouseLeave={() => setActivePieIndex(null)}
+                    onClick={(_, index) => setActivePieIndex(activePieIndex === index ? null : index)}
                   >
                     {warehouseDistribution.map((entry, index) => (
                       <Cell
@@ -388,7 +389,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         fill={entry.color}
                         stroke="#ffffff"
                         strokeWidth={2.5}
-                        className="transition-all duration-300 cursor-pointer hover:opacity-90"
+                        className="transition-all duration-300 cursor-pointer hover:opacity-90 active:opacity-80"
                       />
                     ))}
                   </Pie>
@@ -406,6 +407,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   key={w.code}
                   onMouseEnter={() => setActivePieIndex(index)}
                   onMouseLeave={() => setActivePieIndex(null)}
+                  onClick={() => setActivePieIndex(activePieIndex === index ? null : index)}
                   className={`p-2.5 rounded-2xl transition-all duration-200 cursor-pointer ${
                     isActive
                       ? 'bg-amber-500/10 border border-amber-300 shadow-md translate-x-1.5 scale-[1.01]'
