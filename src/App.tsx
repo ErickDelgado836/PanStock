@@ -6,6 +6,7 @@ import {
   setCurrentUser,
   getWarehouses,
   subscribeToStorage,
+  syncFromSupabase,
 } from './services/storage';
 import { Header } from './components/Header';
 import { LoginModal } from './components/LoginModal';
@@ -24,11 +25,12 @@ import { EntradasModal } from './components/Movements/EntradasModal';
 import { TrasladosModal } from './components/Movements/TrasladosModal';
 import { DescargosModal } from './components/Movements/DescargosModal';
 
-import { Building2, Plus, ArrowRightLeft, ArrowUpRight, Shield, Layers } from 'lucide-react';
+import { Building2, Plus, ArrowRightLeft, ArrowUpRight, Shield, Layers, RefreshCw } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setLocalUser] = useState<UserProfile | null>(getCurrentUser());
   const [activeTab, setActiveTab] = useState<string>('INICIO');
+  const [isSyncing, setSyncing] = useState(false);
 
   // Selected warehouse when on ALMACENES tab
   const [warehouses, setWarehouses] = useState<Warehouse[]>(getWarehouses());
@@ -54,6 +56,18 @@ export default function App() {
     });
     return unsub;
   }, []);
+
+  // Background sync every 20 seconds
+  useEffect(() => {
+    if (currentUser) {
+      const syncInterval = setInterval(() => {
+        if (navigator.onLine) {
+          syncFromSupabase().catch((err) => console.error('[Background Sync Error]', err));
+        }
+      }, 20000);
+      return () => clearInterval(syncInterval);
+    }
+  }, [currentUser]);
 
   // Ensure non-admin users are automatically redirected to INICIO if they land on ADMIN tab
   useEffect(() => {
@@ -178,13 +192,33 @@ export default function App() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+          <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono flex-wrap">
             <span>Usuario Activo: <strong className="text-white">{currentUser.username}</strong></span>
             <span className="relative flex h-2.5 w-2.5 items-center justify-center mx-0.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-xs shadow-emerald-500/50"></span>
             </span>
-            <span className="text-emerald-400 font-bold tracking-wider">ONLINE</span>
+            <span className="text-emerald-400 font-bold tracking-wider mr-1">ONLINE</span>
+
+            <button
+              onClick={async () => {
+                if (isSyncing) return;
+                setSyncing(true);
+                try {
+                  await syncFromSupabase();
+                } catch (e) {
+                  console.error('Manual sync failed:', e);
+                } finally {
+                  setSyncing(false);
+                }
+              }}
+              disabled={isSyncing}
+              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 active:bg-slate-650 text-slate-200 border border-slate-700 rounded-lg font-bold text-[10px] flex items-center gap-1.5 transition-all select-none disabled:opacity-50"
+              title="Sincronizar datos con la nube de Supabase"
+            >
+              <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin text-amber-400' : 'text-slate-400'}`} />
+              <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar'}</span>
+            </button>
           </div>
         </div>
       </div>

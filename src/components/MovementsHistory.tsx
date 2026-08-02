@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MovementRecord, Warehouse } from '../types';
-import { getMovements, getWarehouses, subscribeToStorage } from '../services/storage';
+import { getMovements, getWarehouses, subscribeToStorage, syncFromSupabase } from '../services/storage';
 import { matchesMovementSearch, parseAnyDate } from '../utils/movementSearch';
 import { NotePDFModal } from './NotePDFModal';
 import { generateMovementPDF } from '../utils/pdfGenerator';
@@ -35,12 +35,14 @@ import {
   CalendarRange,
   X,
   SlidersHorizontal,
+  RefreshCw,
 } from 'lucide-react';
 
 export const MovementsHistory: React.FC = () => {
   const [subTab, setSubTab] = useState<'AUDIT_REPORT' | 'MOVEMENTS_LOG'>('AUDIT_REPORT');
   const [movements, setMovements] = useState<MovementRecord[]>(getMovements);
   const [warehouses, setWarehouses] = useState<Warehouse[]>(getWarehouses);
+  const [isSyncing, setSyncing] = useState(false);
   
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -247,6 +249,25 @@ export const MovementsHistory: React.FC = () => {
                 Consulte, visualice o descargue en PDF las Notas de Entrega, Ingresos, Descargos y Ventas de la empresa.
               </p>
             </div>
+
+            <button
+              onClick={async () => {
+                if (isSyncing) return;
+                setSyncing(true);
+                try {
+                  await syncFromSupabase();
+                } catch (e) {
+                  console.error('Manual sync failed:', e);
+                } finally {
+                  setSyncing(false);
+                }
+              }}
+              disabled={isSyncing}
+              className="px-4 py-2.5 bg-white/10 hover:bg-white/15 active:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 select-none"
+            >
+              <RefreshCw className={`w-4 h-4 text-red-400 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span>{isSyncing ? 'Sincronizando...' : 'Actualizar Historial'}</span>
+            </button>
           </div>
 
       {/* Professional Advanced Toolbar & Filters for Movements */}

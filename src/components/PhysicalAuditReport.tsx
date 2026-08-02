@@ -6,6 +6,7 @@ import {
   getCategories,
   getPhysicalAudits,
   subscribeToStorage,
+  syncFromSupabase,
 } from '../services/storage';
 import { generateAuditReportPDF } from '../utils/pdfGenerator';
 import { CustomSelect } from './Common/CustomSelect';
@@ -28,6 +29,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  RefreshCw,
 } from 'lucide-react';
 
 export const PhysicalAuditReport: React.FC = () => {
@@ -35,6 +37,7 @@ export const PhysicalAuditReport: React.FC = () => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [audits, setAudits] = useState<PhysicalAuditRecord[]>([]);
+  const [isSyncing, setSyncing] = useState(false);
 
   // Filter States
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('ALL');
@@ -269,13 +272,34 @@ export const PhysicalAuditReport: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={handleExportPDF}
-          className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all shrink-0 active:scale-95"
-        >
-          <Download className="w-4 h-4" />
-          <span>Descargar Reporte PDF</span>
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={async () => {
+              if (isSyncing) return;
+              setSyncing(true);
+              try {
+                await syncFromSupabase();
+              } catch (e) {
+                console.error('Manual sync failed:', e);
+              } finally {
+                setSyncing(false);
+              }
+            }}
+            disabled={isSyncing}
+            className="px-4 py-2.5 bg-white/10 hover:bg-white/15 active:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 select-none"
+          >
+            <RefreshCw className={`w-4 h-4 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Sincronizando...' : 'Actualizar Datos'}</span>
+          </button>
+
+          <button
+            onClick={handleExportPDF}
+            className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all shrink-0 active:scale-95"
+          >
+            <Download className="w-4 h-4" />
+            <span>Descargar Reporte PDF</span>
+          </button>
+        </div>
       </div>
 
       {/* Metric Cards Grid */}

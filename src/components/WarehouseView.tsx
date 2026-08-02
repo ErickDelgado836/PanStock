@@ -337,18 +337,18 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
               ) : (
                 <div className="overflow-x-auto touch-auto scrollbar-none scrollbar-hide">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100/80 text-slate-600 font-extrabold uppercase border-b border-slate-200">
+                    <thead className="bg-slate-100/80 text-slate-600 font-extrabold uppercase border-b border-slate-200 whitespace-nowrap">
                       <tr>
                         <th className="p-3">Código</th>
-                        <th className="p-3">Descripción del Producto</th>
-                        <th className="p-3">Última Actividad / Movimiento</th>
+                        <th className="p-3 min-w-[180px]">Descripción del Producto</th>
+                        <th className="p-3 min-w-[180px]">Última Actividad / Movimiento</th>
                         <th className="p-3 text-center">Fecha Vencimiento</th>
                         <th className="p-3 text-center">Último Conteo Físico Real</th>
                         <th className="p-3 text-right">Existencia Sistema Almacén</th>
                         <th className="p-3 text-right">Existencia Total Sistema</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 whitespace-nowrap">
                       {catProducts.map((prod) => {
                         const whStock = prod.stockByWarehouse[warehouse.id] || 0;
                         const totalStock = calculateTotalStock(prod.stockByWarehouse);
@@ -376,9 +376,9 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
                                 : 'bg-slate-50/40 opacity-75 hover:bg-slate-50'
                             }`}
                           >
-                            <td className="p-3 font-mono font-bold text-slate-900">
+                            <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">
                               <span
-                                className={`px-2 py-0.5 rounded border ${
+                                className={`px-2 py-0.5 rounded border whitespace-nowrap ${
                                   hasStock
                                     ? 'bg-slate-100 text-slate-800 border-slate-200 font-black'
                                     : 'bg-slate-100/60 text-slate-400 border-slate-200/80 font-normal'
@@ -387,30 +387,30 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
                                 {prod.code}
                               </span>
                             </td>
-                            <td className="p-3 font-bold">
+                            <td className="p-3 font-bold max-w-[320px] truncate whitespace-normal">
                               <span className={hasStock ? 'text-slate-900' : 'text-slate-500 font-medium'}>
                                 {prod.name}
                               </span>
                               {!hasStock && (
-                                <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-slate-200/60 text-slate-500 rounded font-normal">
+                                <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-slate-200/60 text-slate-500 rounded font-normal whitespace-nowrap">
                                   Sin stock local
                                 </span>
                               )}
                             </td>
                             <td className="p-3">
                               {lastMov ? (
-                                <div className="space-y-0.5">
-                                  <div className="flex items-center gap-1.5">
+                                <div className="space-y-0.5 whitespace-normal">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
                                     <span
-                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${lastMov.badgeBg}`}
+                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border whitespace-nowrap ${lastMov.badgeBg}`}
                                     >
                                       {lastMov.icon}
                                       <span>{lastMov.typeText}</span>
                                       <span className="font-mono">({lastMov.qtyText})</span>
                                     </span>
                                   </div>
-                                  <div className="text-[10px] text-slate-500 flex items-center gap-2 font-medium">
-                                    <span className="flex items-center gap-1">
+                                  <div className="text-[10px] text-slate-500 flex items-center gap-2 flex-wrap font-medium">
+                                    <span className="flex items-center gap-1 whitespace-nowrap">
                                       <Clock className="w-3 h-3 text-slate-400" />
                                       {lastMov.date}
                                     </span>
@@ -419,49 +419,49 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
                                   </div>
                                 </div>
                               ) : (
-                                <div className="text-[11px] text-slate-400 font-medium italic">
+                                <div className="text-[11px] text-slate-400 font-medium italic whitespace-nowrap">
                                   {prod.entryDate ? `Ingreso General: ${prod.entryDate}` : 'Sin movimientos recientes'}
                                 </div>
                               )}
                             </td>
-                            <td className="p-3 text-center font-medium text-slate-600">
+                            <td className="p-3 text-center font-medium text-slate-600 whitespace-nowrap">
                               {prod.expirationDate ? (
-                                <span className="bg-slate-100 px-2 py-0.5 rounded font-mono">
+                                <span className="bg-slate-100 px-2 py-0.5 rounded font-mono whitespace-nowrap">
                                   {prod.expirationDate}
                                 </span>
                               ) : (
                                 <span className="text-slate-400">N/A</span>
                               )}
                             </td>
-                            <td className="p-3 text-center">
+                            <td className="p-3 text-center whitespace-nowrap">
                               {lastAuditItem ? (
                                 <div className="inline-flex flex-col items-center">
-                                  <span className="font-extrabold text-slate-900 text-xs">
+                                  <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">
                                     {lastAuditItem.physicalStock} {prod.unit}
                                   </span>
                                   {lastAuditItem.difference === 0 ? (
-                                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 rounded border border-emerald-200">
+                                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 rounded border border-emerald-200 whitespace-nowrap">
                                       Correcto
                                     </span>
                                   ) : lastAuditItem.difference < 0 ? (
-                                    <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-1.5 rounded border border-rose-200">
+                                    <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-1.5 rounded border border-rose-200 whitespace-nowrap">
                                       Falta {Math.abs(lastAuditItem.difference)} {prod.unit}
                                     </span>
                                   ) : (
-                                    <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-1.5 rounded border border-teal-200">
+                                    <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-1.5 rounded border border-teal-200 whitespace-nowrap">
                                       Sobra +{lastAuditItem.difference} {prod.unit}
                                     </span>
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-[11px] text-slate-400 italic font-medium">
+                                <span className="text-[11px] text-slate-400 italic font-medium whitespace-nowrap">
                                   Sin conteo
                                 </span>
                               )}
                             </td>
-                            <td className="p-3 text-right">
+                            <td className="p-3 text-right whitespace-nowrap">
                               <span
-                                className={`font-black text-sm px-2.5 py-1 rounded-lg border ${
+                                className={`font-black text-sm px-2.5 py-1 rounded-lg border inline-flex items-center whitespace-nowrap ${
                                   hasStock
                                     ? 'bg-emerald-50 text-emerald-900 border-emerald-300 shadow-2xs'
                                     : 'bg-slate-100 text-slate-400 border-slate-200 font-semibold'
@@ -470,7 +470,7 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
                                 {whStock} {prod.unit}
                               </span>
                             </td>
-                            <td className="p-3 text-right font-black text-slate-700">
+                            <td className="p-3 text-right font-black text-slate-700 whitespace-nowrap">
                               {totalStock} {prod.unit}
                             </td>
                           </tr>
