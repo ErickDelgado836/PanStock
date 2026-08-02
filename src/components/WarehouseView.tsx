@@ -81,13 +81,22 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
     return true;
   });
 
-  // Helper to get products for physical audit (respecting category)
+  // Helper to get products for physical audit (respecting category and active search query)
   const getAuditProductsForCategory = (cat: Category) => {
     const activeCatIds = new Set(categories.map((c) => c.id));
-    if (cat.id === '__ORPHAN__') {
-      return products.filter((p) => !activeCatIds.has(p.categoryId));
+    let baseList =
+      cat.id === '__ORPHAN__'
+        ? products.filter((p) => !activeCatIds.has(p.categoryId))
+        : products.filter((p) => p.categoryId === cat.id);
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      return baseList.filter(
+        (p) => p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q)
+      );
     }
-    return products.filter((p) => p.categoryId === cat.id);
+
+    return baseList;
   };
 
   const handleOpenAudit = (cat: Category) => {

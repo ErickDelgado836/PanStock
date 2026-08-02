@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, Warehouse, Category, UserProfile, PhysicalAuditItem, MovementRecord, MovementItem } from '../types';
-import { addPhysicalAudit, getPhysicalAudits, getProducts, saveProducts, addMovement } from '../services/storage';
+import { Product, Warehouse, Category, UserProfile, PhysicalAuditItem } from '../types';
+import { addPhysicalAudit } from '../services/storage';
 import { ConfirmationModal } from './ConfirmationModal';
-import { X, ClipboardCheck, Check, Plus, Minus, Equal } from 'lucide-react';
+import { X, ClipboardCheck, Check, Plus, Minus, Equal, Search } from 'lucide-react';
 
 interface PhysicalAuditModalProps {
   isOpen: boolean;
@@ -80,93 +80,8 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
       items: auditItems,
     };
 
-    // 1. Process Stock Adjustments
-    const currentProducts = getProducts();
-    const adjustedItemsForMovement: MovementItem[] = [];
-
-    auditItems.forEach((item) => {
-      const p = currentProducts.find((prod) => prod.id === item.productId);
-      if (p) {
-        // Adjust the stock for this warehouse
-        p.stockByWarehouse = p.stockByWarehouse || {};
-        p.stockByWarehouse[warehouse.id] = item.physicalStock;
-
-        // If there's a difference, record it for the movement history and update lots
-        if (item.difference !== 0) {
-          adjustedItemsForMovement.push({
-            productId: item.productId,
-            productCode: item.productCode,
-            productName: item.productName,
-            quantity: item.difference, // store signed value (positive = sobrante, negative = faltante)
-            unit: item.unit,
-          });
-
-          // Adjust lots inside this product for this warehouse
-          const difference = item.difference;
-          p.lots = p.lots || [];
-          const whLots = p.lots.filter((l) => l.warehouseId === warehouse.id);
-
-          if (difference > 0) {
-            // Sobrante: Add to latest expiring lot or create a new lot
-            const sortedWhLots = [...whLots].sort((a, b) => b.expirationDate.localeCompare(a.expirationDate));
-            if (sortedWhLots.length > 0) {
-              sortedWhLots[0].quantity = Number((sortedWhLots[0].quantity + difference).toFixed(3));
-            } else {
-              // Create a default lot for the sobrante
-              const nextYearStr = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-              p.lots.push({
-                id: `lot-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                lotNumber: 'SOBRANTE-AUDIT',
-                expirationDate: p.expirationDate || nextYearStr,
-                quantity: Number(difference.toFixed(3)),
-                warehouseId: warehouse.id,
-                notes: `Sobrante detectado en Auditoría Física del ${auditDateStr}`,
-              });
-            }
-          } else {
-            // Faltante: Deduct from lots starting with the earliest expiration date
-            let toDeduct = Math.abs(difference);
-            const sortedWhLots = [...whLots].sort((a, b) => a.expirationDate.localeCompare(b.expirationDate));
-            for (const lot of sortedWhLots) {
-              if (toDeduct <= 0) break;
-              if (lot.quantity >= toDeduct) {
-                lot.quantity = Number((lot.quantity - toDeduct).toFixed(3));
-                toDeduct = 0;
-              } else {
-                toDeduct = Number((toDeduct - lot.quantity).toFixed(3));
-                lot.quantity = 0;
-              }
-            }
-            // Filter out lots with 0 or negative quantities
-            p.lots = p.lots.filter((l) => l.quantity > 0 || l.warehouseId !== warehouse.id);
-          }
-        }
-      }
-    });
-
-    // 2. Save products (triggers local storage update & Supabase push)
-    saveProducts(currentProducts);
-
-    // 3. Save physical audit record (triggers local storage update & Supabase push)
+    // Save physical audit record (records the verified count and differences)
     addPhysicalAudit(record);
-
-    // 4. Record Movement History if any differences were found
-    if (adjustedItemsForMovement.length > 0) {
-      const auditMovementNum = `AJU-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const movementRecord: MovementRecord = {
-        id: `mov-${Date.now()}`,
-        movementNumber: auditMovementNum,
-        type: 'AJUSTE_INVENTARIO',
-        docRef: record.id, // Audit ID as reference
-        date: auditDateStr,
-        responsibleUser: currentUser.username,
-        sourceWarehouseId: warehouse.id,
-        targetWarehouseId: warehouse.id,
-        notes: `Ajuste automático por conteo físico de Auditoría (Almacén: ${warehouse.code} - ${warehouse.name}, Categoría: ${category.name})`,
-        items: adjustedItemsForMovement,
-      };
-      addMovement(movementRecord);
-    }
 
     setConfirmOpen(false);
     onClose();
