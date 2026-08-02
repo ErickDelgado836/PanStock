@@ -31,6 +31,7 @@ import {
   saveMovementToSupabase,
   fetchAuditsFromSupabase,
   saveAuditToSupabase,
+  registerSupabaseRealtimeCallback,
 } from '../lib/supabase';
 
 const KEYS = {
@@ -189,6 +190,12 @@ if (typeof window !== 'undefined' && checkIsSupabaseConfigured()) {
   setTimeout(() => {
     syncFromSupabase();
   }, 100);
+
+  // Register realtime callback to trigger full sync when any changes are detected
+  registerSupabaseRealtimeCallback((payload) => {
+    console.log('[Supabase Realtime] Change received in storage service, syncing...', payload);
+    syncFromSupabase().catch((err) => console.error('[Supabase Realtime Sync Error]', err));
+  });
 }
 
 // Warehouses

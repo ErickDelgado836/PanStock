@@ -56,6 +56,59 @@ export let supabase = createClient(safeUrl, safeKey, {
   },
 });
 
+// Realtime listeners/callbacks registration
+type RealtimeCallback = (payload: any) => void;
+const realtimeCallbacks: RealtimeCallback[] = [];
+let realtimeChannel: any = null;
+
+export function registerSupabaseRealtimeCallback(callback: RealtimeCallback) {
+  realtimeCallbacks.push(callback);
+  return () => {
+    const idx = realtimeCallbacks.indexOf(callback);
+    if (idx !== -1) realtimeCallbacks.splice(idx, 1);
+  };
+}
+
+export function setupRealtimeSubscription() {
+  if (!isSupabaseConfigured) {
+    if (realtimeChannel) {
+      realtimeChannel.unsubscribe();
+      realtimeChannel = null;
+    }
+    return;
+  }
+
+  if (realtimeChannel) {
+    realtimeChannel.unsubscribe();
+    realtimeChannel = null;
+  }
+
+  console.log('[Supabase Realtime] 🔌 Connecting to Postgres Changes realtime channel...');
+  
+  realtimeChannel = supabase
+    .channel('public_db_changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+      },
+      (payload: any) => {
+        console.log('[Supabase Realtime] ⚡ Change detected in database:', payload.table, payload.eventType);
+        realtimeCallbacks.forEach((cb) => {
+          try {
+            cb(payload);
+          } catch (e) {
+            console.error('[Supabase Realtime Callback Error]', e);
+          }
+        });
+      }
+    )
+    .subscribe((status, err) => {
+      console.log('[Supabase Realtime] Channel subscription status:', status, err ? err : '');
+    });
+}
+
 export function updateSupabaseClient(url: string, key: string) {
   const cleanedUrl = cleanSupabaseUrl(url);
   const cleanedKey = key.trim();
@@ -84,8 +137,10 @@ export function updateSupabaseClient(url: string, key: string) {
 
   if (isSupabaseConfigured) {
     console.log('[Supabase Configuration] Client re-initialized with URL:', activeUrl);
+    setupRealtimeSubscription();
   } else {
     console.warn('[Supabase Configuration] Client reset to Local Sync mode.');
+    setupRealtimeSubscription();
   }
 }
 
@@ -95,6 +150,9 @@ if (!isSupabaseConfigured) {
   );
 } else {
   console.log('[Supabase Configuration] Supabase credentials loaded successfully:', initialCreds.url);
+  setTimeout(() => {
+    setupRealtimeSubscription();
+  }, 500);
 }
 
 // Helper for logging execution results cleanly without throwing unhandled console errors
