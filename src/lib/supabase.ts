@@ -8,6 +8,15 @@ import {
   Warehouse,
 } from '../types';
 
+// Helper to clean Supabase URL (strips trailing slashes and /rest/v1)
+export function cleanSupabaseUrl(url: string): string {
+  if (!url) return '';
+  let cleaned = url.trim();
+  cleaned = cleaned.replace(/\/rest\/v1\/?$/i, '');
+  cleaned = cleaned.replace(/\/+$/, '');
+  return cleaned;
+}
+
 // Helper to resolve Supabase credentials from localStorage or Vite env
 export function getSupabaseCredentials(): { url: string; key: string } {
   const localUrl = typeof window !== 'undefined' ? localStorage.getItem('panstock_supabase_url') || '' : '';
@@ -18,8 +27,8 @@ export function getSupabaseCredentials(): { url: string; key: string } {
   const envKey = env.VITE_SUPABASE_ANON_KEY || '';
 
   return {
-    url: localUrl || envUrl,
-    key: localKey || envKey,
+    url: cleanSupabaseUrl(localUrl || envUrl),
+    key: (localKey || envKey).trim(),
   };
 }
 
@@ -48,10 +57,13 @@ export let supabase = createClient(safeUrl, safeKey, {
 });
 
 export function updateSupabaseClient(url: string, key: string) {
+  const cleanedUrl = cleanSupabaseUrl(url);
+  const cleanedKey = key.trim();
+
   if (typeof window !== 'undefined') {
-    if (url && key) {
-      localStorage.setItem('panstock_supabase_url', url.trim());
-      localStorage.setItem('panstock_supabase_anon_key', key.trim());
+    if (cleanedUrl && cleanedKey) {
+      localStorage.setItem('panstock_supabase_url', cleanedUrl);
+      localStorage.setItem('panstock_supabase_anon_key', cleanedKey);
     } else {
       localStorage.removeItem('panstock_supabase_url');
       localStorage.removeItem('panstock_supabase_anon_key');
