@@ -27,27 +27,14 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      const allAudits = getPhysicalAudits();
-
       const initial: { [key: string]: number | string } = {};
       products.forEach((p) => {
         const sysStock = p.stockByWarehouse[warehouse.id] || 0;
-        let lastItem = null;
-        for (const a of allAudits) {
-          if (a.warehouseId === warehouse.id) {
-            const found = a.items.find((i) => i.productId === p.id);
-            if (found) {
-              lastItem = found;
-              break;
-            }
-          }
-        }
-        // If an audit was already recorded previously, load its physical stock; otherwise default to system stock
-        initial[p.id] = lastItem ? lastItem.physicalStock : sysStock;
+        initial[p.id] = sysStock;
       });
       setPhysicalCounts(initial);
     }
-  }, [isOpen, products, warehouse]);
+  }, [isOpen, warehouse.id, category.id]);
 
   const handlePhysicalChange = (productId: string, rawVal: string) => {
     const val = rawVal.replace(',', '.');

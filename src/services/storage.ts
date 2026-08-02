@@ -174,7 +174,28 @@ export async function syncFromSupabase(): Promise<boolean> {
     // 6. Fetch Audits
     const remoteAudits = await fetchAuditsFromSupabase();
     if (remoteAudits) {
-      localStorage.setItem(KEYS.AUDITS, JSON.stringify(remoteAudits));
+      // Merge remote audits with any locally created audits not yet on server
+      const localData = localStorage.getItem(KEYS.AUDITS);
+      const localAudits: PhysicalAuditRecord[] = localData ? JSON.parse(localData) : [];
+      const mergedMap = new Map<string, PhysicalAuditRecord>();
+
+      // Remote audits first
+      remoteAudits.forEach((a) => mergedMap.set(a.id, a));
+      // Local audits if missing in remote
+      localAudits.forEach((a) => {
+        if (!mergedMap.has(a.id)) {
+          mergedMap.set(a.id, a);
+          saveAuditToSupabase(a).catch(() => {});
+        }
+      });
+
+      const sortedAudits = Array.from(mergedMap.values()).sort((a, b) => {
+        const dateA = parseAnyDate(a.date)?.getTime() || 0;
+        const dateB = parseAnyDate(b.date)?.getTime() || 0;
+        return dateB - dateA;
+      });
+
+      localStorage.setItem(KEYS.AUDITS, JSON.stringify(sortedAudits));
     }
 
     const allFailed =
@@ -456,7 +477,11 @@ export function addPhysicalAudit(audit: PhysicalAuditRecord) {
   notifyStorageChange();
 
   if (checkIsSupabaseConfigured()) {
-    saveAuditToSupabase(audit).catch((err) => console.error('[Supabase Add Audit Error]', err));
+    saveAuditToSupabase(audit)
+      .then(() => {
+        syncFromSupabase();
+      })
+      .catch((err) => console.error('[Supabase Add Audit Error]', err));
   }
 }
 
