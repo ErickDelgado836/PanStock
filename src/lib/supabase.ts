@@ -626,11 +626,11 @@ CREATE POLICY "Anon Full Access Auditorias" ON public.auditorias FOR ALL USING (
 INSERT INTO public.usuarios (username, password, role_name, is_admin, permissions)
 VALUES (
   'admin',
-  'admin123',
-  'SuperAdministrador',
+  '192021',
+  'Administrador General',
   true,
   '{"canEntries": true, "canExits": true, "canTransfers": true, "canExpiry": true, "canSales": true, "canPhysicalInventory": true, "allowedWarehouses": ["00", "01", "02", "002", "03", "09", "05", "06", "07", "08"]}'
-) ON CONFLICT (username) DO NOTHING;
+) ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password;
 
 INSERT INTO public.almacenes (id, code, name, description, is_main_entry, is_sales_warehouse) VALUES
 ('00', '00', 'Entrada Principal - Recepción Global', 'Almacén principal donde se recepciona toda la materia prima e insumos.', true, false),

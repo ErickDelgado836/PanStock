@@ -877,7 +877,7 @@ export const AdminPanel: React.FC = () => {
         </div>
 
         {/* Tab Switchers */}
-        <div className="flex flex-wrap overflow-x-auto scrollbar-none scrollbar-hide touch-pan-x bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/80 gap-1">
+        <div className="flex flex-wrap overflow-x-auto scrollbar-none scrollbar-hide touch-auto bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/80 gap-1">
           <button
             onClick={() => setActiveTab('USERS')}
             className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${

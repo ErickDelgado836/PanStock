@@ -271,7 +271,7 @@ export const ExpiryAlerts: React.FC = () => {
 
         {/* Row 2: Status Filter Tabs */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-slate-100 pt-3">
-          <div className="flex bg-slate-100 p-1 rounded-xl gap-1 overflow-x-auto touch-pan-x max-w-full w-full sm:w-auto">
+          <div className="flex bg-slate-100 p-1 rounded-xl gap-1 overflow-x-auto touch-auto max-w-full w-full sm:w-auto">
             <button
               onClick={() => setFilterStatus('ALL')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${

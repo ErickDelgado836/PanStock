@@ -135,7 +135,7 @@ export default function App() {
 
       {/* Secondary Quick Access Bar */}
       <div className="bg-slate-900 text-white border-b border-slate-800 px-4 py-2 text-xs font-bold flex flex-wrap items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none scrollbar-hide touch-pan-x py-1">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none scrollbar-hide touch-auto py-1">
           <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">
             Accesos Rápidos:
           </span>
@@ -218,7 +218,7 @@ export default function App() {
               className="max-w-7xl mx-auto px-4 py-8 space-y-6"
             >
               {/* Warehouse Switcher Horizontal Tabs */}
-              <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto scrollbar-none scrollbar-hide touch-pan-x flex gap-2">
+              <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto scrollbar-none scrollbar-hide touch-auto flex gap-2">
                 {warehouses
                   .filter((w) => currentUser.permissions.allowedWarehouses.includes(w.id))
                   .map((w) => (

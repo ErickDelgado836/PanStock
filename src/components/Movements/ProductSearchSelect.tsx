@@ -175,7 +175,7 @@ export const ProductSearchSelect: React.FC<ProductSearchSelectProps> = ({
                   categoryScrollRef.current.scrollLeft += e.deltaY;
                 }
               }}
-              className="flex items-center gap-1.5 overflow-x-auto touch-pan-x py-0.5 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 flex-1"
+              className="flex items-center gap-1.5 overflow-x-auto touch-auto py-0.5 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 flex-1"
               style={{ scrollbarWidth: 'thin' }}
             >
               <button

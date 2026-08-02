@@ -135,7 +135,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="bg-slate-50 border-t border-slate-200 px-4 overflow-x-auto scrollbar-none scrollbar-hide touch-pan-x">
+        <div className="bg-slate-50 border-t border-slate-200 px-4 overflow-x-auto scrollbar-none scrollbar-hide touch-auto">
           <div className="max-w-7xl mx-auto flex gap-1 py-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;

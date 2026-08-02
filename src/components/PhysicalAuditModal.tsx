@@ -141,7 +141,7 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
                 Ingrese la cifra real observada en el conteo físico. El sistema calculará automáticamente las diferencias (Faltantes en rojo, Sobrantes en verde).
               </p>
 
-              <div className="border border-slate-200 rounded-xl overflow-x-auto touch-pan-x mb-6">
+              <div className="border border-slate-200 rounded-xl overflow-x-auto touch-auto mb-6">
                 <table className="w-full min-w-[560px] text-left text-xs">
                   <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
                     <tr>

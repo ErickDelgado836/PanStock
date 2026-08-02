@@ -335,7 +335,7 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
                   No hay productos registrados bajo la categoría "{cat.name}" para este almacén.
                 </div>
               ) : (
-                <div className="overflow-x-auto scrollbar-none scrollbar-hide touch-pan-x">
+                <div className="overflow-x-auto touch-auto scrollbar-none scrollbar-hide">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100/80 text-slate-600 font-extrabold uppercase border-b border-slate-200">
                       <tr>
