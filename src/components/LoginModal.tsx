@@ -61,10 +61,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
-    const isAdminAdminUser = foundUser.username.toLowerCase() === 'admin';
-    const isValidAdminPass = isAdminAdminUser && (password === '192021' || password === 'admin123');
-
-    if (foundUser.password !== password && !isValidAdminPass) {
+    if (foundUser.password !== password) {
       setErrorMsg('Contraseña incorrecta.');
       return;
     }

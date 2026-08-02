@@ -134,56 +134,58 @@ export default function App() {
         />
 
       {/* Secondary Quick Access Bar */}
-      <div className="bg-slate-900 text-white border-b border-slate-800 px-4 py-2 text-xs font-bold flex flex-wrap items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none scrollbar-hide touch-auto py-1">
-          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">
-            Accesos Rápidos:
-          </span>
+      <div className="bg-slate-900 text-white border-b border-slate-800 px-4 py-2 text-xs font-bold shadow-sm">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4 w-full">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none scrollbar-hide touch-auto py-1">
+            <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">
+              Accesos Rápidos:
+            </span>
 
-          {currentUser.permissions.canEntries && (
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => setEntradasOpen(true)}
-              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center gap-1 shrink-0 shadow-xs"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Ingresar (Entrada)</span>
-            </motion.button>
-          )}
+            {currentUser.permissions.canEntries && (
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => setEntradasOpen(true)}
+                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center gap-1 shrink-0 shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Ingresar (Entrada)</span>
+              </motion.button>
+            )}
 
-          {currentUser.permissions.canTransfers && (
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => setTrasladosOpen(true)}
-              className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors flex items-center gap-1 shrink-0 shadow-xs"
-            >
-              <ArrowRightLeft className="w-3.5 h-3.5" />
-              <span>Trasladar Stock</span>
-            </motion.button>
-          )}
+            {currentUser.permissions.canTransfers && (
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => setTrasladosOpen(true)}
+                className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors flex items-center gap-1 shrink-0 shadow-xs"
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+                <span>Trasladar Stock</span>
+              </motion.button>
+            )}
 
-          {currentUser.permissions.canExits && (
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => setDescargosOpen(true)}
-              className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors flex items-center gap-1 shrink-0 shadow-xs"
-            >
-              <ArrowUpRight className="w-3.5 h-3.5" />
-              <span>Descargar Stock</span>
-            </motion.button>
-          )}
-        </div>
+            {currentUser.permissions.canExits && (
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => setDescargosOpen(true)}
+                className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors flex items-center gap-1 shrink-0 shadow-xs"
+              >
+                <ArrowUpRight className="w-3.5 h-3.5" />
+                <span>Descargar Stock</span>
+              </motion.button>
+            )}
+          </div>
 
-        <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
-          <span>Usuario Activo: <strong className="text-white">{currentUser.username}</strong></span>
-          <span className="relative flex h-2.5 w-2.5 items-center justify-center mx-0.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-xs shadow-emerald-500/50"></span>
-          </span>
-          <span className="text-emerald-400 font-bold tracking-wider">ONLINE</span>
+          <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+            <span>Usuario Activo: <strong className="text-white">{currentUser.username}</strong></span>
+            <span className="relative flex h-2.5 w-2.5 items-center justify-center mx-0.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-xs shadow-emerald-500/50"></span>
+            </span>
+            <span className="text-emerald-400 font-bold tracking-wider">ONLINE</span>
+          </div>
         </div>
       </div>
 

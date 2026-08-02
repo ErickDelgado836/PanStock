@@ -325,6 +325,17 @@ export const AdminPanel: React.FC = () => {
       canPhysicalInventory: true,
       allowedWarehouses: [...ALL_WAREHOUSE_IDS],
     });
+
+    // Auto-scroll smoothly to top of "Crear Nuevo Usuario" section on both PC and mobile
+    setTimeout(() => {
+      if (userSectionTopRef.current) {
+        const yOffset = -110;
+        const elementTop = userSectionTopRef.current.getBoundingClientRect().top + window.pageYOffset;
+        window.scrollTo({ top: Math.max(0, elementTop + yOffset), behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 60);
   };
 
   const handleEditUser = (user: UserProfile) => {

@@ -646,12 +646,12 @@ INSERT INTO public.almacenes (id, code, name, description, is_main_entry, is_sal
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.categorias (id, name, code_prefix, is_default) VALUES
-('cat_ch', 'Chocolates & Coberturas', 'CH', false),
-('cat_lac', 'Lácteos & Grasas', 'LAC', false),
-('cat_be', 'Bebidas & Aditivos', 'BE', false),
-('cat_vi', 'Vinos & Licores', 'VI', false),
-('cat_pa', 'Pastelería Específica', 'PA', false),
-('cat_ma', 'Materia Prima Granel', 'MA', true),
-('cat_pan', 'Panadería Especial', 'PAN', false)
-ON CONFLICT (id) DO NOTHING;
+('cat_ch', 'CHARCUTERÍA', 'CH', true),
+('cat_lac', 'LÁCTEOS', 'LAC', true),
+('cat_be', 'BEBIDAS', 'BE', true),
+('cat_vi', 'VÍVERES', 'VI', true),
+('cat_pa', 'PAPELERÍA', 'PA', true),
+('cat_ma', 'MATERIA PRIMA', 'MA', true),
+('cat_pan', 'PANIFICACIÓN', 'PAN', true)
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, code_prefix = EXCLUDED.code_prefix;
 `;

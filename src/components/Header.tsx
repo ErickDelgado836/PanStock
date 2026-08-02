@@ -162,7 +162,11 @@ export const Header: React.FC<HeaderProps> = ({
       </header>
 
       {/* Supabase Status and Setup Modal */}
-      <SupabaseModal isOpen={showSupabaseModal} onClose={() => setShowSupabaseModal(false)} />
+      <SupabaseModal
+        isOpen={showSupabaseModal}
+        onClose={() => setShowSupabaseModal(false)}
+        currentUser={currentUser}
+      />
     </>
   );
 };
