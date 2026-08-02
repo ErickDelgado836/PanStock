@@ -633,25 +633,25 @@ VALUES (
 ) ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password;
 
 INSERT INTO public.almacenes (id, code, name, description, is_main_entry, is_sales_warehouse) VALUES
-('00', '00', 'Entrada Principal - Recepción Global', 'Almacén principal donde se recepciona toda la materia prima e insumos.', true, false),
-('01', '01', 'Panadería Central', 'Almacén de ventas y producción principal de panadería.', false, true),
-('02', '02', 'Pastelería & Repostería', 'Almacén de insumos y preparación de repostería.', false, false),
-('002', '002', 'Punto de Venta / Exhibición', 'Exhibición y ventas directas al público.', false, true),
-('03', '03', 'Materia Prima Granel', 'Harinas, azúcares y grasas a granel.', false, false),
-('09', '09', 'Lácteos & Refrigerados', 'Cámara fría para levaduras, mantequillas y lácteos.', false, false),
-('05', '05', 'Empaques & Descartables', 'Bolsas, cajas y material de empaque.', false, false),
-('06', '06', 'Esencias & Aditivos', 'Esencias, colorantes y preservantes.', false, false),
-('07', '07', 'Chocolates & Coberturas', 'Chocolatada y coberturas especiales.', false, false),
-('08', '08', 'Frutos Secos & Mermeladas', 'Nueces, pasas, rellenos y mermeladas.', false, false)
-ON CONFLICT (id) DO NOTHING;
+('00', '00', 'Almacén de Distribución Interna', 'Principal: Toda mercancía que ingrese al sistema debe pasar por este almacén.', true, false),
+('01', '01', 'DESPACHO', 'Almacén para despacho directo y atención a ventas.', false, true),
+('02', '02', 'MERCANCÍA PARA LA VENTA', 'Productos exhibidos y listos para venta comercial.', false, false),
+('002', '002', 'VENTAS AL MAYOR', 'Almacén especializado para despachos y pedidos al mayor.', false, true),
+('03', '03', 'MATERIA PRIMA', 'Harinas, azúcares, mantecas y levaduras para producción.', false, false),
+('09', '09', 'PAPELERÍA Y MANTENIMIENTO', 'Papelería, rollos térmicos, balanzas, cintas de embalar y lápices.', false, false),
+('05', '05', 'BOLSAS DE EMPAQUE', 'Bolsas plásticas, de papel y empaques especiales.', false, false),
+('06', '06', 'EDIFICIO LOS ILUSTRES', 'Almacén anexo para bolsas, repuestos y depósitos diversos.', false, false),
+('07', '07', 'PRODUCTOS EN PROCESO', 'Panes y masas en etapa cruda o fermentación.', false, false),
+('08', '08', 'PRODUCTOS TERMINADOS', 'Panes recién horneados e inventario final para empaque.', false, false)
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, is_main_entry = EXCLUDED.is_main_entry, is_sales_warehouse = EXCLUDED.is_sales_warehouse;
 
 INSERT INTO public.categorias (id, name, code_prefix, is_default) VALUES
-('cat_ch', 'Chocolates & Coberturas', 'CH', true),
-('cat_lac', 'Lácteos & Grasas', 'LAC', true),
-('cat_be', 'Bebidas & Aditivos', 'BE', true),
-('cat_vi', 'Vinos & Licores', 'VI', true),
-('cat_pa', 'Pastelería Específica', 'PA', true),
-('cat_ma', 'Materia Prima Granel', 'MA', true),
-('cat_pan', 'Panadería Especial', 'PAN', true)
+('cat-ch', 'CHARCUTERÍA', 'CH', true),
+('cat-lac', 'LÁCTEOS', 'LAC', true),
+('cat-be', 'BEBIDAS', 'BE', true),
+('cat-vi', 'VÍVERES', 'VI', true),
+('cat-pa', 'PAPELERÍA', 'PA', true),
+('cat-ma', 'MATERIA PRIMA', 'MA', true),
+('cat-pan', 'PANIFICACIÓN', 'PAN', true)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, code_prefix = EXCLUDED.code_prefix;
 `;

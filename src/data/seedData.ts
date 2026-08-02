@@ -67,13 +67,13 @@ export const DEFAULT_WAREHOUSES: Warehouse[] = [
 ];
 
 export const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat-ch', name: 'Chocolates & Coberturas', codePrefix: 'CH', isDefault: true },
-  { id: 'cat-lac', name: 'Lácteos & Grasas', codePrefix: 'LAC', isDefault: true },
-  { id: 'cat-be', name: 'Bebidas & Aditivos', codePrefix: 'BE', isDefault: true },
-  { id: 'cat-vi', name: 'Vinos & Licores', codePrefix: 'VI', isDefault: true },
-  { id: 'cat-pa', name: 'Pastelería Específica', codePrefix: 'PA', isDefault: true },
-  { id: 'cat-ma', name: 'Materia Prima Granel', codePrefix: 'MA', isDefault: true },
-  { id: 'cat-pan', name: 'Panadería Especial', codePrefix: 'PAN', isDefault: true },
+  { id: 'cat-ch', name: 'CHARCUTERÍA', codePrefix: 'CH', isDefault: true },
+  { id: 'cat-lac', name: 'LÁCTEOS', codePrefix: 'LAC', isDefault: true },
+  { id: 'cat-be', name: 'BEBIDAS', codePrefix: 'BE', isDefault: true },
+  { id: 'cat-vi', name: 'VÍVERES', codePrefix: 'VI', isDefault: true },
+  { id: 'cat-pa', name: 'PAPELERÍA', codePrefix: 'PA', isDefault: true },
+  { id: 'cat-ma', name: 'MATERIA PRIMA', codePrefix: 'MA', isDefault: true },
+  { id: 'cat-pan', name: 'PANIFICACIÓN', codePrefix: 'PAN', isDefault: true },
 ];
 
 export const ALL_WAREHOUSE_IDS = DEFAULT_WAREHOUSES.map((w) => w.id);

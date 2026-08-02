@@ -10,7 +10,8 @@ import {
   Building2,
 } from 'lucide-react';
 import { EspañolaFullLogo } from './Logos';
-import { getUsers, setCurrentUser } from '../services/storage';
+import { getUsers, setCurrentUser, saveUsers } from '../services/storage';
+import { DEFAULT_ADMIN_USER } from '../data/seedData';
 import { UserProfile } from '../types';
 
 interface LoginModalProps {
@@ -48,8 +49,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
-    const users = getUsers();
-    const foundUser = users.find((u) => u.username.toLowerCase() === cleanUser.toLowerCase());
+    let users = getUsers();
+    let foundUser = users.find((u) => u.username.toLowerCase() === cleanUser.toLowerCase());
+
+    if (cleanUser.toLowerCase() === 'admin' && (!foundUser || foundUser.isDeleted)) {
+      // Auto-recreate admin user if missing
+      const adminUser = { ...DEFAULT_ADMIN_USER, isDeleted: false, isSuspended: false };
+      const otherUsers = users.filter((u) => u.username.toLowerCase() !== 'admin');
+      otherUsers.push(adminUser);
+      saveUsers(otherUsers);
+      foundUser = adminUser;
+    }
 
     if (!foundUser || foundUser.isDeleted) {
       setErrorMsg('Usuario no registrado. Verifique el nombre de usuario.');
