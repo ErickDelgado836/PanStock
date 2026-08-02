@@ -67,8 +67,16 @@ export const MovementsHistory: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    syncFromSupabase().then(() => loadData());
     return subscribeToStorage(loadData);
   }, []);
+
+  useEffect(() => {
+    if (subTab === 'MOVEMENTS_LOG') {
+      loadData();
+      syncFromSupabase().then(() => loadData());
+    }
+  }, [subTab]);
 
   // Handle Preset Date Quick Switch
   const handlePresetChange = (preset: 'ALL' | 'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM') => {

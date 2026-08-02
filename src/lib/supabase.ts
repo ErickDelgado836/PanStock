@@ -462,13 +462,19 @@ export async function fetchMovementsFromSupabase(): Promise<MovementRecord[] | n
   if (!isSupabaseConfigured) return null;
   try {
     console.log('[Supabase] Fetching movements from "movimientos"...');
-    const { data, error } = await supabase.from('movimientos').select('*').order('date', { ascending: false });
+    let { data, error } = await supabase.from('movimientos').select('*').order('created_at', { ascending: false });
+    if (error) {
+      // Fallback if created_at column is missing or ordering failed
+      const fallbackRes = await supabase.from('movimientos').select('*');
+      data = fallbackRes.data;
+      error = fallbackRes.error;
+    }
     if (error) {
       logSupabase('fetchMovements', false, error);
       return null;
     }
     logSupabase('fetchMovements', true, `Retrieved ${data?.length || 0} movements`);
-    return data.map((row: any) => ({
+    return (data || []).map((row: any) => ({
       id: row.id,
       movementNumber: row.movement_number || row.movementNumber,
       type: row.type,
@@ -712,4 +718,14 @@ INSERT INTO public.categorias (id, name, code_prefix, is_default) VALUES
 ('cat-ma', 'MATERIA PRIMA', 'MA', true),
 ('cat-pan', 'PANIFICACIÓN', 'PAN', true)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, code_prefix = EXCLUDED.code_prefix;
+
+-- 9. HABILITAR REPLICACION EN TIEMPO REAL (Supabase Realtime WebSockets)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.usuarios, public.almacenes, public.categorias, public.productos, public.movimientos, public.auditorias;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
 `;

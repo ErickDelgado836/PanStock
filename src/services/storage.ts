@@ -33,6 +33,7 @@ import {
   saveAuditToSupabase,
   registerSupabaseRealtimeCallback,
 } from '../lib/supabase';
+import { parseAnyDate } from '../utils/movementSearch';
 
 const KEYS = {
   USERS: 'panstock_users_v1',
@@ -142,7 +143,28 @@ export async function syncFromSupabase(): Promise<boolean> {
         }
         localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(INITIAL_MOVEMENTS));
       } else {
-        localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(remoteMovements));
+        // Merge remote movements with any locally created movements not yet on server
+        const localData = localStorage.getItem(KEYS.MOVEMENTS);
+        const localMovements: MovementRecord[] = localData ? JSON.parse(localData) : [];
+        const mergedMap = new Map<string, MovementRecord>();
+
+        // Remote movements first
+        remoteMovements.forEach((m) => mergedMap.set(m.id, m));
+        // Local movements if missing in remote
+        localMovements.forEach((m) => {
+          if (!mergedMap.has(m.id)) {
+            mergedMap.set(m.id, m);
+            saveMovementToSupabase(m).catch(() => {});
+          }
+        });
+
+        const sortedMovements = Array.from(mergedMap.values()).sort((a, b) => {
+          const dateA = parseAnyDate(a.date)?.getTime() || 0;
+          const dateB = parseAnyDate(b.date)?.getTime() || 0;
+          return dateB - dateA;
+        });
+
+        localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(sortedMovements));
       }
     }
 
@@ -186,16 +208,38 @@ export async function syncFromSupabase(): Promise<boolean> {
 }
 
 // Auto-trigger sync on module load if Supabase is configured
-if (typeof window !== 'undefined' && checkIsSupabaseConfigured()) {
-  setTimeout(() => {
-    syncFromSupabase();
-  }, 100);
+if (typeof window !== 'undefined') {
+  if (checkIsSupabaseConfigured()) {
+    setTimeout(() => {
+      syncFromSupabase();
+    }, 100);
 
-  // Register realtime callback to trigger full sync when any changes are detected
-  registerSupabaseRealtimeCallback((payload) => {
-    console.log('[Supabase Realtime] Change received in storage service, syncing...', payload);
-    syncFromSupabase().catch((err) => console.error('[Supabase Realtime Sync Error]', err));
-  });
+    // Register realtime callback to trigger full sync when any changes are detected
+    registerSupabaseRealtimeCallback((payload) => {
+      console.log('[Supabase Realtime] Change received in storage service, syncing...', payload);
+      syncFromSupabase().catch((err) => console.error('[Supabase Realtime Sync Error]', err));
+    });
+
+    // Automatic background polling interval every 6 seconds as a guaranteed fallback for all users
+    setInterval(() => {
+      if (checkIsSupabaseConfigured()) {
+        syncFromSupabase().catch((err) => console.error('[Background Sync Error]', err));
+      }
+    }, 6000);
+
+    // Sync instantly when user switches back to window/tab
+    window.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && checkIsSupabaseConfigured()) {
+        syncFromSupabase().catch((err) => console.error('[Visibility Sync Error]', err));
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      if (checkIsSupabaseConfigured()) {
+        syncFromSupabase().catch((err) => console.error('[Focus Sync Error]', err));
+      }
+    });
+  }
 }
 
 // Warehouses
@@ -356,7 +400,16 @@ export function getMovements(): MovementRecord[] {
     localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(INITIAL_MOVEMENTS));
     return INITIAL_MOVEMENTS;
   }
-  return JSON.parse(data);
+  try {
+    const parsed: MovementRecord[] = JSON.parse(data);
+    return parsed.sort((a, b) => {
+      const dateA = parseAnyDate(a.date)?.getTime() || 0;
+      const dateB = parseAnyDate(b.date)?.getTime() || 0;
+      return dateB - dateA;
+    });
+  } catch (e) {
+    return [];
+  }
 }
 
 export function saveMovements(movements: MovementRecord[]) {
@@ -366,12 +419,17 @@ export function saveMovements(movements: MovementRecord[]) {
 
 export function addMovement(movement: MovementRecord) {
   const movements = getMovements();
-  movements.unshift(movement); // Newest first
-  localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(movements));
+  const filtered = movements.filter((m) => m.id !== movement.id);
+  filtered.unshift(movement); // Newest first
+  localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(filtered));
   notifyStorageChange();
 
   if (checkIsSupabaseConfigured()) {
-    saveMovementToSupabase(movement).catch((err) => console.error('[Supabase Add Movement Error]', err));
+    saveMovementToSupabase(movement)
+      .then(() => {
+        syncFromSupabase();
+      })
+      .catch((err) => console.error('[Supabase Add Movement Error]', err));
   }
 }
 
