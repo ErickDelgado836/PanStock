@@ -124,11 +124,14 @@ export async function syncFromSupabase(): Promise<boolean> {
     // 4. Fetch Products
     const remoteProducts = await fetchProductsFromSupabase();
     if (remoteProducts) {
-      if (remoteProducts.length === 0 && INITIAL_PRODUCTS.length > 0) {
+      const hasSeeded = localStorage.getItem('panstock_products_seeded_v1');
+      if (remoteProducts.length === 0 && INITIAL_PRODUCTS.length > 0 && !hasSeeded) {
         console.log('[Supabase Sync] Seeding initial products to Supabase...');
         await saveProductsToSupabase(INITIAL_PRODUCTS);
         localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
+        localStorage.setItem('panstock_products_seeded_v1', 'true');
       } else {
+        localStorage.setItem('panstock_products_seeded_v1', 'true');
         localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(remoteProducts));
       }
     }

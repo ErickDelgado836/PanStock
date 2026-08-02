@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Category, Warehouse, UnitOfMeasure } from '../types';
-import { getProducts, saveProducts, getCategories, getWarehouses, addMovement } from '../services/storage';
+import {
+  getProducts,
+  saveProducts,
+  deleteProduct,
+  getCategories,
+  getWarehouses,
+  addMovement,
+  subscribeToStorage,
+} from '../services/storage';
 import { CustomSelect } from './Common/CustomSelect';
 import {
   PackageSearch,
@@ -50,14 +58,19 @@ export const AdminProducts: React.FC = () => {
   const [msg, setMsg] = useState({ text: '', type: '' });
 
   useEffect(() => {
-    const loadedProds = getProducts();
-    const loadedCats = getCategories();
-    setProducts(loadedProds);
-    setCategories(loadedCats);
-    setWarehouses(getWarehouses());
-    if (loadedCats.length > 0) {
-      setCategoryId(loadedCats[0].id);
-    }
+    const loadData = () => {
+      const loadedProds = getProducts();
+      const loadedCats = getCategories();
+      setProducts(loadedProds);
+      setCategories(loadedCats);
+      setWarehouses(getWarehouses());
+      if (loadedCats.length > 0) {
+        setCategoryId((prev) => prev || loadedCats[0].id);
+      }
+    };
+
+    loadData();
+    return subscribeToStorage(loadData);
   }, []);
 
   // Filtered product list
@@ -236,9 +249,9 @@ export const AdminProducts: React.FC = () => {
       });
     }
 
-    // Remove product from list
+    // Completely delete product from system (Supabase database and local storage)
+    deleteProduct(productToDelete.id);
     const updated = products.filter((p) => p.id !== productToDelete.id);
-    saveProducts(updated);
     setProducts(updated);
 
     setDeleteModalOpen(false);
@@ -262,7 +275,7 @@ export const AdminProducts: React.FC = () => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
       {/* Formulario Izquierdo: Nuevo Producto */}
-      <div className="lg:col-span-4 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 h-fit sticky top-4">
+      <div className="lg:col-span-4 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 h-fit lg:sticky lg:top-4">
         <div className="flex items-center gap-2 border-b border-slate-100 pb-4 mb-6">
           <PackageSearch className="w-5 h-5 text-red-600" />
           <h2 className="text-lg font-bold text-slate-900">Nuevo Producto</h2>

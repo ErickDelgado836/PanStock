@@ -528,7 +528,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
 
         {/* Right Column: Cart / Sales Order */}
         <div className="lg:col-span-4">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sticky top-24 space-y-5">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:sticky lg:top-24 space-y-5">
             <div className="border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2 text-blue-900 font-extrabold text-base">
                 <ShoppingCart className="w-5 h-5 text-blue-600" />
