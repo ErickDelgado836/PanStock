@@ -250,7 +250,29 @@ export function getCategories(): Category[] {
     localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(DEFAULT_CATEGORIES));
     return DEFAULT_CATEGORIES;
   }
-  return JSON.parse(data);
+  let cats: Category[] = JSON.parse(data);
+  let updated = false;
+
+  DEFAULT_CATEGORIES.forEach((defCat) => {
+    const existingIndex = cats.findIndex(
+      (c) => c.id === defCat.id || c.codePrefix === defCat.codePrefix
+    );
+    if (existingIndex !== -1) {
+      if (cats[existingIndex].name !== defCat.name || cats[existingIndex].codePrefix !== defCat.codePrefix) {
+        cats[existingIndex].name = defCat.name;
+        cats[existingIndex].codePrefix = defCat.codePrefix;
+        updated = true;
+      }
+    } else {
+      cats.push(defCat);
+      updated = true;
+    }
+  });
+
+  if (updated) {
+    localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(cats));
+  }
+  return cats;
 }
 
 export function addCategory(category: Category) {
