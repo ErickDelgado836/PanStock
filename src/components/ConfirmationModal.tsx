@@ -77,13 +77,13 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 bg-slate-950/60"
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
             onClick={onClose}
           />
           <motion.div
@@ -91,26 +91,26 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 10 }}
             transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-            className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200"
+            className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200 max-h-[90vh] flex flex-col"
           >
-            <div className={`p-6 text-center border-b ${getHeaderBg()}`}>
-              <div className="w-16 h-16 rounded-2xl bg-white shadow-sm mx-auto flex items-center justify-center mb-3">
+            <div className={`p-4 sm:p-6 text-center border-b ${getHeaderBg()} shrink-0`}>
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white shadow-xs mx-auto flex items-center justify-center mb-2.5">
                 {getTypeIcon()}
               </div>
-              <h3 className="text-xl font-bold">{title}</h3>
+              <h3 className="text-lg sm:text-xl font-black leading-tight">{title}</h3>
             </div>
 
-            <div className="p-6 text-center">
-              <p className="text-slate-700 font-medium text-base mb-6 leading-relaxed">
+            <div className="p-4 sm:p-6 text-center overflow-y-auto">
+              <p className="text-slate-700 font-medium text-sm sm:text-base mb-5 leading-relaxed break-words">
                 {message}
               </p>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                 <button
                   type="button"
                   onClick={onClose}
                   disabled={isProcessing}
-                  className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-all border border-slate-200 active:scale-[0.98] disabled:opacity-50"
+                  className="w-full py-3 px-3 sm:px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-all border border-slate-200 active:scale-[0.98] disabled:opacity-50"
                 >
                   Cancelar
                 </button>
@@ -118,15 +118,15 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                   type="button"
                   onClick={onConfirm}
                   disabled={isProcessing}
-                  className={`w-full py-3 px-4 font-semibold rounded-xl transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 ${getBtnBg()}`}
+                  className={`w-full py-3 px-3 sm:px-4 font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50 ${getBtnBg()}`}
                 >
                   {isProcessing ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Procesando...
+                      <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+                      <span>Procesando...</span>
                     </>
                   ) : (
-                    confirmText
+                    <span className="truncate">{confirmText}</span>
                   )}
                 </button>
               </div>

@@ -11,6 +11,8 @@ import {
 } from '../../services/storage';
 import { ConfirmationModal } from '../ConfirmationModal';
 import { ProductSearchSelect } from './ProductSearchSelect';
+import { deductLotStock, getLotStockInWarehouse } from '../../utils/lotUtils';
+import { showToast } from '../../utils/toast';
 import { CustomSelect } from '../Common/CustomSelect';
 import {
   X,
@@ -24,6 +26,7 @@ import {
   Layers,
   PackageCheck,
   Lock,
+  Calendar,
 } from 'lucide-react';
 
 interface DescargosModalProps {
@@ -60,6 +63,8 @@ export const DescargosModal: React.FC<DescargosModalProps> = ({ isOpen, onClose,
 
   // Single Mode State
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedLotId, setSelectedLotId] = useState('');
+  const [ignoreLotRestrictions, setIgnoreLotRestrictions] = useState(false);
   const [quantity, setQuantity] = useState<number | string>('');
 
   // Multiple Mode State
@@ -85,11 +90,17 @@ export const DescargosModal: React.FC<DescargosModalProps> = ({ isOpen, onClose,
       setErrorMsg('');
       setMultiItems([]);
       setSelectedProductId('');
+      setSelectedLotId('');
+      setIgnoreLotRestrictions(false);
       setAddSelectedProdId('');
       setQuantity('');
       setAddQuantity('');
     }
   }, [isOpen, currentUser]);
+
+  useEffect(() => {
+    setSelectedLotId('');
+  }, [selectedProductId, warehouseId]);
 
   // Products available in selected warehouse
   const availableProducts = products.filter(
@@ -98,6 +109,10 @@ export const DescargosModal: React.FC<DescargosModalProps> = ({ isOpen, onClose,
 
   const selectedProduct = availableProducts.find((p) => p.id === selectedProductId);
   const maxAvailableSingle = selectedProduct ? selectedProduct.stockByWarehouse[warehouseId] || 0 : 0;
+
+  const activeLotsInWh = selectedProduct
+    ? (selectedProduct.lots || []).filter((l) => getLotStockInWarehouse(l, warehouseId) > 0)
+    : [];
 
   // Add Item to Multiple List
   const handleAddMultiItem = () => {
@@ -198,6 +213,33 @@ export const DescargosModal: React.FC<DescargosModalProps> = ({ isOpen, onClose,
         );
         return;
       }
+
+      // Check per-lot limits if restriction is active
+      if (!ignoreLotRestrictions && activeLotsInWh.length > 0) {
+        if (selectedLotId) {
+          const chosenLot = activeLotsInWh.find((l) => l.id === selectedLotId);
+          const chosenLotQty = chosenLot ? getLotStockInWarehouse(chosenLot, warehouseId) : 0;
+          if (parsedQty > chosenLotQty) {
+            setErrorMsg(
+              `La cantidad a descargar (${parsedQty}) supera las ${chosenLotQty} ${selectedProduct?.unit} disponibles en el lote seleccionado (Vence: ${chosenLot?.expirationDate || 'N/A'}). Si deseas abarcar más inventario de otros lotes, activa la opción 'Hacer operación total sin contar fechas de vencimiento'.`
+            );
+            return;
+          }
+        } else {
+          // Auto FIFO: check if requested qty exceeds the stock of the earliest lot when multiple lots exist
+          const sortedLots = [...activeLotsInWh].sort((a, b) =>
+            (a.expirationDate || '').localeCompare(b.expirationDate || '')
+          );
+          const firstLot = sortedLots[0];
+          const firstLotQty = firstLot ? getLotStockInWarehouse(firstLot, warehouseId) : 0;
+          if (parsedQty > firstLotQty && activeLotsInWh.length > 1) {
+            setErrorMsg(
+              `La cantidad a descargar (${parsedQty}) abarca más de un lote con distinta fecha de vencimiento. El lote más próximo a vencer (${firstLot?.lotNumber || 'S/N'}, Exp: ${firstLot?.expirationDate}) sólo cuenta con ${firstLotQty} ${selectedProduct?.unit}. Si deseas realizar el descargo total abarcando múltiples lotes, marca la casilla 'Hacer operación total sin contar fechas de vencimiento'.`
+            );
+            return;
+          }
+        }
+      }
     } else {
       if (multiItems.length === 0) {
         setErrorMsg('Debe añadir al menos un producto a la lista de descargo múltiple.');
@@ -219,7 +261,10 @@ export const DescargosModal: React.FC<DescargosModalProps> = ({ isOpen, onClose,
       if (!productInDb) return;
 
       const currentStock = productInDb.stockByWarehouse[warehouseId] || 0;
-      productInDb.stockByWarehouse[warehouseId] = currentStock - parsedQty;
+      productInDb.stockByWarehouse[warehouseId] = Math.max(0, currentStock - parsedQty);
+
+      // Deduct lot stock with preferred lot selection if specified
+      deductLotStock(productInDb, warehouseId, parsedQty, selectedLotId || undefined);
 
       movementItemsList.push({
         productId: productInDb.id,
@@ -235,14 +280,18 @@ export const DescargosModal: React.FC<DescargosModalProps> = ({ isOpen, onClose,
       for (const item of multiItems) {
         const productInDb = currentProducts.find((p) => p.id === item.productId);
         if (productInDb) {
+          const qty = Number(item.quantity);
           const currentStock = productInDb.stockByWarehouse[warehouseId] || 0;
-          productInDb.stockByWarehouse[warehouseId] = currentStock - Number(item.quantity);
+          productInDb.stockByWarehouse[warehouseId] = Math.max(0, currentStock - qty);
+
+          // Deduct lot stock using FIFO
+          deductLotStock(productInDb, warehouseId, qty);
 
           movementItemsList.push({
             productId: productInDb.id,
             productCode: productInDb.code,
             productName: productInDb.name,
-            quantity: Number(item.quantity),
+            quantity: qty,
             unit: productInDb.unit as any,
           });
         }
@@ -265,6 +314,11 @@ export const DescargosModal: React.FC<DescargosModalProps> = ({ isOpen, onClose,
     };
 
     addMovement(newMovement);
+    showToast(
+      '¡Descargo Registrado con Éxito!',
+      `Se procesó el descargo N° ${newMovement.movementNumber} con doc. de ref. "${newMovement.docRef}".`,
+      'success'
+    );
     setConfirmOpen(false);
     onClose();
   };
@@ -420,28 +474,107 @@ export const DescargosModal: React.FC<DescargosModalProps> = ({ isOpen, onClose,
                   />
 
                   {selectedProduct && (
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="text-xs font-black text-slate-700 uppercase">
-                          Cantidad a Descargar
-                        </label>
-                        <span className="text-xs text-rose-900 font-black bg-rose-100 px-2.5 py-0.5 rounded-md border border-rose-300">
-                          Existencia Disponible: {maxAvailableSingle} {selectedProduct.unit}
-                        </span>
+                    <div className="space-y-4">
+                      {/* Lots Breakdown Panel */}
+                      {activeLotsInWh.length > 0 && (
+                        <div className="p-4 bg-rose-50/60 border border-rose-200/80 rounded-2xl space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black uppercase text-rose-950 tracking-wider flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-rose-600" />
+                              Desglose por Fecha de Vencimiento en Almacén ({warehouses.find(w => w.id === warehouseId)?.code || warehouseId})
+                            </span>
+                            <span className="text-[11px] font-black text-rose-800 bg-rose-100 px-2 py-0.5 rounded-md border border-rose-200">
+                              {activeLotsInWh.length} lote(s)
+                            </span>
+                          </div>
+
+                          <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                            {activeLotsInWh.map((lot) => {
+                              const lotQtyInWh = getLotStockInWarehouse(lot, warehouseId);
+                              return (
+                                <div key={lot.id} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-rose-200/80 text-xs shadow-xs">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                      Lote: {lot.lotNumber || 'S/N'}
+                                    </span>
+                                    <span className="font-extrabold text-rose-900 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                      📅 Vence: {lot.expirationDate || 'Sin Fecha'}
+                                    </span>
+                                  </div>
+                                  <span className="font-black text-slate-900 text-xs">
+                                    {lotQtyInWh} {selectedProduct.unit}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Specific Lot Selector */}
+                          <div>
+                            <label className="block text-[11px] font-bold text-rose-900 mb-1">
+                              Seleccionar Lote Específico (Opcional):
+                            </label>
+                            <select
+                              value={selectedLotId}
+                              onChange={(e) => setSelectedLotId(e.target.value)}
+                              disabled={ignoreLotRestrictions}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-rose-500/40 disabled:bg-slate-100 disabled:text-slate-400"
+                            >
+                              <option value="">Auto FIFO (Descargar del lote más próximo a vencer)</option>
+                              {activeLotsInWh.map((lot) => (
+                                <option key={lot.id} value={lot.id}>
+                                  Lote: {lot.lotNumber || 'S/N'} — Vence: {lot.expirationDate} ({getLotStockInWarehouse(lot, warehouseId)} {selectedProduct.unit})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Checkbox for Free Operation / Override */}
+                          <label className="flex items-start gap-2.5 pt-1 cursor-pointer select-none border-t border-rose-200/60 mt-2">
+                            <input
+                              type="checkbox"
+                              checked={ignoreLotRestrictions}
+                              onChange={(e) => {
+                                setIgnoreLotRestrictions(e.target.checked);
+                                if (e.target.checked) setSelectedLotId('');
+                              }}
+                              className="mt-0.5 w-4 h-4 text-rose-600 rounded focus:ring-rose-500 border-slate-300"
+                            />
+                            <div className="text-xs">
+                              <span className="font-extrabold text-slate-900 block">
+                                Hacer operación total sin contar fechas de vencimiento
+                              </span>
+                              <span className="text-slate-500 text-[11px] font-medium block leading-tight">
+                                Permite descargar cualquier cantidad hasta la existencia total ({maxAvailableSingle} {selectedProduct.unit}) distribuyendo automáticamente entre lotes.
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+                      )}
+
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-xs font-black text-slate-700 uppercase">
+                            Cantidad a Descargar
+                          </label>
+                          <span className="text-xs text-rose-900 font-black bg-rose-100 px-2.5 py-0.5 rounded-md border border-rose-300">
+                            Existencia Total Almacén: {maxAvailableSingle} {selectedProduct.unit}
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="Ej: 20 ó 14.50"
+                          value={quantity}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(',', '.');
+                            if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                              setQuantity(val);
+                            }
+                          }}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-black text-base text-slate-900 focus:ring-2 focus:ring-rose-500/40 focus:border-rose-600"
+                        />
                       </div>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="Ej: 20 ó 14.50"
-                        value={quantity}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(',', '.');
-                          if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                            setQuantity(val);
-                          }
-                        }}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-black text-base text-slate-900 focus:ring-2 focus:ring-rose-500/40 focus:border-rose-600"
-                      />
                     </div>
                   )}
                 </div>

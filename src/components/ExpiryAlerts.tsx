@@ -3,7 +3,9 @@ import { Product, Warehouse } from '../types';
 import { getProducts, getWarehouses, saveProducts, subscribeToStorage } from '../services/storage';
 import { LotManagementModal } from './LotManagementModal';
 import { ConfirmationModal } from './ConfirmationModal';
+import { showToast } from '../utils/toast';
 import { CustomSelect } from './Common/CustomSelect';
+import { getLotStockMap, getLotTotalStock, getLotStockInWarehouse } from '../utils/lotUtils';
 import {
   AlertTriangle,
   ShieldCheck,
@@ -38,8 +40,8 @@ interface ExpiringLotItem {
   lotId?: string;
   lotNumber: string;
   expirationDate: string;
-  quantity: number | null;
-  warehouseId: string;
+  totalQuantity: number;
+  stockByWarehouse: Record<string, number>;
   daysLeft: number;
   status: 'EXPIRED' | 'NEAR' | 'SAFE';
 }
@@ -110,6 +112,11 @@ export const ExpiryAlerts: React.FC = () => {
       }
       saveProducts(allProducts);
       loadData();
+      showToast(
+        '¡Lote Eliminado con Éxito!',
+        `El lote "${lotToDeleteTarget.lotNumber}" del producto "${lotToDeleteTarget.prodName}" fue eliminado correctamente.`,
+        'success'
+      );
     }
     setLotToDeleteTarget(null);
   };
@@ -127,13 +134,16 @@ export const ExpiryAlerts: React.FC = () => {
           if (days < 0) status = 'EXPIRED';
           else if (days <= 30) status = 'NEAR';
 
+          const stockMap = getLotStockMap(lot);
+          const totalQty = getLotTotalStock(lot);
+
           list.push({
             product: p,
             lotId: lot.id,
-            lotNumber: lot.lotNumber,
+            lotNumber: lot.lotNumber || 'S/N',
             expirationDate: lot.expirationDate,
-            quantity: lot.quantity,
-            warehouseId: lot.warehouseId || '00',
+            totalQuantity: totalQty,
+            stockByWarehouse: stockMap,
             daysLeft: days,
             status,
           });
@@ -145,30 +155,17 @@ export const ExpiryAlerts: React.FC = () => {
           if (days < 0) status = 'EXPIRED';
           else if (days <= 30) status = 'NEAR';
 
-          const whEntries = Object.entries(p.stockByWarehouse).filter(([, qty]) => Number(qty) > 0);
-          if (whEntries.length > 0) {
-            whEntries.forEach(([whId, qty]) => {
-              list.push({
-                product: p,
-                lotNumber: 'Lote General (Sin Código)',
-                expirationDate: p.expirationDate!,
-                quantity: Number(qty),
-                warehouseId: whId,
-                daysLeft: days,
-                status,
-              });
-            });
-          } else {
-            list.push({
-              product: p,
-              lotNumber: 'Lote General (Sin Código)',
-              expirationDate: p.expirationDate!,
-              quantity: null,
-              warehouseId: '00',
-              daysLeft: days,
-              status,
-            });
-          }
+          const totalQty = Object.values(p.stockByWarehouse).reduce((sum: number, q: number | string) => sum + Number(q || 0), 0) as number;
+
+          list.push({
+            product: p,
+            lotNumber: 'Lote General (Sin Código)',
+            expirationDate: p.expirationDate,
+            totalQuantity: totalQty,
+            stockByWarehouse: p.stockByWarehouse,
+            daysLeft: days,
+            status,
+          });
         }
       }
     });
@@ -183,7 +180,10 @@ export const ExpiryAlerts: React.FC = () => {
         if (filterStatus === 'EXPIRED' && item.status !== 'EXPIRED') return false;
         if (filterStatus === 'NEAR' && item.status !== 'NEAR') return false;
 
-        if (filterWarehouseId !== 'ALL' && item.warehouseId !== filterWarehouseId) return false;
+        if (filterWarehouseId !== 'ALL') {
+          const stockInWh = item.stockByWarehouse[filterWarehouseId] || 0;
+          if (stockInWh <= 0) return false;
+        }
 
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
@@ -332,11 +332,33 @@ export const ExpiryAlerts: React.FC = () => {
         ) : (
           filteredLots.map((item, idx) => {
             const p = item.product;
-            const wh = warehouses.find((w) => w.id === item.warehouseId);
             const isExpired = item.status === 'EXPIRED';
             const isNear = item.status === 'NEAR';
 
-            const stockInWh = Number(p.stockByWarehouse[item.warehouseId] || 0);
+            // Active stock breakdown across warehouses
+            const activeStockBreakdown = Object.entries(item.stockByWarehouse)
+              .filter(([, qty]) => Number(qty) > 0)
+              .map(([whId, qty]) => {
+                const whObj = warehouses.find((w) => w.id === whId);
+                return {
+                  whId,
+                  whCode: whObj ? whObj.code : whId,
+                  whName: whObj ? whObj.name : `Almacén ${whId}`,
+                  qty: Number(qty),
+                };
+              });
+
+            const activeWarehouseCodesText =
+              filterWarehouseId !== 'ALL'
+                ? (warehouses.find((w) => w.id === filterWarehouseId)?.code || filterWarehouseId)
+                : activeStockBreakdown.map((b) => b.whCode).join(', ') || '00';
+
+            const firstActiveWhId =
+              filterWarehouseId !== 'ALL'
+                ? filterWarehouseId
+                : activeStockBreakdown.length > 0
+                ? activeStockBreakdown[0].whId
+                : '00';
 
             return (
               <div
@@ -358,7 +380,7 @@ export const ExpiryAlerts: React.FC = () => {
                       </span>
                       <span className="text-[11px] font-extrabold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 flex items-center gap-1">
                         <Building2 className="w-3 h-3 text-red-600" />
-                        <span>{wh ? wh.code : item.warehouseId}</span>
+                        <span>{activeWarehouseCodesText}</span>
                       </span>
                     </div>
 
@@ -394,7 +416,7 @@ export const ExpiryAlerts: React.FC = () => {
                   {/* Product Title & Lot Info */}
                   <div>
                     <h3 className="font-black text-slate-900 text-base leading-snug">{p.name}</h3>
-                    <div className="mt-2 p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5 text-xs">
+                    <div className="mt-2 p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 text-xs">
                       <div className="flex items-center justify-between">
                         <span className="text-slate-500 font-semibold">Identificador de Lote:</span>
                         <strong className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
@@ -403,33 +425,56 @@ export const ExpiryAlerts: React.FC = () => {
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-semibold">Cantidad en Lote:</span>
-                        <strong className="font-extrabold text-red-700">
-                          {item.quantity !== null ? `${item.quantity} ${p.unit}` : 'Lote Único'}
+                        <span className="text-slate-500 font-semibold">Fecha de Caducidad:</span>
+                        <strong className="font-mono font-bold text-slate-900">{item.expirationDate}</strong>
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-slate-200/60 pt-2">
+                        <span className="text-slate-700 font-bold">Total Unidades en Lote:</span>
+                        <strong className="font-extrabold text-red-700 text-sm">
+                          {item.totalQuantity} {p.unit}
                         </strong>
                       </div>
 
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-semibold">Fecha de Caducidad:</span>
-                        <strong className="font-mono font-bold text-slate-900">{item.expirationDate}</strong>
+                      {/* Detailed breakdown per warehouse */}
+                      <div className="pt-2 border-t border-slate-200/60 space-y-1.5">
+                        <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block">
+                          Desglose de Existencia por Almacén:
+                        </span>
+                        {activeStockBreakdown.length === 0 ? (
+                          <span className="text-[11px] text-slate-400 font-medium italic">Sin stock disponible en almacenes</span>
+                        ) : (
+                          activeStockBreakdown.map((b) => (
+                            <div
+                              key={b.whId}
+                              className={`flex items-center justify-between p-1.5 rounded-lg text-[11px] ${
+                                filterWarehouseId === b.whId
+                                  ? 'bg-red-100/80 text-red-950 font-black border border-red-200'
+                                  : 'bg-white text-slate-700 font-bold border border-slate-200/80'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-black text-slate-900 bg-slate-100 px-1.5 py-0.2 rounded text-[10px]">
+                                  {b.whCode}
+                                </span>
+                                <span className="truncate max-w-[140px] sm:max-w-[170px]">{b.whName}</span>
+                              </div>
+                              <span className="font-extrabold text-slate-900 shrink-0">
+                                {b.qty} {p.unit}
+                              </span>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Stock Context & Quick Actions */}
-                <div className="pt-3 border-t border-slate-100 space-y-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500 font-semibold">Existencia en Almacén {wh?.code}:</span>
-                    <span className="font-extrabold text-slate-900">
-                      {stockInWh} {p.unit}
-                    </span>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 pt-1">
+                {/* Quick Actions */}
+                <div className="pt-3 border-t border-slate-100">
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => openModalForEditLot(item.warehouseId, p.id, item.lotId)}
+                      onClick={() => openModalForEditLot(firstActiveWhId, p.id, item.lotId)}
                       className="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
@@ -475,3 +520,4 @@ export const ExpiryAlerts: React.FC = () => {
     </div>
   );
 };
+

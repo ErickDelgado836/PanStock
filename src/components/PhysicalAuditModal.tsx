@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Product, Warehouse, Category, UserProfile, PhysicalAuditItem } from '../types';
 import { addPhysicalAudit, getPhysicalAudits } from '../services/storage';
 import { ConfirmationModal } from './ConfirmationModal';
+import { showToast } from '../utils/toast';
 import { X, ClipboardCheck, Check, Plus, Minus, Equal, Search } from 'lucide-react';
 
 interface PhysicalAuditModalProps {
@@ -109,6 +110,11 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
 
     // Save physical audit record (records the verified count and differences)
     addPhysicalAudit(record);
+    showToast(
+      '¡Auditoría Guardada con Éxito!',
+      `Se registró el conteo físico de inventario para ${category.name} en almacén [${warehouse.code}].`,
+      'success'
+    );
 
     setConfirmOpen(false);
     onClose();

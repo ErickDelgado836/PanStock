@@ -11,6 +11,8 @@ import {
 } from '../../services/storage';
 import { ConfirmationModal } from '../ConfirmationModal';
 import { ProductSearchSelect } from './ProductSearchSelect';
+import { transferLotStock, getLotStockInWarehouse } from '../../utils/lotUtils';
+import { showToast } from '../../utils/toast';
 import { CustomSelect } from '../Common/CustomSelect';
 import {
   X,
@@ -25,6 +27,7 @@ import {
   PackageCheck,
   ArrowRight,
   Lock,
+  Calendar,
 } from 'lucide-react';
 
 interface TrasladosModalProps {
@@ -62,6 +65,8 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
 
   // Single Item Form State
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedLotId, setSelectedLotId] = useState('');
+  const [ignoreLotRestrictions, setIgnoreLotRestrictions] = useState(false);
   const [quantity, setQuantity] = useState<number | string>('');
 
   // Multiple Items State
@@ -87,11 +92,17 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
       setErrorMsg('');
       setMultiItems([]);
       setSelectedProductId('');
+      setSelectedLotId('');
+      setIgnoreLotRestrictions(false);
       setAddSelectedProdId('');
       setQuantity('');
       setAddQuantity('');
     }
   }, [isOpen, currentUser]);
+
+  useEffect(() => {
+    setSelectedLotId('');
+  }, [selectedProductId, sourceWhId]);
 
   // Products available in source warehouse
   const sourceProducts = products.filter(
@@ -100,6 +111,10 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
 
   const selectedProduct = sourceProducts.find((p) => p.id === selectedProductId);
   const maxAvailableSingle = selectedProduct ? selectedProduct.stockByWarehouse[sourceWhId] || 0 : 0;
+
+  const activeLotsInSource = selectedProduct
+    ? (selectedProduct.lots || []).filter((l) => getLotStockInWarehouse(l, sourceWhId) > 0)
+    : [];
 
   // Add item to multiple list
   const handleAddMultiItem = () => {
@@ -212,6 +227,33 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
         );
         return;
       }
+
+      // Check per-lot limits if restriction is active
+      if (!ignoreLotRestrictions && activeLotsInSource.length > 0) {
+        if (selectedLotId) {
+          const chosenLot = activeLotsInSource.find((l) => l.id === selectedLotId);
+          const chosenLotQty = chosenLot ? getLotStockInWarehouse(chosenLot, sourceWhId) : 0;
+          if (parsedQty > chosenLotQty) {
+            setErrorMsg(
+              `La cantidad a trasladar (${parsedQty}) supera las ${chosenLotQty} ${selectedProduct?.unit} disponibles en el lote seleccionado (Vence: ${chosenLot?.expirationDate || 'N/A'}). Si deseas abarcar más inventario de otros lotes, activa la opción 'Hacer operación total sin contar fechas de vencimiento'.`
+            );
+            return;
+          }
+        } else {
+          // Auto FIFO: check if requested qty exceeds the stock of the earliest lot when multiple lots exist
+          const sortedLots = [...activeLotsInSource].sort((a, b) =>
+            (a.expirationDate || '').localeCompare(b.expirationDate || '')
+          );
+          const firstLot = sortedLots[0];
+          const firstLotQty = firstLot ? getLotStockInWarehouse(firstLot, sourceWhId) : 0;
+          if (parsedQty > firstLotQty && activeLotsInSource.length > 1) {
+            setErrorMsg(
+              `La cantidad a trasladar (${parsedQty}) abarca más de un lote con distinta fecha de vencimiento. El lote más próximo a vencer (${firstLot?.lotNumber || 'S/N'}, Exp: ${firstLot?.expirationDate}) sólo cuenta con ${firstLotQty} ${selectedProduct?.unit}. Si deseas realizar el traslado total abarcando múltiples lotes, marca la casilla 'Hacer operación total sin contar fechas de vencimiento'.`
+            );
+            return;
+          }
+        }
+      }
     } else {
       if (multiItems.length === 0) {
         setErrorMsg('Debe añadir al menos un producto a la lista de traslado múltiple.');
@@ -233,10 +275,13 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
       if (!productInDb) return;
 
       const currentSourceStock = productInDb.stockByWarehouse[sourceWhId] || 0;
-      productInDb.stockByWarehouse[sourceWhId] = currentSourceStock - parsedQty;
+      productInDb.stockByWarehouse[sourceWhId] = Math.max(0, currentSourceStock - parsedQty);
 
       const currentTargetStock = productInDb.stockByWarehouse[targetWhId] || 0;
       productInDb.stockByWarehouse[targetWhId] = currentTargetStock + parsedQty;
+
+      // Transfer lot stock from source to target warehouse with preferred lot selection if specified
+      transferLotStock(productInDb, sourceWhId, targetWhId, parsedQty, selectedLotId || undefined);
 
       movementItemsList.push({
         productId: productInDb.id,
@@ -252,17 +297,21 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
       for (const item of multiItems) {
         const productInDb = currentProducts.find((p) => p.id === item.productId);
         if (productInDb) {
+          const qty = Number(item.quantity);
           const currentSourceStock = productInDb.stockByWarehouse[sourceWhId] || 0;
-          productInDb.stockByWarehouse[sourceWhId] = currentSourceStock - Number(item.quantity);
+          productInDb.stockByWarehouse[sourceWhId] = Math.max(0, currentSourceStock - qty);
 
           const currentTargetStock = productInDb.stockByWarehouse[targetWhId] || 0;
-          productInDb.stockByWarehouse[targetWhId] = currentTargetStock + Number(item.quantity);
+          productInDb.stockByWarehouse[targetWhId] = currentTargetStock + qty;
+
+          // Transfer lot stock from source to target warehouse
+          transferLotStock(productInDb, sourceWhId, targetWhId, qty);
 
           movementItemsList.push({
             productId: productInDb.id,
             productCode: productInDb.code,
             productName: productInDb.name,
-            quantity: Number(item.quantity),
+            quantity: qty,
             unit: productInDb.unit as any,
           });
         }
@@ -286,6 +335,11 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
     };
 
     addMovement(newMovement);
+    showToast(
+      '¡Traslado Registrado con Éxito!',
+      `Se completó la transferencia N° ${newMovement.movementNumber} con doc. de ref. "${newMovement.docRef}".`,
+      'success'
+    );
     setConfirmOpen(false);
     onClose();
   };
@@ -467,28 +521,107 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
                   />
 
                   {selectedProduct && (
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="text-xs font-black text-slate-700 uppercase">
-                          Cantidad a Trasladar
-                        </label>
-                        <span className="text-xs text-amber-900 font-black bg-amber-100 px-2.5 py-0.5 rounded-md border border-amber-300">
-                          Existencia en Origen: {maxAvailableSingle} {selectedProduct.unit}
-                        </span>
+                    <div className="space-y-4">
+                      {/* Lots Breakdown Panel */}
+                      {activeLotsInSource.length > 0 && (
+                        <div className="p-4 bg-amber-50/60 border border-amber-200/80 rounded-2xl space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black uppercase text-amber-950 tracking-wider flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                              Desglose por Fecha de Vencimiento en Origen ({warehouses.find(w => w.id === sourceWhId)?.code || sourceWhId})
+                            </span>
+                            <span className="text-[11px] font-black text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
+                              {activeLotsInSource.length} lote(s)
+                            </span>
+                          </div>
+
+                          <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                            {activeLotsInSource.map((lot) => {
+                              const lotQtyInWh = getLotStockInWarehouse(lot, sourceWhId);
+                              return (
+                                <div key={lot.id} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-amber-200/80 text-xs shadow-xs">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                      Lote: {lot.lotNumber || 'S/N'}
+                                    </span>
+                                    <span className="font-extrabold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                      📅 Vence: {lot.expirationDate || 'Sin Fecha'}
+                                    </span>
+                                  </div>
+                                  <span className="font-black text-slate-900 text-xs">
+                                    {lotQtyInWh} {selectedProduct.unit}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Specific Lot Selector */}
+                          <div>
+                            <label className="block text-[11px] font-bold text-amber-900 mb-1">
+                              Seleccionar Lote Específico (Opcional):
+                            </label>
+                            <select
+                              value={selectedLotId}
+                              onChange={(e) => setSelectedLotId(e.target.value)}
+                              disabled={ignoreLotRestrictions}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500/40 disabled:bg-slate-100 disabled:text-slate-400"
+                            >
+                              <option value="">Auto FIFO (Transferir del lote más próximo a vencer)</option>
+                              {activeLotsInSource.map((lot) => (
+                                <option key={lot.id} value={lot.id}>
+                                  Lote: {lot.lotNumber || 'S/N'} — Vence: {lot.expirationDate} ({getLotStockInWarehouse(lot, sourceWhId)} {selectedProduct.unit})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Checkbox for Free Operation / Override */}
+                          <label className="flex items-start gap-2.5 pt-1 cursor-pointer select-none border-t border-amber-200/60 mt-2">
+                            <input
+                              type="checkbox"
+                              checked={ignoreLotRestrictions}
+                              onChange={(e) => {
+                                setIgnoreLotRestrictions(e.target.checked);
+                                if (e.target.checked) setSelectedLotId('');
+                              }}
+                              className="mt-0.5 w-4 h-4 text-amber-600 rounded focus:ring-amber-500 border-slate-300"
+                            />
+                            <div className="text-xs">
+                              <span className="font-extrabold text-slate-900 block">
+                                Hacer operación total sin contar fechas de vencimiento
+                              </span>
+                              <span className="text-slate-500 text-[11px] font-medium block leading-tight">
+                                Permite trasladar cualquier cantidad hasta la existencia total ({maxAvailableSingle} {selectedProduct.unit}) distribuyendo automáticamente entre lotes.
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+                      )}
+
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-xs font-black text-slate-700 uppercase">
+                            Cantidad a Trasladar
+                          </label>
+                          <span className="text-xs text-amber-900 font-black bg-amber-100 px-2.5 py-0.5 rounded-md border border-amber-300">
+                            Existencia Total Origen: {maxAvailableSingle} {selectedProduct.unit}
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="Ej: 20 ó 14.50"
+                          value={quantity}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(',', '.');
+                            if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                              setQuantity(val);
+                            }
+                          }}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-black text-base text-slate-900 focus:ring-2 focus:ring-amber-500/40 focus:border-amber-600"
+                        />
                       </div>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="Ej: 20 ó 14.50"
-                        value={quantity}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(',', '.');
-                          if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                            setQuantity(val);
-                          }
-                        }}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-black text-base text-slate-900 focus:ring-2 focus:ring-amber-500/40 focus:border-amber-600"
-                      />
                     </div>
                   )}
                 </div>

@@ -63,6 +63,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { ConfirmationModal } from './ConfirmationModal';
+import { showToast } from '../utils/toast';
 import { AdminProducts } from './AdminProducts';
 import { generateMovementPDF } from '../utils/pdfGenerator';
 import { CustomSelect } from './Common/CustomSelect';
@@ -132,6 +133,7 @@ export const AdminPanel: React.FC = () => {
   ) => {
     const id = Date.now().toString();
     setNotification({ id, title, message, type, categoryTag });
+    showToast(title, message, type);
 
     // Auto dismiss after 6 seconds
     setTimeout(() => {

@@ -14,6 +14,7 @@ import {
   INITIAL_MOVEMENTS,
   INITIAL_PRODUCTS,
 } from '../data/seedData';
+import { reconcileAllProducts } from '../utils/lotUtils';
 import {
   checkIsSupabaseConfigured,
   fetchUsersFromSupabase,
@@ -375,18 +376,25 @@ export function deleteCategory(id: string) {
 export function getProducts(): Product[] {
   const data = localStorage.getItem(KEYS.PRODUCTS);
   if (!data) {
-    localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
-    return INITIAL_PRODUCTS;
+    const reconciled = reconcileAllProducts(INITIAL_PRODUCTS);
+    localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(reconciled));
+    return reconciled;
   }
-  return JSON.parse(data);
+  try {
+    const parsed: Product[] = JSON.parse(data);
+    return reconcileAllProducts(parsed);
+  } catch (err) {
+    return reconcileAllProducts(INITIAL_PRODUCTS);
+  }
 }
 
 export function saveProducts(products: Product[]) {
-  localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
+  const reconciled = reconcileAllProducts(products);
+  localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(reconciled));
   notifyStorageChange();
 
   if (checkIsSupabaseConfigured()) {
-    saveProductsToSupabase(products).catch((err) => console.error('[Supabase Save Products Error]', err));
+    saveProductsToSupabase(reconciled).catch((err) => console.error('[Supabase Save Products Error]', err));
   }
 }
 

@@ -12,6 +12,7 @@ import { Header } from './components/Header';
 import { LoginModal } from './components/LoginModal';
 import { WelcomeModal } from './components/WelcomeModal';
 import { LogoutConfirmModal } from './components/LogoutConfirmModal';
+import { ToastContainer } from './components/Common/ToastContainer';
 import { Dashboard } from './components/Dashboard';
 import { WarehouseView } from './components/WarehouseView';
 import { SalesModule } from './components/Movements/SalesModule';
@@ -391,6 +392,9 @@ export default function App() {
         currentUser={currentUser}
       />
     </div>
+
+      {/* Global Toast Notifications */}
+      <ToastContainer />
 
       {/* Welcome Announcement Modal with Background Blur */}
       <WelcomeModal

@@ -10,6 +10,7 @@ import {
   subscribeToStorage,
 } from '../services/storage';
 import { CustomSelect } from './Common/CustomSelect';
+import { showToast } from '../utils/toast';
 import {
   PackageSearch,
   Plus,
@@ -122,6 +123,7 @@ export const AdminProducts: React.FC = () => {
     saveProducts(updated);
     setProducts(updated);
     setMsg({ text: `Producto '${newProduct.name}' agregado al catálogo.`, type: 'success' });
+    showToast('¡Producto Creado con Éxito!', `El producto "${newProduct.name}" (${newProduct.code}) fue registrado en el catálogo.`, 'success');
 
     // Reset Form
     setName('');
@@ -181,6 +183,7 @@ export const AdminProducts: React.FC = () => {
     setEditModalOpen(false);
     setEditingProduct(null);
     setMsg({ text: `Producto '${cleanCode}' actualizado con éxito.`, type: 'success' });
+    showToast('¡Producto Actualizado con Éxito!', `La información del producto "${cleanName}" (${cleanCode}) fue guardada correctamente.`, 'success');
   };
 
   // Open Delete Request Modal
@@ -253,6 +256,8 @@ export const AdminProducts: React.FC = () => {
     deleteProduct(productToDelete.id);
     const updated = products.filter((p) => p.id !== productToDelete.id);
     setProducts(updated);
+
+    showToast('¡Producto Eliminado con Éxito!', `El producto "${productToDelete.name}" fue removido completamente del sistema.`, 'success');
 
     setDeleteModalOpen(false);
     setProductToDelete(null);

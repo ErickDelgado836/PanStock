@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Product, Warehouse, ProductLot, Category } from '../types';
+import { Product, Warehouse, ProductLot, Category, ProductStock } from '../types';
 import { getProducts, getWarehouses, getCategories, saveProducts } from '../services/storage';
 import { ProductSearchSelect } from './Movements/ProductSearchSelect';
 import { CustomSelect } from './Common/CustomSelect';
+import { getLotStockMap, getLotStockInWarehouse, getLotTotalStock } from '../utils/lotUtils';
+import { showToast } from '../utils/toast';
 import {
   X,
   Calendar,
@@ -71,7 +73,7 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
     }
 
     const whLots = (targetProd.lots || []).filter(
-      (l) => (l.warehouseId || '00') === whId
+      (l) => getLotStockInWarehouse(l, whId) > 0 || (l.warehouseId || '00') === whId
     );
 
     let targetLot: ProductLot | undefined = undefined;
@@ -86,7 +88,7 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
     if (targetLot) {
       setEditingLotId(targetLot.id);
       setLotNumber(targetLot.lotNumber);
-      setQuantity(targetLot.quantity);
+      setQuantity(getLotStockInWarehouse(targetLot, whId) || targetLot.quantity);
       setExpirationDate(targetLot.expirationDate || '');
       setNotes(targetLot.notes || '');
     } else {
@@ -226,25 +228,31 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
     if (editingLotId) {
       targetProd.lots = targetProd.lots.map((l) => {
         if (l.id === editingLotId) {
-          return {
+          const stockMap = getLotStockMap(l);
+          stockMap[selectedWarehouseId] = numQty;
+          const updatedLot: ProductLot = {
             ...l,
             lotNumber: lotName,
-            quantity: numQty,
             expirationDate,
             warehouseId: selectedWarehouseId,
+            stockByWarehouse: stockMap,
             notes: notes.trim() || undefined,
           };
+          updatedLot.quantity = getLotTotalStock(updatedLot);
+          return updatedLot;
         }
         return l;
       });
       setSuccessMsg('Lote actualizado exitosamente.');
     } else {
+      const stockMap: ProductStock = { [selectedWarehouseId]: numQty };
       const newLot: ProductLot = {
         id: `lot-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         lotNumber: lotName,
         quantity: numQty,
         expirationDate,
         warehouseId: selectedWarehouseId,
+        stockByWarehouse: stockMap,
         notes: notes.trim() || undefined,
       };
       targetProd.lots.push(newLot);
@@ -262,6 +270,12 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
 
     saveProducts(allProducts);
     setProducts(allProducts);
+
+    showToast(
+      '¡Lote Guardado con Éxito!',
+      `Se actualizó la información y vencimiento para el lote "${lotName}" (${expirationDate}).`,
+      'success'
+    );
 
     // Refresh context for current product/warehouse/lot
     selectProductAndWarehouse(selectedProductId, selectedWarehouseId, allProducts, savedLotId || undefined);

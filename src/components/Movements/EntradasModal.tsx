@@ -13,6 +13,8 @@ import {
 } from '../../services/storage';
 import { ConfirmationModal } from '../ConfirmationModal';
 import { ProductSearchSelect } from './ProductSearchSelect';
+import { addLotStockOnEntry } from '../../utils/lotUtils';
+import { showToast } from '../../utils/toast';
 import { CustomSelect } from '../Common/CustomSelect';
 import {
   X,
@@ -313,31 +315,17 @@ export const EntradasModal: React.FC<EntradasModalProps> = ({ isOpen, onClose, c
         const currentStock00 = found.stockByWarehouse['00'] || 0;
         found.stockByWarehouse['00'] = currentStock00 + parsedQty;
 
-        if (!found.lots) found.lots = [];
-        if (lotNumber.trim() || expirationDate) {
-          found.lots.push({
-            id: `lot-${Date.now()}`,
-            lotNumber: lotNumber.trim() || 'S/N',
-            expirationDate: expirationDate,
-            quantity: parsedQty,
-            warehouseId: '00',
-          });
-        }
-        if (expirationDate) found.expirationDate = expirationDate;
+        addLotStockOnEntry(
+          found,
+          '00',
+          parsedQty,
+          lotNumber,
+          expirationDate,
+          notes
+        );
 
         targetProduct = found;
       } else {
-        const newLots = [];
-        if (lotNumber.trim() || expirationDate) {
-          newLots.push({
-            id: `lot-${Date.now()}`,
-            lotNumber: lotNumber.trim() || 'S/N',
-            expirationDate: expirationDate,
-            quantity: parsedQty,
-            warehouseId: '00',
-          });
-        }
-
         targetProduct = {
           id: `prod-${Date.now()}`,
           code: fullCode,
@@ -348,10 +336,18 @@ export const EntradasModal: React.FC<EntradasModalProps> = ({ isOpen, onClose, c
             '00': parsedQty,
           },
           expirationDate: expirationDate || undefined,
-          lots: newLots,
+          lots: [],
           entryDate: new Date().toISOString().split('T')[0],
           notes: notes,
         };
+        addLotStockOnEntry(
+          targetProduct,
+          '00',
+          parsedQty,
+          lotNumber,
+          expirationDate,
+          notes
+        );
         currentProducts.push(targetProduct);
       }
 
@@ -373,17 +369,14 @@ export const EntradasModal: React.FC<EntradasModalProps> = ({ isOpen, onClose, c
             const currentStock00 = found.stockByWarehouse['00'] || 0;
             found.stockByWarehouse['00'] = currentStock00 + Number(item.quantity);
 
-            if (!found.lots) found.lots = [];
-            if (item.lotNumber || item.expirationDate) {
-              found.lots.push({
-                id: `lot-${Date.now()}-${Math.random()}`,
-                lotNumber: item.lotNumber || 'S/N',
-                expirationDate: item.expirationDate || '',
-                quantity: Number(item.quantity),
-                warehouseId: '00',
-              });
-            }
-            if (item.expirationDate) found.expirationDate = item.expirationDate;
+            addLotStockOnEntry(
+              found,
+              '00',
+              Number(item.quantity),
+              item.lotNumber,
+              item.expirationDate,
+              notes
+            );
 
             movementItemsList.push({
               productId: found.id,
@@ -395,17 +388,6 @@ export const EntradasModal: React.FC<EntradasModalProps> = ({ isOpen, onClose, c
           }
         } else {
           // New product in multi-entry
-          const newLots = [];
-          if (item.lotNumber || item.expirationDate) {
-            newLots.push({
-              id: `lot-${Date.now()}-${Math.random()}`,
-              lotNumber: item.lotNumber || 'S/N',
-              expirationDate: item.expirationDate || '',
-              quantity: Number(item.quantity),
-              warehouseId: '00',
-            });
-          }
-
           const newProd: Product = {
             id: `prod-${Date.now()}-${Math.random()}`,
             code: item.productCode,
@@ -416,10 +398,18 @@ export const EntradasModal: React.FC<EntradasModalProps> = ({ isOpen, onClose, c
               '00': Number(item.quantity),
             },
             expirationDate: item.expirationDate || undefined,
-            lots: newLots,
+            lots: [],
             entryDate: new Date().toISOString().split('T')[0],
             notes: notes,
           };
+          addLotStockOnEntry(
+            newProd,
+            '00',
+            Number(item.quantity),
+            item.lotNumber,
+            item.expirationDate,
+            notes
+          );
           currentProducts.push(newProd);
 
           movementItemsList.push({
@@ -449,6 +439,11 @@ export const EntradasModal: React.FC<EntradasModalProps> = ({ isOpen, onClose, c
     };
 
     addMovement(newMovement);
+    showToast(
+      '¡Ingreso Registrado con Éxito!',
+      `Se registró correctamente el movimiento ${newMovement.movementNumber} con doc. de ref. "${newMovement.docRef}".`,
+      'success'
+    );
     setConfirmOpen(false);
     onClose();
   };

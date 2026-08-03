@@ -49,7 +49,8 @@ export interface ProductLot {
   lotNumber: string;
   expirationDate: string; // YYYY-MM-DD
   quantity: number;
-  warehouseId: string;
+  warehouseId?: string;
+  stockByWarehouse?: ProductStock;
   notes?: string;
 }
 

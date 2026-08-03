@@ -11,7 +11,9 @@ import {
   isDocRefDuplicate,
 } from '../../services/storage';
 import { ConfirmationModal } from '../ConfirmationModal';
+import { showToast } from '../../utils/toast';
 import { CustomSelect } from '../Common/CustomSelect';
+import { deductLotStock } from '../../utils/lotUtils';
 import {
   ShoppingCart,
   Building2,
@@ -211,6 +213,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
       if (p) {
         const currentStock = p.stockByWarehouse[selectedWarehouseId] || 0;
         p.stockByWarehouse[selectedWarehouseId] = Math.max(0, currentStock - numQty);
+        deductLotStock(p, selectedWarehouseId, numQty);
       }
     });
 
@@ -243,6 +246,12 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
     };
 
     addMovement(saleMovement);
+
+    showToast(
+      '¡Venta Procesada con Éxito!',
+      `Se emitió la venta N° ${saleMovement.movementNumber} (doc: ${executedDocRef}) y se actualizó el inventario.`,
+      'success'
+    );
 
     setSuccessMsg(
       `¡Venta Realizada con Éxito! Se procesó la referencia [${executedDocRef}] con ${cart.length} producto(s) en almacén [${whName}] y se actualizó el inventario correctamente.`
