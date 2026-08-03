@@ -15,6 +15,7 @@ import { LogoutConfirmModal } from './components/LogoutConfirmModal';
 import { ToastContainer } from './components/Common/ToastContainer';
 import { Dashboard } from './components/Dashboard';
 import { WarehouseView } from './components/WarehouseView';
+import { WarehouseTabsBar } from './components/WarehouseTabsBar';
 import { SalesModule } from './components/Movements/SalesModule';
 import { ExpiryAlerts } from './components/ExpiryAlerts';
 import { MovementsHistory } from './components/MovementsHistory';
@@ -254,27 +255,13 @@ export default function App() {
               transition={{ duration: 0.18, ease: 'easeOut' }}
               className="max-w-7xl mx-auto px-4 py-8 space-y-6"
             >
-              {/* Warehouse Switcher Horizontal Tabs */}
-              <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto scrollbar-none scrollbar-hide touch-auto flex gap-2">
-                {warehouses
-                  .filter((w) => currentUser.permissions.allowedWarehouses.includes(w.id))
-                  .map((w) => (
-                    <button
-                      key={w.id}
-                      onClick={() => setSelectedWarehouseId(w.id)}
-                      className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all whitespace-nowrap flex items-center gap-2 active:scale-[0.98] ${
-                        selectedWarehouseId === w.id
-                          ? 'bg-red-600 text-white shadow-md'
-                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/60'
-                      }`}
-                    >
-                      <Building2 className="w-4 h-4" />
-                      <span>
-                        {w.code} - {w.name}
-                      </span>
-                    </button>
-                  ))}
-              </div>
+              {/* Warehouse Switcher Navigation Bar with Desktop Scroll Controls & Quick Dropdown */}
+              <WarehouseTabsBar
+                warehouses={warehouses}
+                selectedWarehouseId={selectedWarehouseId}
+                onSelectWarehouse={setSelectedWarehouseId}
+                allowedWarehouseIds={currentUser.permissions.allowedWarehouses}
+              />
 
               {/* Warehouse View Content with Smooth Fluid Transition */}
               <AnimatePresence mode="wait">
