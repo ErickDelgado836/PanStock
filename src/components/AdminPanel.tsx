@@ -13,6 +13,8 @@ import {
   getWarehouses,
   getMovements,
   saveMovements,
+  deleteMovement,
+  purgeMovements,
   addMovement,
   subscribeToStorage,
 } from '../services/storage';
@@ -764,19 +766,10 @@ export const AdminPanel: React.FC = () => {
   };
 
   // History Purge Logic
-  const handlePurgeHistory = () => {
-    const currentMovements = getMovements();
-    const filtered = currentMovements.filter((m) => {
-      const matchWh =
-        m.sourceWarehouseId === selectedWarehouseId ||
-        m.targetWarehouseId === selectedWarehouseId;
-      if (!matchWh) return true; // keep movements from other warehouses
+  const handlePurgeHistory = async () => {
+    await purgeMovements(selectedWarehouseId, purgeType);
+    setMovements(getMovements());
 
-      if (purgeType === 'ALL') return false; // delete all for this warehouse
-      return m.type !== purgeType; // delete matching type
-    });
-
-    saveMovements(filtered);
     const whObj = warehouses.find((w) => w.id === selectedWarehouseId);
     const whName = whObj ? `${whObj.code} - ${whObj.name}` : selectedWarehouseId;
     setHistoryMsg('Vaciado de historial completado exitosamente.');
@@ -789,14 +782,18 @@ export const AdminPanel: React.FC = () => {
     setConfirmPurgeOpen(false);
   };
 
-  const handleConfirmDeleteSingleMovement = () => {
+  const handleConfirmDeleteSingleMovement = async () => {
     if (!singleMovementToDelete) return;
-    const currentMovements = getMovements().filter((m) => m.id !== singleMovementToDelete.id);
-    saveMovements(currentMovements);
-    setHistoryMsg(`El registro de movimiento ${singleMovementToDelete.movementNumber} fue eliminado correctamente.`);
+    const deletedNum = singleMovementToDelete.movementNumber;
+    const deletedRef = singleMovementToDelete.docRef;
+
+    await deleteMovement(singleMovementToDelete.id);
+    setMovements(getMovements());
+
+    setHistoryMsg(`El registro de movimiento ${deletedNum} fue eliminado correctamente.`);
     triggerNotification(
       '¡Registro de Movimiento Eliminado!',
-      `El movimiento N° ${singleMovementToDelete.movementNumber} (Ref: ${singleMovementToDelete.docRef}) ha sido eliminado del historial de auditoría.`,
+      `El movimiento N° ${deletedNum} (Ref: ${deletedRef}) ha sido eliminado del historial de auditoría.`,
       'warning',
       'HISTORIAL'
     );

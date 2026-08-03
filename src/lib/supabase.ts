@@ -521,6 +521,45 @@ export async function saveMovementToSupabase(movement: MovementRecord): Promise<
   }
 }
 
+export async function deleteMovementFromSupabase(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
+  try {
+    console.log('[Supabase] Deleting movement:', id);
+    const { error } = await supabase.from('movimientos').delete().eq('id', id);
+    if (error) {
+      logSupabase('deleteMovement', false, error);
+      return false;
+    }
+    logSupabase('deleteMovement', true, id);
+    return true;
+  } catch (err) {
+    logSupabase('deleteMovement Exception', false, err);
+    return false;
+  }
+}
+
+export async function purgeMovementsFromSupabase(warehouseId: string, purgeType: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
+  try {
+    console.log('[Supabase] Purging movements for warehouse:', warehouseId, 'type:', purgeType);
+    let query = supabase.from('movimientos').delete();
+    query = query.or(`source_warehouse_id.eq.${warehouseId},target_warehouse_id.eq.${warehouseId}`);
+    if (purgeType !== 'ALL') {
+      query = query.eq('type', purgeType);
+    }
+    const { error } = await query;
+    if (error) {
+      logSupabase('purgeMovements', false, error);
+      return false;
+    }
+    logSupabase('purgeMovements', true, `Purged warehouse=${warehouseId} type=${purgeType}`);
+    return true;
+  } catch (err) {
+    logSupabase('purgeMovements Exception', false, err);
+    return false;
+  }
+}
+
 // ==========================================
 // 6. AUDITORIAS (AUDITS)
 // ==========================================

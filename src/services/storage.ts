@@ -29,6 +29,8 @@ import {
   deleteProductFromSupabase,
   fetchMovementsFromSupabase,
   saveMovementToSupabase,
+  deleteMovementFromSupabase,
+  purgeMovementsFromSupabase,
   fetchAuditsFromSupabase,
   saveAuditToSupabase,
   registerSupabaseRealtimeCallback,
@@ -139,34 +141,21 @@ export async function syncFromSupabase(): Promise<boolean> {
     // 5. Fetch Movements
     const remoteMovements = await fetchMovementsFromSupabase();
     if (remoteMovements) {
-      if (remoteMovements.length === 0 && INITIAL_MOVEMENTS.length > 0) {
+      const hasSeededMovs = localStorage.getItem('panstock_movements_seeded_v1');
+      if (remoteMovements.length === 0 && INITIAL_MOVEMENTS.length > 0 && !hasSeededMovs) {
         console.log('[Supabase Sync] Seeding initial movements to Supabase...');
         for (const mov of INITIAL_MOVEMENTS) {
           await saveMovementToSupabase(mov);
         }
         localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(INITIAL_MOVEMENTS));
+        localStorage.setItem('panstock_movements_seeded_v1', 'true');
       } else {
-        // Merge remote movements with any locally created movements not yet on server
-        const localData = localStorage.getItem(KEYS.MOVEMENTS);
-        const localMovements: MovementRecord[] = localData ? JSON.parse(localData) : [];
-        const mergedMap = new Map<string, MovementRecord>();
-
-        // Remote movements first
-        remoteMovements.forEach((m) => mergedMap.set(m.id, m));
-        // Local movements if missing in remote
-        localMovements.forEach((m) => {
-          if (!mergedMap.has(m.id)) {
-            mergedMap.set(m.id, m);
-            saveMovementToSupabase(m).catch(() => {});
-          }
-        });
-
-        const sortedMovements = Array.from(mergedMap.values()).sort((a, b) => {
+        localStorage.setItem('panstock_movements_seeded_v1', 'true');
+        const sortedMovements = [...remoteMovements].sort((a, b) => {
           const dateA = parseAnyDate(a.date)?.getTime() || 0;
           const dateB = parseAnyDate(b.date)?.getTime() || 0;
           return dateB - dateA;
         });
-
         localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(sortedMovements));
       }
     }
@@ -454,6 +443,45 @@ export function addMovement(movement: MovementRecord) {
         syncFromSupabase();
       })
       .catch((err) => console.error('[Supabase Add Movement Error]', err));
+  }
+}
+
+export async function deleteMovement(id: string) {
+  const currentMovements = getMovements().filter((m) => m.id !== id);
+  localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(currentMovements));
+  notifyStorageChange();
+
+  if (checkIsSupabaseConfigured()) {
+    try {
+      await deleteMovementFromSupabase(id);
+      await syncFromSupabase();
+    } catch (err) {
+      console.error('[Supabase Delete Movement Error]', err);
+    }
+  }
+}
+
+export async function purgeMovements(warehouseId: string, purgeType: string) {
+  const currentMovements = getMovements();
+  const filtered = currentMovements.filter((m) => {
+    const matchWh =
+      m.sourceWarehouseId === warehouseId ||
+      m.targetWarehouseId === warehouseId;
+    if (!matchWh) return true;
+    if (purgeType === 'ALL') return false;
+    return m.type !== purgeType;
+  });
+
+  localStorage.setItem(KEYS.MOVEMENTS, JSON.stringify(filtered));
+  notifyStorageChange();
+
+  if (checkIsSupabaseConfigured()) {
+    try {
+      await purgeMovementsFromSupabase(warehouseId, purgeType);
+      await syncFromSupabase();
+    } catch (err) {
+      console.error('[Supabase Purge Movements Error]', err);
+    }
   }
 }
 
