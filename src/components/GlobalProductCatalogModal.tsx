@@ -32,6 +32,7 @@ import {
   PackageCheck,
   PackageX,
   FileSpreadsheet,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 interface GlobalProductCatalogModalProps {
@@ -69,6 +70,16 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
   const [stockFilter, setStockFilter] = useState<StockFilterType>('ALL');
   const [sortBy, setSortBy] = useState<SortOptionType>('LAST_ENTRY_DESC');
   const [onlyInSelectedWarehouse, setOnlyInSelectedWarehouse] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (searchTerm.trim() !== '') count++;
+    if (selectedWarehouseId !== 'ALL') count++;
+    if (selectedCategoryId !== 'ALL') count++;
+    if (stockFilter !== 'ALL') count++;
+    return count;
+  }, [searchTerm, selectedWarehouseId, selectedCategoryId, stockFilter]);
 
   // Expanded product IDs set
   const [expandedProductIds, setExpandedProductIds] = useState<Set<string>>(new Set());
@@ -387,13 +398,36 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
               </div>
             </div>
 
-            <button
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg sm:rounded-xl transition-all cursor-pointer shrink-0"
-              title="Cerrar Catálogo"
-            >
-              <X className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2 rounded-lg sm:rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs sm:text-sm font-bold border ${
+                  showFilters
+                    ? 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-750'
+                    : 'bg-red-600 text-white border-transparent hover:bg-red-500 shadow-md'
+                }`}
+                title={showFilters ? "Ocultar filtros de búsqueda" : "Mostrar filtros de búsqueda"}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                <span className="hidden sm:inline">
+                  {showFilters ? 'Ocultar Filtros' : 'Mostrar Filtros'}
+                </span>
+                {activeFiltersCount > 0 && !showFilters && (
+                  <span className="bg-white text-red-600 font-extrabold px-1.5 py-0.5 rounded-full text-[10px] shadow-xs ml-1 leading-none">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={onClose}
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg sm:rounded-xl transition-all cursor-pointer shrink-0"
+                title="Cerrar Catálogo"
+              >
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+            </div>
           </div>
 
           {/* KPI Summary Bar / Interactive Filter Buttons */}
@@ -533,123 +567,158 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
             </div>
           </div>
 
-          {/* Toolbar: Search, Filters & Controls */}
-          <div className="p-3 sm:p-4 bg-slate-100/90 border-b border-slate-200 space-y-2 sm:space-y-3 shrink-0">
-            {/* Search Input Row */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por código, nombre o descripción..."
-                className="w-full pl-9 pr-9 py-2 sm:py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs sm:text-sm placeholder-slate-400 font-medium focus:ring-2 focus:ring-red-500 focus:border-red-500 shadow-xs transition-all"
-              />
-              {searchTerm && (
+          {/* Collapsible Toolbar: Search, Filters & Controls */}
+          <AnimatePresence initial={false}>
+            {showFilters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="overflow-hidden bg-slate-100/90 border-b border-slate-200 shrink-0"
+              >
+                <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+                  {/* Search Input Row */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Buscar por código, nombre o descripción..."
+                      className="w-full pl-9 pr-9 py-2 sm:py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs sm:text-sm placeholder-slate-400 font-medium focus:ring-2 focus:ring-red-500 focus:border-red-500 shadow-xs transition-all"
+                    />
+                    {searchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-md cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown Filters Grid */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                    {/* Warehouse Filter */}
+                    <div>
+                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-600 mb-0.5 sm:mb-1 block flex items-center gap-1">
+                        <Building2 className="w-3 h-3 text-red-600" />
+                        <span className="truncate">Depósito:</span>
+                      </label>
+                      <CustomSelect
+                        value={selectedWarehouseId}
+                        onChange={(val) => setSelectedWarehouseId(val)}
+                        options={warehouseOptions}
+                        accentColor="rose"
+                      />
+                    </div>
+
+                    {/* Subgroup / Category Filter */}
+                    <div>
+                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-600 mb-0.5 sm:mb-1 block flex items-center gap-1">
+                        <Tag className="w-3 h-3 text-blue-600" />
+                        <span className="truncate">Subgrupo:</span>
+                      </label>
+                      <CustomSelect
+                        value={selectedCategoryId}
+                        onChange={(val) => setSelectedCategoryId(val)}
+                        options={categoryOptions}
+                        accentColor="blue"
+                      />
+                    </div>
+
+                    {/* Stock Status Filter */}
+                    <div>
+                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-600 mb-0.5 sm:mb-1 block flex items-center gap-1">
+                        <Filter className="w-3 h-3 text-emerald-600" />
+                        <span className="truncate">Existencia:</span>
+                      </label>
+                      <CustomSelect
+                        value={stockFilter}
+                        onChange={(val) => setStockFilter(val as StockFilterType)}
+                        options={stockFilterOptions}
+                        accentColor="emerald"
+                      />
+                    </div>
+
+                    {/* Sort By */}
+                    <div>
+                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-600 mb-0.5 sm:mb-1 block flex items-center gap-1">
+                        <ArrowUpDown className="w-3 h-3 text-amber-600" />
+                        <span className="truncate">Ordenar:</span>
+                      </label>
+                      <CustomSelect
+                        value={sortBy}
+                        onChange={(val) => setSortBy(val as SortOptionType)}
+                        options={sortOptions}
+                        accentColor="amber"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Sub-options row inside filters */}
+                  {selectedWarehouseId !== 'ALL' && (
+                    <div className="pt-1 text-xs">
+                      <label className="inline-flex items-center gap-2 text-slate-700 font-semibold cursor-pointer select-none bg-white px-3 py-1.5 rounded-lg border border-slate-200">
+                        <input
+                          type="checkbox"
+                          checked={onlyInSelectedWarehouse}
+                          onChange={(e) => setOnlyInSelectedWarehouse(e.target.checked)}
+                          className="rounded text-red-600 focus:ring-red-500 w-4 h-4"
+                        />
+                        <span>Mostrar solo productos con stock en este depósito</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Results Summary Bar (Always Visible) */}
+          <div className="bg-slate-50 px-3 py-2 sm:px-4 border-b border-slate-200/80 flex items-center justify-between gap-2 text-[10px] sm:text-xs text-slate-500 font-bold shrink-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span>
+                Mostrando <strong className="text-slate-800">{filteredAndSortedProducts.length}</strong> de <strong className="text-slate-800">{products.length}</strong> productos
+              </span>
+              {onlyInSelectedWarehouse && selectedWarehouseId !== 'ALL' && (
+                <span className="bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded text-[9px] font-extrabold">
+                  Solo con Stock
+                </span>
+              )}
+              {activeFiltersCount > 0 && (
                 <button
                   type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-md cursor-pointer"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedWarehouseId('ALL');
+                    setSelectedCategoryId('ALL');
+                    setStockFilter('ALL');
+                    setSortBy('LAST_ENTRY_DESC');
+                    setOnlyInSelectedWarehouse(false);
+                  }}
+                  className="text-red-600 hover:text-red-700 font-black hover:underline cursor-pointer flex items-center gap-0.5 shrink-0"
                 >
-                  <X className="w-4 h-4" />
+                  (Limpiar Filtros)
                 </button>
               )}
             </div>
 
-            {/* Dropdown Filters Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-              {/* Warehouse Filter */}
-              <div>
-                <label className="text-[10px] sm:text-[11px] font-bold text-slate-600 mb-0.5 sm:mb-1 block flex items-center gap-1">
-                  <Building2 className="w-3 h-3 text-red-600" />
-                  <span className="truncate">Depósito:</span>
-                </label>
-                <CustomSelect
-                  value={selectedWarehouseId}
-                  onChange={(val) => setSelectedWarehouseId(val)}
-                  options={warehouseOptions}
-                  accentColor="rose"
-                />
-              </div>
-
-              {/* Subgroup / Category Filter */}
-              <div>
-                <label className="text-[10px] sm:text-[11px] font-bold text-slate-600 mb-0.5 sm:mb-1 block flex items-center gap-1">
-                  <Tag className="w-3 h-3 text-blue-600" />
-                  <span className="truncate">Subgrupo:</span>
-                </label>
-                <CustomSelect
-                  value={selectedCategoryId}
-                  onChange={(val) => setSelectedCategoryId(val)}
-                  options={categoryOptions}
-                  accentColor="blue"
-                />
-              </div>
-
-              {/* Stock Status Filter */}
-              <div>
-                <label className="text-[10px] sm:text-[11px] font-bold text-slate-600 mb-0.5 sm:mb-1 block flex items-center gap-1">
-                  <Filter className="w-3 h-3 text-emerald-600" />
-                  <span className="truncate">Existencia:</span>
-                </label>
-                <CustomSelect
-                  value={stockFilter}
-                  onChange={(val) => setStockFilter(val as StockFilterType)}
-                  options={stockFilterOptions}
-                  accentColor="emerald"
-                />
-              </div>
-
-              {/* Sort By */}
-              <div>
-                <label className="text-[10px] sm:text-[11px] font-bold text-slate-600 mb-0.5 sm:mb-1 block flex items-center gap-1">
-                  <ArrowUpDown className="w-3 h-3 text-amber-600" />
-                  <span className="truncate">Ordenar:</span>
-                </label>
-                <CustomSelect
-                  value={sortBy}
-                  onChange={(val) => setSortBy(val as SortOptionType)}
-                  options={sortOptions}
-                  accentColor="amber"
-                />
-              </div>
-            </div>
-
-            {/* Sub-options row */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs">
-              <div className="flex items-center gap-2">
-                {selectedWarehouseId !== 'ALL' && (
-                  <label className="inline-flex items-center gap-2 text-slate-700 font-semibold cursor-pointer select-none bg-white px-3 py-1.5 rounded-lg border border-slate-200">
-                    <input
-                      type="checkbox"
-                      checked={onlyInSelectedWarehouse}
-                      onChange={(e) => setOnlyInSelectedWarehouse(e.target.checked)}
-                      className="rounded text-red-600 focus:ring-red-500 w-4 h-4"
-                    />
-                    <span>Mostrar solo productos con stock en este depósito</span>
-                  </label>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 ml-auto">
-                <span className="text-slate-500 font-bold">
-                  Mostrando {filteredAndSortedProducts.length} de {products.length} productos
-                </span>
-                <button
-                  type="button"
-                  onClick={
-                    expandedProductIds.size === filteredAndSortedProducts.length
-                      ? collapseAll
-                      : expandAll
-                  }
-                  className="px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-700 font-bold text-[11px] rounded-lg border border-slate-200 transition-all cursor-pointer"
-                >
-                  {expandedProductIds.size === filteredAndSortedProducts.length
-                    ? 'Plegar Todos'
-                    : 'Desplegar Todos'}
-                </button>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={
+                expandedProductIds.size === filteredAndSortedProducts.length
+                  ? collapseAll
+                  : expandAll
+              }
+              className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 font-black text-[9px] sm:text-[10px] rounded-lg border border-slate-200 transition-all cursor-pointer shadow-xs shrink-0"
+            >
+              {expandedProductIds.size === filteredAndSortedProducts.length
+                ? 'Plegar Todos'
+                : 'Desplegar Todos'}
+            </button>
           </div>
 
           {/* Product Cards List */}
