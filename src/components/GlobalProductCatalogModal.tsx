@@ -93,6 +93,17 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
   }, [isOpen, initialWarehouseId, initialCategoryId]);
 
   useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
     return subscribeToStorage(loadData);
   }, []);
 
@@ -336,7 +347,7 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-5 md:p-6 overflow-hidden">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -353,24 +364,24 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.96, opacity: 0, y: 12 }}
           transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-          className="relative z-10 w-full max-w-5xl lg:max-w-5xl 2xl:max-w-6xl bg-slate-50 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-200/90 max-h-[90vh] sm:max-h-[87vh] flex flex-col"
+          className="relative z-10 w-full h-full sm:h-auto max-w-5xl lg:max-w-5xl 2xl:max-w-6xl bg-slate-50 rounded-none sm:rounded-3xl shadow-2xl overflow-hidden border-0 sm:border border-slate-200/90 max-h-[100dvh] sm:max-h-[87vh] flex flex-col"
         >
           {/* Header */}
-          <div className="bg-slate-900 text-white p-4 sm:p-5 md:p-6 border-b border-slate-800 shrink-0 flex items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3.5">
-              <div className="p-3 bg-red-600 rounded-2xl shadow-md text-white shrink-0">
-                <PackageSearch className="w-6 h-6 sm:w-7 sm:h-7" />
+          <div className="bg-slate-900 text-white p-3.5 sm:p-5 md:p-6 border-b border-slate-800 shrink-0 flex items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 sm:p-3 bg-red-600 rounded-xl sm:rounded-2xl shadow-md text-white shrink-0">
+                <PackageSearch className="w-5.5 h-5.5 sm:w-7 sm:h-7" />
               </div>
-              <div>
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-lg sm:text-2xl font-black tracking-tight leading-tight truncate">
                     Catálogo General de Productos
                   </h2>
-                  <span className="bg-red-500/20 text-red-300 border border-red-500/30 px-2.5 py-0.5 rounded-full text-xs font-bold">
-                    {stats.totalItems} Productos Registrados
+                  <span className="bg-red-500/20 text-red-300 border border-red-500/30 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold shrink-0">
+                    {stats.totalItems} Productos
                   </span>
                 </div>
-                <p className="text-slate-300 text-xs sm:text-sm mt-1 leading-snug">
+                <p className="text-slate-300 text-[10px] sm:text-sm mt-0.5 leading-snug truncate">
                   Consolidado total de inventarios en red con desglose detallado por depósitos.
                 </p>
               </div>
@@ -378,7 +389,7 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
 
             <button
               onClick={onClose}
-              className="p-2 sm:p-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all cursor-pointer shrink-0"
+              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg sm:rounded-xl transition-all cursor-pointer shrink-0"
               title="Cerrar Catálogo"
             >
               <X className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -386,33 +397,33 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
           </div>
 
           {/* KPI Summary Bar / Interactive Filter Buttons */}
-          <div className="bg-white px-3 py-2.5 sm:px-6 border-b border-slate-200/80 shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3.5">
+          <div className="bg-white px-3 py-2 sm:py-3 sm:px-6 border-b border-slate-200/80 shrink-0 flex overflow-x-auto sm:grid sm:grid-cols-4 gap-2 sm:gap-3.5 pb-2.5 sm:pb-3 scrollbar-none snap-x touch-pan-x">
             {/* KPI 1: Total Productos */}
             <button
               type="button"
               onClick={() => setStockFilter('ALL')}
-              className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 group select-none ${
+              className={`p-2 sm:p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 group select-none shrink-0 w-[145px] sm:w-auto snap-start ${
                 stockFilter === 'ALL'
                   ? 'bg-blue-50/90 border-blue-400 ring-2 ring-blue-500/30 shadow-xs'
                   : 'bg-slate-50 border-slate-200/80 hover:bg-slate-100/90 hover:border-slate-300'
               }`}
               title="Ver todos los productos registrados"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <div
-                  className={`p-2 rounded-lg shrink-0 transition-colors ${
+                  className={`p-1.5 sm:p-2 rounded-lg shrink-0 transition-colors ${
                     stockFilter === 'ALL'
                       ? 'bg-blue-600 text-white'
                       : 'bg-blue-100 text-blue-700 group-hover:bg-blue-200'
                   }`}
                 >
-                  <Boxes className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Boxes className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 block truncate">
+                  <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 block truncate">
                     Total Productos
                   </span>
-                  <span className="text-sm sm:text-base font-black text-slate-900 block truncate">
+                  <span className="text-xs sm:text-base font-black text-slate-900 block truncate">
                     {stats.totalItems}
                   </span>
                 </div>
@@ -430,28 +441,28 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
               onClick={() =>
                 setStockFilter(stockFilter === 'WITH_STOCK' ? 'ALL' : 'WITH_STOCK')
               }
-              className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 group select-none ${
+              className={`p-2 sm:p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 group select-none shrink-0 w-[145px] sm:w-auto snap-start ${
                 stockFilter === 'WITH_STOCK'
                   ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-500/30 shadow-xs'
                   : 'bg-slate-50 border-slate-200/80 hover:bg-slate-100/90 hover:border-slate-300'
               }`}
               title="Filtrar solo productos con existencia disponible"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <div
-                  className={`p-2 rounded-lg shrink-0 transition-colors ${
+                  className={`p-1.5 sm:p-2 rounded-lg shrink-0 transition-colors ${
                     stockFilter === 'WITH_STOCK'
                       ? 'bg-emerald-600 text-white'
                       : 'bg-emerald-100 text-emerald-700 group-hover:bg-emerald-200'
                   }`}
                 >
-                  <PackageCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <PackageCheck className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 block truncate">
+                  <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 block truncate">
                     Con Existencia
                   </span>
-                  <span className="text-sm sm:text-base font-black text-emerald-700 block truncate">
+                  <span className="text-xs sm:text-base font-black text-emerald-700 block truncate">
                     {stats.itemsWithStock}
                   </span>
                 </div>
@@ -463,35 +474,35 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
               )}
             </button>
 
-            {/* KPI 3: Sin Existencia (Click to filter products with 0 stock) */}
+            {/* KPI 3: Sin Existencia */}
             <button
               type="button"
               onClick={() =>
                 setStockFilter(stockFilter === 'OUT_OF_STOCK' ? 'ALL' : 'OUT_OF_STOCK')
               }
-              className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 group select-none ${
+              className={`p-2 sm:p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 group select-none shrink-0 w-[145px] sm:w-auto snap-start ${
                 stockFilter === 'OUT_OF_STOCK'
                   ? 'bg-rose-50/90 border-rose-400 ring-2 ring-rose-500/30 shadow-xs'
                   : 'bg-slate-50 border-slate-200/80 hover:bg-slate-100/90 hover:border-slate-300'
               }`}
               title="Filtrar solo productos sin existencia (0 unidades)"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <div
-                  className={`p-2 rounded-lg shrink-0 transition-colors ${
+                  className={`p-1.5 sm:p-2 rounded-lg shrink-0 transition-colors ${
                     stockFilter === 'OUT_OF_STOCK'
                       ? 'bg-rose-600 text-white'
                       : 'bg-rose-100 text-rose-700 group-hover:bg-rose-200'
                   }`}
                 >
-                  <PackageX className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <PackageX className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 block truncate">
+                  <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 block truncate">
                     Sin Existencia
                   </span>
                   <span
-                    className={`text-sm sm:text-base font-black block truncate ${
+                    className={`text-xs sm:text-base font-black block truncate ${
                       stats.itemsOutOfStock > 0 ? 'text-rose-700' : 'text-slate-700'
                     }`}
                   >
@@ -507,15 +518,15 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
             </button>
 
             {/* KPI 4: Total Unidades */}
-            <div className="bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-              <div className="p-2 bg-amber-100 text-amber-700 rounded-lg shrink-0">
-                <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
+            <div className="bg-slate-50 p-2 sm:p-3 rounded-xl border border-slate-200/80 flex items-center gap-2 shrink-0 w-[145px] sm:w-auto snap-start">
+              <div className="p-1.5 sm:p-2 bg-amber-100 text-amber-700 rounded-lg shrink-0">
+                <Layers className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0">
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 block truncate">
+                <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 block truncate">
                   Total Unidades
                 </span>
-                <span className="text-sm sm:text-base font-black text-slate-900 block truncate">
+                <span className="text-xs sm:text-base font-black text-slate-900 block truncate">
                   {stats.grandUnits.toLocaleString()} u.
                 </span>
               </div>
@@ -523,16 +534,16 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
           </div>
 
           {/* Toolbar: Search, Filters & Controls */}
-          <div className="p-3.5 sm:p-5 bg-slate-100/90 border-b border-slate-200 space-y-2.5 sm:space-y-3 shrink-0">
+          <div className="p-3 sm:p-4 bg-slate-100/90 border-b border-slate-200 space-y-2 sm:space-y-3 shrink-0">
             {/* Search Input Row */}
             <div className="relative">
-              <Search className="w-4.5 h-4.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por código (ej. BE-001), nombre de producto, subgrupo o descripción..."
-                className="w-full pl-10 pr-9 py-2.5 sm:py-3 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs sm:text-sm placeholder-slate-400 font-medium focus:ring-2 focus:ring-red-500 focus:border-red-500 shadow-xs transition-all"
+                placeholder="Buscar por código, nombre o descripción..."
+                className="w-full pl-9 pr-9 py-2 sm:py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs sm:text-sm placeholder-slate-400 font-medium focus:ring-2 focus:ring-red-500 focus:border-red-500 shadow-xs transition-all"
               />
               {searchTerm && (
                 <button
@@ -546,12 +557,12 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
             </div>
 
             {/* Dropdown Filters Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
               {/* Warehouse Filter */}
               <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1 block flex items-center gap-1">
-                  <Building2 className="w-3.5 h-3.5 text-red-600" />
-                  <span>Filtrar por Depósito:</span>
+                <label className="text-[10px] sm:text-[11px] font-bold text-slate-600 mb-0.5 sm:mb-1 block flex items-center gap-1">
+                  <Building2 className="w-3 h-3 text-red-600" />
+                  <span className="truncate">Depósito:</span>
                 </label>
                 <CustomSelect
                   value={selectedWarehouseId}
@@ -563,9 +574,9 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
 
               {/* Subgroup / Category Filter */}
               <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1 block flex items-center gap-1">
-                  <Tag className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Filtrar por Subgrupo:</span>
+                <label className="text-[10px] sm:text-[11px] font-bold text-slate-600 mb-0.5 sm:mb-1 block flex items-center gap-1">
+                  <Tag className="w-3 h-3 text-blue-600" />
+                  <span className="truncate">Subgrupo:</span>
                 </label>
                 <CustomSelect
                   value={selectedCategoryId}
@@ -577,9 +588,9 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
 
               {/* Stock Status Filter */}
               <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1 block flex items-center gap-1">
-                  <Filter className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Estado de Existencia:</span>
+                <label className="text-[10px] sm:text-[11px] font-bold text-slate-600 mb-0.5 sm:mb-1 block flex items-center gap-1">
+                  <Filter className="w-3 h-3 text-emerald-600" />
+                  <span className="truncate">Existencia:</span>
                 </label>
                 <CustomSelect
                   value={stockFilter}
@@ -591,9 +602,9 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
 
               {/* Sort By */}
               <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1 block flex items-center gap-1">
-                  <ArrowUpDown className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Ordenar por:</span>
+                <label className="text-[10px] sm:text-[11px] font-bold text-slate-600 mb-0.5 sm:mb-1 block flex items-center gap-1">
+                  <ArrowUpDown className="w-3 h-3 text-amber-600" />
+                  <span className="truncate">Ordenar:</span>
                 </label>
                 <CustomSelect
                   value={sortBy}

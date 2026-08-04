@@ -147,7 +147,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 
       {/* Floating Dropdown Panel */}
       {isOpen && !disabled && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white/95 backdrop-blur-xl border border-slate-300 rounded-2xl shadow-2xl z-50 p-2 space-y-1.5 max-h-[280px] sm:max-h-[340px] flex flex-col animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white/95 backdrop-blur-xl border border-slate-300 rounded-2xl shadow-2xl z-50 p-2 space-y-1.5 max-h-[190px] sm:max-h-[340px] flex flex-col animate-in fade-in zoom-in-95 duration-150">
           {/* Quick Search inside Dropdown */}
           {showSearch && (
             <div className="relative shrink-0">
