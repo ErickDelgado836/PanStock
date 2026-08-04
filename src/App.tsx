@@ -26,6 +26,7 @@ import { PermissionGuard } from './components/PermissionGuard';
 import { EntradasModal } from './components/Movements/EntradasModal';
 import { TrasladosModal } from './components/Movements/TrasladosModal';
 import { DescargosModal } from './components/Movements/DescargosModal';
+import { GlobalProductCatalogModal } from './components/GlobalProductCatalogModal';
 
 import { Building2, Plus, ArrowRightLeft, ArrowUpRight, Shield, Layers, RefreshCw } from 'lucide-react';
 
@@ -42,6 +43,13 @@ export default function App() {
   const [entradasOpen, setEntradasOpen] = useState(false);
   const [trasladosOpen, setTrasladosOpen] = useState(false);
   const [descargosOpen, setDescargosOpen] = useState(false);
+  const [globalCatalogOpen, setGlobalCatalogOpen] = useState(false);
+  const [catalogWarehouseFilter, setCatalogWarehouseFilter] = useState<string>('ALL');
+
+  const handleOpenGlobalCatalog = (initialWhId: string = 'ALL') => {
+    setCatalogWarehouseFilter(initialWhId);
+    setGlobalCatalogOpen(true);
+  };
 
   // Welcome & Logout Announcement States
   const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(false);
@@ -242,6 +250,7 @@ export default function App() {
                 onOpenTraslados={() => setTrasladosOpen(true)}
                 onOpenDescargos={() => setDescargosOpen(true)}
                 onNavigateToTab={(tab) => setActiveTab(tab)}
+                onOpenGlobalCatalog={() => handleOpenGlobalCatalog('ALL')}
               />
             </motion.div>
           )}
@@ -277,6 +286,7 @@ export default function App() {
                       warehouse={selectedWarehouse}
                       currentUser={currentUser}
                       onNavigateToAuditReport={() => setActiveTab('NOTAS')}
+                      onOpenGlobalCatalog={(whId) => handleOpenGlobalCatalog(whId || selectedWarehouse.id)}
                     />
                   ) : (
                     <div className="p-8 text-center text-slate-500 text-xs font-bold bg-white rounded-2xl border border-slate-200">
@@ -377,6 +387,12 @@ export default function App() {
         isOpen={descargosOpen}
         onClose={() => setDescargosOpen(false)}
         currentUser={currentUser}
+      />
+
+      <GlobalProductCatalogModal
+        isOpen={globalCatalogOpen}
+        onClose={() => setGlobalCatalogOpen(false)}
+        initialWarehouseId={catalogWarehouseFilter}
       />
     </div>
 

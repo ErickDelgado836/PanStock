@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { Product, Warehouse, MovementRecord, UserProfile } from '../types';
 import { getProducts, getWarehouses, getMovements, calculateTotalStock, subscribeToStorage } from '../services/storage';
@@ -7,13 +7,7 @@ import {
   Pie,
   Cell,
   ResponsiveContainer,
-  Tooltip,
   Sector,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
 } from 'recharts';
 import {
   Building2,
@@ -38,6 +32,7 @@ interface DashboardProps {
   onOpenTraslados: () => void;
   onOpenDescargos: () => void;
   onNavigateToTab: (tab: string) => void;
+  onOpenGlobalCatalog: () => void;
 }
 
 const WAREHOUSE_COLORS = [
@@ -59,33 +54,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenTraslados,
   onOpenDescargos,
   onNavigateToTab,
+  onOpenGlobalCatalog,
 }) => {
   const [products, setProducts] = useState<Product[]>(getProducts);
   const [warehouses, setWarehouses] = useState<Warehouse[]>(getWarehouses);
   const [movements, setMovements] = useState<MovementRecord[]>(getMovements);
   const [activePieIndex, setActivePieIndex] = useState<number | null>(null);
 
-  const renderCustom3DShape = (props: any) => {
+  const renderCustom3DShape = useCallback((props: any) => {
     const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
     return (
-      <g className="transition-all duration-300 ease-out cursor-pointer">
+      <g className="cursor-pointer">
         {/* Ambient Soft Outer Elevation Drop-Shadow for 3D Depth */}
         <Sector
           cx={cx}
           cy={cy}
-          innerRadius={innerRadius - 4}
-          outerRadius={outerRadius + 12}
+          innerRadius={innerRadius - 3}
+          outerRadius={outerRadius + 8}
           startAngle={startAngle}
           endAngle={endAngle}
           fill={fill}
-          opacity={0.18}
+          opacity={0.2}
         />
         {/* Glow Layer */}
         <Sector
           cx={cx}
           cy={cy}
-          innerRadius={innerRadius - 2}
-          outerRadius={outerRadius + 8}
+          innerRadius={innerRadius - 1}
+          outerRadius={outerRadius + 5}
           startAngle={startAngle}
           endAngle={endAngle}
           fill={fill}
@@ -96,7 +92,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           cx={cx}
           cy={cy}
           innerRadius={innerRadius - 2}
-          outerRadius={outerRadius + 6}
+          outerRadius={outerRadius + 4}
           startAngle={startAngle}
           endAngle={endAngle}
           fill={fill}
@@ -107,8 +103,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <Sector
           cx={cx}
           cy={cy}
-          innerRadius={innerRadius - 6}
-          outerRadius={innerRadius - 2}
+          innerRadius={innerRadius - 5}
+          outerRadius={innerRadius - 1}
           startAngle={startAngle}
           endAngle={endAngle}
           fill="#ffffff"
@@ -116,51 +112,54 @@ export const Dashboard: React.FC<DashboardProps> = ({
         />
       </g>
     );
-  };
+  }, []);
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     setProducts(getProducts());
     setWarehouses(getWarehouses());
     setMovements(getMovements());
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
     return subscribeToStorage(loadData);
-  }, []);
+  }, [loadData]);
 
-  // Compute Total Stock Units across system
-  let grandTotalUnits = 0;
-  const warehouseDistribution: { name: string; code: string; totalUnits: number; percentage: number; color: string }[] = [];
-
-  warehouses.forEach((w, index) => {
-    let whTotal = 0;
-    products.forEach((p) => {
-      whTotal += p.stockByWarehouse[w.id] || 0;
+  // Compute Total Stock Units across system with stable memoization
+  const { warehouseDistribution, grandTotalUnits } = useMemo(() => {
+    let total = 0;
+    const dist = warehouses.map((w, index) => {
+      let whTotal = 0;
+      products.forEach((p) => {
+        whTotal += Number(p.stockByWarehouse[w.id] || 0);
+      });
+      total += whTotal;
+      return {
+        name: w.name,
+        code: w.code,
+        totalUnits: whTotal,
+        percentage: 0,
+        color: WAREHOUSE_COLORS[index % WAREHOUSE_COLORS.length],
+      };
     });
-    grandTotalUnits += whTotal;
-    warehouseDistribution.push({
-      name: w.name,
-      code: w.code,
-      totalUnits: whTotal,
-      percentage: 0,
-      color: WAREHOUSE_COLORS[index % WAREHOUSE_COLORS.length],
+
+    dist.forEach((w) => {
+      w.percentage = total > 0 ? Number(((w.totalUnits / total) * 100).toFixed(1)) : 0;
     });
-  });
 
-  // Calculate percentage for each warehouse
-  warehouseDistribution.forEach((w) => {
-    w.percentage = grandTotalUnits > 0 ? Number(((w.totalUnits / grandTotalUnits) * 100).toFixed(1)) : 0;
-  });
+    return { warehouseDistribution: dist, grandTotalUnits: total };
+  }, [products, warehouses]);
 
-  // Expiring items
-  const today = new Date();
-  const expiringCount = products.filter((p) => {
-    if (!p.expirationDate) return false;
-    const exp = new Date(p.expirationDate);
-    const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return diffDays <= 30;
-  }).length;
+  // Expiring items memoized
+  const expiringCount = useMemo(() => {
+    const today = new Date();
+    return products.filter((p) => {
+      if (!p.expirationDate) return false;
+      const exp = new Date(p.expirationDate);
+      const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays <= 30;
+    }).length;
+  }, [products]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
@@ -250,16 +249,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="p-3.5 bg-slate-100 rounded-2xl text-slate-800">
-            <Layers className="w-6 h-6 text-emerald-600" />
+        <div
+          onClick={onOpenGlobalCatalog}
+          className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-500 hover:shadow-md transition-all group"
+          title="Haga clic para abrir el catálogo completo de productos"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3.5 bg-emerald-50 group-hover:bg-emerald-600 rounded-2xl text-emerald-600 group-hover:text-white transition-all shadow-2xs">
+              <Layers className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                Catálogo de Productos
+              </span>
+              <h3 className="text-2xl font-black text-slate-900 mt-0.5">{products.length} Items</h3>
+            </div>
           </div>
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Catálogo de Productos
-            </span>
-            <h3 className="text-2xl font-black text-slate-900 mt-0.5">{products.length} Items</h3>
-          </div>
+          <span className="text-xs font-black text-emerald-700 bg-emerald-50 group-hover:bg-emerald-100 px-2.5 py-1 rounded-xl transition-all border border-emerald-200/60 shrink-0">
+            Ver Lista →
+          </span>
         </div>
 
         <div
@@ -315,17 +323,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* 3D Centered Donut Stage - Clean White Card */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="lg:col-span-5 relative bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-slate-100 flex flex-col items-center justify-center overflow-hidden h-[340px] sm:h-[380px]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="lg:col-span-5 relative bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-slate-100 flex flex-col items-center justify-center overflow-hidden h-[340px] sm:h-[380px] min-h-[340px]"
           >
             {/* Center Donut Badge - Exactly Aligned to Center (50%, 50%) */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10">
               <div
-                className={`w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-white/95 backdrop-blur-md border border-slate-100 shadow-xl flex flex-col items-center justify-center p-2 sm:p-3 text-center transition-all duration-300 ${
+                className={`w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-white/95 backdrop-blur-md border border-slate-100 shadow-xl flex flex-col items-center justify-center p-2 sm:p-3 text-center transition-all duration-200 ${
                   activePieIndex !== null
-                    ? 'scale-105 shadow-2xl border-amber-300 ring-6 ring-amber-500/10'
+                    ? 'scale-105 shadow-2xl border-amber-300 ring-4 ring-amber-500/10'
                     : 'shadow-md ring-4 ring-slate-50'
                 }`}
               >
@@ -375,7 +383,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     nameKey="name"
                     isAnimationActive={true}
                     animationBegin={0}
-                    animationDuration={1200}
+                    animationDuration={450}
                     animationEasing="ease-out"
                     activeIndex={activePieIndex !== null ? activePieIndex : undefined}
                     activeShape={renderCustom3DShape}
@@ -389,7 +397,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         fill={entry.color}
                         stroke="#ffffff"
                         strokeWidth={2.5}
-                        className="transition-all duration-300 cursor-pointer hover:opacity-90 active:opacity-80"
+                        className="cursor-pointer hover:opacity-90"
                       />
                     ))}
                   </Pie>

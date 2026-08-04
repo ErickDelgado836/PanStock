@@ -34,12 +34,14 @@ interface WarehouseViewProps {
   warehouse: Warehouse;
   currentUser: UserProfile;
   onNavigateToAuditReport?: () => void;
+  onOpenGlobalCatalog?: (warehouseId?: string) => void;
 }
 
 export const WarehouseView: React.FC<WarehouseViewProps> = ({
   warehouse,
   currentUser,
   onNavigateToAuditReport,
+  onOpenGlobalCatalog,
 }) => {
   const [categories, setCategories] = useState<Category[]>(getCategories);
   const [products, setProducts] = useState<Product[]>(getProducts);
@@ -191,9 +193,13 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
           <p className="text-xs text-slate-300 max-w-2xl">{warehouse.description}</p>
         </div>
 
-        <div className="bg-slate-800/90 p-4 rounded-xl border border-slate-700/80 text-right">
-          <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
-            Items Registrados
+        <div
+          onClick={() => onOpenGlobalCatalog && onOpenGlobalCatalog(warehouse.id)}
+          className="bg-slate-800/90 hover:bg-slate-800 p-4 rounded-xl border border-slate-700/80 hover:border-amber-400 text-right cursor-pointer transition-all group"
+          title="Ver en el Catálogo General de Productos"
+        >
+          <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block group-hover:text-amber-300 transition-colors">
+            Productos Registrados (Ver Catálogo)
           </span>
           <span className="text-2xl font-black text-amber-400">
             {warehouseProducts.length}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, UnitOfMeasure, UserProfile, MovementRecord, MovementItem } from '../../types';
 import {
@@ -91,6 +91,25 @@ export const EntradasModal: React.FC<EntradasModalProps> = ({ isOpen, onClose, c
 
   const [errorMsg, setErrorMsg] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const formRef = useRef<HTMLFormElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  const scrollToError = () => {
+    requestAnimationFrame(() => {
+      if (errorRef.current) {
+        errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else if (formRef.current) {
+        formRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (errorMsg) {
+      scrollToError();
+    }
+  }, [errorMsg]);
 
   useEffect(() => {
     if (isOpen) {
@@ -526,13 +545,41 @@ export const EntradasModal: React.FC<EntradasModalProps> = ({ isOpen, onClose, c
             </div>
 
             {/* Form */}
-            <form onSubmit={handleValidation} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 min-h-0">
-              {errorMsg && (
-                <div className="p-3.5 bg-red-50 border border-red-200 text-red-900 rounded-2xl text-xs font-bold flex items-center gap-2.5">
-                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
+            <form ref={formRef} onSubmit={handleValidation} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 min-h-0 scroll-smooth">
+              <AnimatePresence mode="wait">
+                {errorMsg && (
+                  <motion.div
+                    ref={errorRef}
+                    key={errorMsg}
+                    initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                    transition={{ duration: 0.2 }}
+                    className="p-4 bg-red-50/95 border-2 border-red-400 text-red-950 rounded-2xl text-xs font-bold flex items-start gap-3 shadow-lg shadow-red-500/10 ring-2 ring-red-500/20"
+                    id="entradas-error-notice"
+                  >
+                    <div className="p-1.5 bg-red-600 text-white rounded-xl shrink-0 mt-0.5 shadow-xs">
+                      <AlertCircle className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-red-950 font-black text-xs uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <span>No se puede procesar la entrada</span>
+                      </div>
+                      <div className="text-red-800 leading-relaxed font-semibold">
+                        {errorMsg}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setErrorMsg('')}
+                      className="text-red-500 hover:text-red-800 p-1 hover:bg-red-200/50 rounded-lg transition-colors shrink-0"
+                      title="Cerrar aviso"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Document Reference Field */}
               <div>
@@ -696,6 +743,7 @@ export const EntradasModal: React.FC<EntradasModalProps> = ({ isOpen, onClose, c
                         value={quantity}
                         onChange={(e) => {
                           const val = e.target.value.replace(',', '.');
+                          if (val.length > 10) return;
                           if (val === '' || /^\d*\.?\d*$/.test(val)) {
                             setQuantity(val);
                           }
@@ -879,6 +927,7 @@ export const EntradasModal: React.FC<EntradasModalProps> = ({ isOpen, onClose, c
                           value={addQuantity}
                           onChange={(e) => {
                             const val = e.target.value.replace(',', '.');
+                            if (val.length > 10) return;
                             if (val === '' || /^\d*\.?\d*$/.test(val)) {
                               setAddQuantity(val);
                             }

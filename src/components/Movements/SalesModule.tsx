@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Product, UserProfile, Category, MovementRecord } from '../../types';
 import {
   getCategories,
@@ -66,6 +66,24 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
   const [successMsg, setSuccessMsg] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  const scrollToError = () => {
+    requestAnimationFrame(() => {
+      if (errorRef.current) {
+        errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (errorMsg) {
+      scrollToError();
+    }
+  }, [errorMsg]);
+
   // Top Selling Filter
   const [topSalesTimeframe, setTopSalesTimeframe] = useState<'ALL' | 'TODAY' | 'MONTH' | 'YEAR'>('ALL');
 
@@ -129,6 +147,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
 
     if (typeof val === 'string') {
       const normalized = val.replace(',', '.');
+      if (normalized.length > 10) return;
       if (normalized === '' || /^\d*\.?\d*$/.test(normalized)) {
         setCart(cart.map((i) => (i.product.id === productId ? { ...i, quantityToSell: normalized } : i)));
       }
@@ -188,7 +207,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
       const stockInWh = dbProduct ? dbProduct.stockByWarehouse[selectedWarehouseId] || 0 : 0;
       if (numQty > stockInWh) {
         setErrorMsg(
-          `La cantidad a vender para "${item.product.name}" (${numQty}) no puede ser mayor a la disponible (${stockInWh}).`
+          `La cantidad a vender para "${item.product.name}" (${numQty.toLocaleString('es-ES')}) no puede ser mayor a la disponible (${stockInWh.toLocaleString('es-ES')}).`
         );
         return;
       }
@@ -392,16 +411,40 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
           </div>
 
           {/* Alert Message Box */}
-          {errorMsg && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="p-4 bg-red-50 border-2 border-red-300 text-red-900 rounded-2xl font-bold text-xs flex items-center gap-3 shadow-md"
-            >
-              <AlertTriangle className="w-6 h-6 text-red-600 shrink-0" />
-              <span>{errorMsg}</span>
-            </motion.div>
-          )}
+          <AnimatePresence mode="wait">
+            {errorMsg && (
+              <motion.div
+                ref={errorRef}
+                key={errorMsg}
+                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="p-4 bg-red-50/95 border-2 border-red-400 text-red-950 rounded-2xl font-bold text-xs flex items-start gap-3 shadow-lg shadow-red-500/10 ring-2 ring-red-500/20"
+                id="sales-error-notice"
+              >
+                <div className="p-1.5 bg-red-600 text-white rounded-xl shrink-0 mt-0.5 shadow-xs">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-red-950 font-black text-xs uppercase tracking-wider mb-0.5">
+                    No se puede procesar la venta
+                  </div>
+                  <div className="text-red-800 leading-relaxed font-semibold">
+                    {errorMsg}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrorMsg('')}
+                  className="text-red-500 hover:text-red-800 p-1 hover:bg-red-200/50 rounded-lg transition-colors shrink-0"
+                  title="Cerrar aviso"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {successMsg && (
             <motion.div

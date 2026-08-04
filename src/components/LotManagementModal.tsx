@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Product, Warehouse, ProductLot, Category, ProductStock } from '../types';
 import { getProducts, getWarehouses, getCategories, saveProducts } from '../services/storage';
 import { ProductSearchSelect } from './Movements/ProductSearchSelect';
@@ -49,6 +50,25 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
 
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
+
+  const errorRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  const scrollToError = () => {
+    requestAnimationFrame(() => {
+      if (errorRef.current) {
+        errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else if (bodyRef.current) {
+        bodyRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (errorMsg) {
+      scrollToError();
+    }
+  }, [errorMsg]);
 
   // Main selection helper function
   const selectProductAndWarehouse = (
@@ -210,7 +230,7 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
 
     if (numQty > maxAvailableForCurrentLot) {
       setErrorMsg(
-        `La cantidad del lote (${numQty}) supera la existencia disponible para asignar en este almacén (${maxAvailableForCurrentLot} unidades).`
+        `La cantidad del lote (${numQty.toLocaleString('es-ES')}) supera la existencia disponible para asignar en este almacén (${maxAvailableForCurrentLot.toLocaleString('es-ES')} unidades).`
       );
       return;
     }
@@ -314,7 +334,7 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
         </div>
 
         {/* Content Body */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div ref={bodyRef} className="p-6 overflow-y-auto space-y-6 scroll-smooth">
           {/* Warehouse and Product Selector Bar */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
             {/* 1. Almacén Selector */}
@@ -403,19 +423,62 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
           )}
 
           {/* Feedback Messages */}
-          {errorMsg && (
-            <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-2.5 text-red-800 text-xs font-semibold">
-              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            {errorMsg && (
+              <motion.div
+                ref={errorRef}
+                key={errorMsg}
+                initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+                className="p-4 bg-red-50/95 border-2 border-red-400 text-red-950 rounded-2xl text-xs font-bold flex items-start gap-3 shadow-lg shadow-red-500/10 ring-2 ring-red-500/20"
+                id="lotes-error-notice"
+              >
+                <div className="p-1.5 bg-red-600 text-white rounded-xl shrink-0 mt-0.5 shadow-xs">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-red-950 font-black text-xs uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <span>No se puede procesar el lote</span>
+                  </div>
+                  <div className="text-red-800 leading-relaxed font-semibold">
+                    {errorMsg}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrorMsg('')}
+                  className="text-red-500 hover:text-red-800 p-1 hover:bg-red-200/50 rounded-lg transition-colors shrink-0"
+                  title="Cerrar aviso"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </motion.div>
+            )}
 
-          {successMsg && (
-            <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2.5 text-emerald-800 text-xs font-semibold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{successMsg}</span>
-            </div>
-          )}
+            {successMsg && (
+              <motion.div
+                key={successMsg}
+                initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+                className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2.5 text-emerald-850 text-xs font-bold"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="flex-1">{successMsg}</span>
+                <button
+                  type="button"
+                  onClick={() => setSuccessMsg('')}
+                  className="text-emerald-500 hover:text-emerald-800 p-1 hover:bg-emerald-200/50 rounded-lg transition-colors shrink-0"
+                  title="Cerrar aviso"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* 2-Column Section: Form on Left, Registered Lots List on Right */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -477,6 +540,7 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
                     value={quantity}
                     onChange={(e) => {
                       const val = e.target.value.replace(',', '.');
+                      if (val.length > 10) return;
                       if (val === '' || /^\d*\.?\d*$/.test(val)) {
                         setQuantity(val);
                       }
