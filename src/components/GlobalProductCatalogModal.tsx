@@ -347,7 +347,7 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-5 md:p-6 overflow-hidden">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-hidden">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -364,24 +364,24 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.96, opacity: 0, y: 12 }}
           transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-          className="relative z-10 w-full h-full sm:h-auto max-w-5xl lg:max-w-5xl 2xl:max-w-6xl bg-slate-50 rounded-none sm:rounded-3xl shadow-2xl overflow-hidden border-0 sm:border border-slate-200/90 max-h-[100dvh] sm:max-h-[87vh] flex flex-col"
+          className="relative z-10 w-full max-w-5xl lg:max-w-5xl 2xl:max-w-6xl bg-slate-50 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-200/90 max-h-[92dvh] sm:max-h-[87vh] flex flex-col"
         >
           {/* Header */}
-          <div className="bg-slate-900 text-white p-3.5 sm:p-5 md:p-6 border-b border-slate-800 shrink-0 flex items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+          <div className="bg-slate-900 text-white p-3.5 sm:p-5 md:p-6 border-b border-slate-800 shrink-0 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="p-2 sm:p-3 bg-red-600 rounded-xl sm:rounded-2xl shadow-md text-white shrink-0">
                 <PackageSearch className="w-5.5 h-5.5 sm:w-7 sm:h-7" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-lg sm:text-2xl font-black tracking-tight leading-tight truncate">
+                  <h2 className="text-base sm:text-2xl font-black tracking-tight leading-tight">
                     Catálogo General de Productos
                   </h2>
                   <span className="bg-red-500/20 text-red-300 border border-red-500/30 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold shrink-0">
                     {stats.totalItems} Productos
                   </span>
                 </div>
-                <p className="text-slate-300 text-[10px] sm:text-sm mt-0.5 leading-snug truncate">
+                <p className="text-slate-300 text-[10px] sm:text-sm mt-0.5 leading-snug">
                   Consolidado total de inventarios en red con desglose detallado por depósitos.
                 </p>
               </div>
