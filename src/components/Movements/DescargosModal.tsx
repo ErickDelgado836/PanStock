@@ -557,16 +557,16 @@ export const DescargosModal: React.FC<DescargosModalProps> = ({ isOpen, onClose,
                             {activeLotsInWh.map((lot) => {
                               const lotQtyInWh = getLotStockInWarehouse(lot, warehouseId);
                               return (
-                                <div key={lot.id} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-rose-200/80 text-xs shadow-xs">
-                                  <div className="flex items-center gap-2">
+                                <div key={lot.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 bg-white rounded-xl border border-rose-200/80 text-xs gap-2 sm:gap-4 shadow-xs">
+                                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                                     <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                                       Lote: {lot.lotNumber || 'S/N'}
                                     </span>
-                                    <span className="font-extrabold text-rose-900 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                    <span className="font-extrabold text-rose-900 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 whitespace-nowrap">
                                       📅 Vence: {lot.expirationDate || 'Sin Fecha'}
                                     </span>
                                   </div>
-                                  <span className="font-black text-slate-900 text-xs">
+                                  <span className="font-black text-rose-950 text-xs bg-rose-50/70 sm:bg-transparent px-2.5 py-1 sm:p-0 rounded-lg border border-rose-100 sm:border-transparent self-start sm:self-center">
                                     {lotQtyInWh} {selectedProduct.unit}
                                   </span>
                                 </div>
