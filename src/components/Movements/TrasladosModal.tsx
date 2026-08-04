@@ -136,6 +136,24 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
     ? (selectedProduct.lots || []).filter((l) => getLotStockInWarehouse(l, sourceWhId) > 0)
     : [];
 
+  const getMaxSingleQty = () => {
+    if (!selectedProduct) return 0;
+    if (ignoreLotRestrictions || activeLotsInSource.length === 0) {
+      return maxAvailableSingle;
+    }
+    if (selectedLotId) {
+      const chosenLot = activeLotsInSource.find((l) => l.id === selectedLotId);
+      return chosenLot ? getLotStockInWarehouse(chosenLot, sourceWhId) : 0;
+    } else {
+      // Auto FIFO
+      const sortedLots = [...activeLotsInSource].sort((a, b) =>
+        (a.expirationDate || '').localeCompare(b.expirationDate || '')
+      );
+      const firstLot = sortedLots[0];
+      return firstLot ? getLotStockInWarehouse(firstLot, sourceWhId) : 0;
+    }
+  };
+
   // Add item to multiple list
   const handleAddMultiItem = () => {
     setErrorMsg('');
@@ -656,20 +674,32 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
                             Existencia Total Origen: {maxAvailableSingle} {selectedProduct.unit}
                           </span>
                         </div>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          placeholder="Ej: 20 ó 14.50"
-                          value={quantity}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(',', '.');
-                            if (val.length > 10) return;
-                            if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                              setQuantity(val);
-                            }
-                          }}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-black text-base text-slate-900 focus:ring-2 focus:ring-amber-500/40 focus:border-amber-600"
-                        />
+                        <div className="relative flex items-center">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Ej: 20 ó 14.50"
+                            value={quantity}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(',', '.');
+                              if (val.length > 10) return;
+                              if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                setQuantity(val);
+                              }
+                            }}
+                            className="w-full pl-3.5 pr-20 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-black text-base text-slate-900 focus:ring-2 focus:ring-amber-500/40 focus:border-amber-600"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const maxVal = getMaxSingleQty();
+                              setQuantity(maxVal);
+                            }}
+                            className="absolute right-2 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs rounded-lg transition-all active:scale-95 cursor-pointer shadow-xs"
+                          >
+                            MAX
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -730,20 +760,34 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
                         <label className="block text-[10px] font-black text-slate-700 uppercase mb-1">
                           Cantidad a Trasladar
                         </label>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          placeholder="Ej: 1"
-                          value={addQuantity}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(',', '.');
-                            if (val.length > 10) return;
-                            if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                              setAddQuantity(val);
-                            }
-                          }}
-                          className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-black text-xs text-slate-900"
-                        />
+                        <div className="relative flex items-center">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Ej: 1"
+                            value={addQuantity}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(',', '.');
+                              if (val.length > 10) return;
+                              if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                setAddQuantity(val);
+                              }
+                            }}
+                            className="w-full pl-2.5 pr-14 py-1.5 bg-white border border-slate-300 rounded-lg font-black text-xs text-slate-900"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const addProd = sourceProducts.find((p) => p.id === addSelectedProdId);
+                              const maxAddAvailable = addProd ? addProd.stockByWarehouse[sourceWhId] || 0 : 0;
+                              setAddQuantity(maxAddAvailable);
+                            }}
+                            disabled={!addSelectedProdId}
+                            className="absolute right-1 px-1.5 py-0.5 bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 text-white font-bold text-[10px] rounded transition-all active:scale-95 cursor-pointer"
+                          >
+                            MAX
+                          </button>
+                        </div>
                       </div>
 
                       <button

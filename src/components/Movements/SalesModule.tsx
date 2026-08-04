@@ -652,40 +652,49 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
 
                       <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
                         <span className="text-[11px] font-bold text-slate-600">Cantidad a Vender:</span>
-                        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg p-0.5">
+                        <div className="flex items-center gap-1.5">
                           <button
                             type="button"
-                            onClick={() => {
-                              const curr =
-                                typeof item.quantityToSell === 'number'
-                                  ? item.quantityToSell
-                                  : parseFloat(String(item.quantityToSell).replace(',', '.')) || 0;
-                              handleUpdateCartQty(item.product.id, Math.max(0, curr - 1));
-                            }}
-                            className="p-1 text-slate-600 hover:bg-slate-100 rounded"
+                            onClick={() => handleUpdateCartQty(item.product.id, stockInWh)}
+                            className="px-1.5 py-0.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[9px] rounded transition-all active:scale-95 cursor-pointer shadow-xs"
                           >
-                            <Minus className="w-3 h-3" />
+                            MAX
                           </button>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={item.quantityToSell}
-                            onChange={(e) => handleUpdateCartQty(item.product.id, e.target.value)}
-                            className="w-14 text-center font-black text-xs focus:outline-none font-mono"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const curr =
-                                typeof item.quantityToSell === 'number'
-                                  ? item.quantityToSell
-                                  : parseFloat(String(item.quantityToSell).replace(',', '.')) || 0;
-                              handleUpdateCartQty(item.product.id, curr + 1);
-                            }}
-                            className="p-1 text-slate-600 hover:bg-slate-100 rounded"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
+                          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const curr =
+                                  typeof item.quantityToSell === 'number'
+                                    ? item.quantityToSell
+                                    : parseFloat(String(item.quantityToSell).replace(',', '.')) || 0;
+                                handleUpdateCartQty(item.product.id, Math.max(0, curr - 1));
+                              }}
+                              className="p-1 text-slate-600 hover:bg-slate-100 rounded"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={item.quantityToSell}
+                              onChange={(e) => handleUpdateCartQty(item.product.id, e.target.value)}
+                              className="w-14 text-center font-black text-xs focus:outline-none font-mono"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const curr =
+                                  typeof item.quantityToSell === 'number'
+                                    ? item.quantityToSell
+                                    : parseFloat(String(item.quantityToSell).replace(',', '.')) || 0;
+                                handleUpdateCartQty(item.product.id, curr + 1);
+                              }}
+                              className="p-1 text-slate-600 hover:bg-slate-100 rounded"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
