@@ -196,10 +196,10 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
         <div
           onClick={() => onOpenGlobalCatalog && onOpenGlobalCatalog(warehouse.id)}
           className="bg-slate-800/90 hover:bg-slate-800 p-4 rounded-xl border border-slate-700/80 hover:border-amber-400 text-right cursor-pointer transition-all group"
-          title="Ver en el Catálogo General de Productos"
+          title="Ver en el Listado de Artículos y Servicios"
         >
           <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block group-hover:text-amber-300 transition-colors">
-            Productos Registrados (Ver Catálogo)
+            Artículos Registrados (Ver Listado)
           </span>
           <span className="text-2xl font-black text-amber-400">
             {warehouseProducts.length}

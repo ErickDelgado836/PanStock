@@ -43,6 +43,7 @@ export const PhysicalAuditReport: React.FC = () => {
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('ALL');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [selectedStock, setSelectedStock] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -70,6 +71,7 @@ export const PhysicalAuditReport: React.FC = () => {
     selectedWarehouseId,
     selectedCategoryId,
     selectedStatus,
+    selectedStock,
     searchQuery,
     startDate,
     endDate,
@@ -172,6 +174,11 @@ export const PhysicalAuditReport: React.FC = () => {
 
       activeWarehouses.forEach((wh) => {
         const sysStock = prod.stockByWarehouse[wh.id] || 0;
+
+        // Stock presence filter
+        if (selectedStock === 'WITH_STOCK' && sysStock <= 0) return;
+        if (selectedStock === 'WITHOUT_STOCK' && sysStock > 0) return;
+
         const key = `${prod.id}_${wh.id}`;
         const auditInfo = auditMap[key];
 
@@ -363,7 +370,7 @@ export const PhysicalAuditReport: React.FC = () => {
 
       {/* Filters Bar */}
       <div className="bg-white p-4 rounded-2xl shadow-xs border border-slate-200 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Warehouse Filter */}
           <div>
             <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">
@@ -419,6 +426,23 @@ export const PhysicalAuditReport: React.FC = () => {
                 { value: 'CORRECT', label: 'Correcto (Sin Diferencia)' },
                 { value: 'MISSING', label: 'Con Faltante (-)' },
                 { value: 'SURPLUS', label: 'Con Sobrante (+)' },
+              ]}
+            />
+          </div>
+
+          {/* Stock Presence Filter */}
+          <div>
+            <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">
+              Existencia
+            </label>
+            <CustomSelect
+              value={selectedStock}
+              onChange={setSelectedStock}
+              accentColor="rose"
+              options={[
+                { value: 'ALL', label: 'Todas' },
+                { value: 'WITH_STOCK', label: 'Con Existencia' },
+                { value: 'WITHOUT_STOCK', label: 'Sin Existencia' },
               ]}
             />
           </div>

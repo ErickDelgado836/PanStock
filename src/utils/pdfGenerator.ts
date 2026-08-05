@@ -300,17 +300,17 @@ export async function generateAuditReportPDF(
   doc.setFont('helvetica', 'bold');
   doc.text('Almacén:', 18, 44);
   doc.setFont('helvetica', 'normal');
-  doc.text(summary.warehouseName, 45, 44);
+  doc.text(summary.warehouseName, 54, 44);
 
   doc.setFont('helvetica', 'bold');
   doc.text('Categoría / Subgrupo:', 18, 50);
   doc.setFont('helvetica', 'normal');
-  doc.text(summary.categoryName, 45, 50);
+  doc.text(summary.categoryName, 54, 50);
 
   doc.setFont('helvetica', 'bold');
   doc.text('Rango de Fechas:', 18, 56);
   doc.setFont('helvetica', 'normal');
-  doc.text(summary.dateRangeText, 45, 56);
+  doc.text(summary.dateRangeText, 54, 56);
 
   // Summary Metrics Right Side
   doc.setFont('helvetica', 'bold');

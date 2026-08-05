@@ -386,14 +386,14 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-base sm:text-2xl font-black tracking-tight leading-tight">
-                    Catálogo General de Productos
+                    Artículos de Inventario y Servicios
                   </h2>
                   <span className="bg-red-500/20 text-red-300 border border-red-500/30 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold shrink-0">
-                    {stats.totalItems} Productos
+                    {stats.totalItems} Items
                   </span>
                 </div>
                 <p className="text-slate-300 text-[10px] sm:text-sm mt-0.5 leading-snug">
-                  Consolidado total de inventarios en red con desglose detallado por depósitos.
+                  Consolidado total de artículos y servicios en red con desglose detallado por depósitos.
                 </p>
               </div>
             </div>
@@ -423,7 +423,7 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
               <button
                 onClick={onClose}
                 className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg sm:rounded-xl transition-all cursor-pointer shrink-0"
-                title="Cerrar Catálogo"
+                title="Cerrar Artículos y Servicios"
               >
                 <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>

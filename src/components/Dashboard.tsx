@@ -251,23 +251,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         <div
           onClick={onOpenGlobalCatalog}
-          className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-500 hover:shadow-md transition-all group"
-          title="Haga clic para abrir el catálogo completo de productos"
+          className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4 cursor-pointer hover:border-emerald-500 hover:shadow-md transition-all group"
+          title="Haga clic para abrir el listado de artículos de inventario y servicios"
         >
-          <div className="flex items-center gap-4">
-            <div className="p-3.5 bg-emerald-50 group-hover:bg-emerald-600 rounded-2xl text-emerald-600 group-hover:text-white transition-all shadow-2xs">
-              <Layers className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                Catálogo de Productos
+          <div className="p-3.5 bg-emerald-50 group-hover:bg-emerald-600 rounded-2xl text-emerald-600 group-hover:text-white transition-all shadow-2xs">
+            <Layers className="w-6 h-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block leading-tight">
+              Artículos de Inventario y Servicios
+            </span>
+            <div className="flex items-center justify-between gap-2 mt-1">
+              <h3 className="text-2xl font-black text-slate-900">
+                {products.length} Items
+              </h3>
+              <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 group-hover:bg-emerald-100 px-2.5 py-0.5 rounded-lg transition-all border border-emerald-200/60 shrink-0">
+                Ver Lista →
               </span>
-              <h3 className="text-2xl font-black text-slate-900 mt-0.5">{products.length} Items</h3>
             </div>
           </div>
-          <span className="text-xs font-black text-emerald-700 bg-emerald-50 group-hover:bg-emerald-100 px-2.5 py-1 rounded-xl transition-all border border-emerald-200/60 shrink-0">
-            Ver Lista →
-          </span>
         </div>
 
         <div
