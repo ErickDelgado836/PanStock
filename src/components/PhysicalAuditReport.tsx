@@ -355,7 +355,7 @@ export const PhysicalAuditReport: React.FC = () => {
             <Minus className="w-4 h-4 text-rose-600" />
           </div>
           <div className="text-2xl font-black text-rose-950">{missingCount}</div>
-          <p className="text-[10px] text-rose-700 font-medium">Faltan unidades</p>
+          <p className="text-[10px] text-rose-700 font-medium">Faltan productos</p>
         </div>
 
         <div className="bg-teal-50/70 p-4 rounded-2xl border border-teal-200 shadow-2xs space-y-1">
@@ -364,7 +364,7 @@ export const PhysicalAuditReport: React.FC = () => {
             <Plus className="w-4 h-4 text-teal-600" />
           </div>
           <div className="text-2xl font-black text-teal-950">{surplusCount}</div>
-          <p className="text-[10px] text-teal-800 font-medium">Sobran unidades</p>
+          <p className="text-[10px] text-teal-800 font-medium">Sobran productos</p>
         </div>
       </div>
 
