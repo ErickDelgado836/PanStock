@@ -571,11 +571,15 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
           <AnimatePresence initial={false}>
             {showFilters && (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
+                initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                animate={{
+                  height: 'auto',
+                  opacity: 1,
+                  transitionEnd: { overflow: 'visible' },
+                }}
+                exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
                 transition={{ duration: 0.25, ease: 'easeInOut' }}
-                className="overflow-hidden bg-slate-100/90 border-b border-slate-200 shrink-0"
+                className="bg-slate-100/90 border-b border-slate-200 shrink-0 relative z-30"
               >
                 <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                   {/* Search Input Row */}

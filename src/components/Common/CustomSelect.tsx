@@ -38,13 +38,18 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const mobileSheetRef = useRef<HTMLDivElement>(null);
 
   const selectedOption = options.find((opt) => opt.value === value);
 
-  // Close desktop dropdown when clicking outside
+  // Close desktop/mobile dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const clickedInsideContainer = containerRef.current && containerRef.current.contains(target);
+      const clickedInsideMobileSheet = mobileSheetRef.current && mobileSheetRef.current.contains(target);
+
+      if (!clickedInsideContainer && !clickedInsideMobileSheet) {
         setIsOpen(false);
       }
     };
@@ -246,7 +251,10 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
             />
 
             {/* Mobile Sheet Container */}
-            <div className="relative z-10 w-full max-h-[82vh] bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-6 duration-200">
+            <div
+              ref={mobileSheetRef}
+              className="relative z-10 w-full max-h-[82vh] bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-6 duration-200"
+            >
               {/* Sheet Drag Pill & Header */}
               <div className="px-4 pt-3 pb-2.5 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0 bg-slate-50/80">
                 <div className="flex items-center gap-2 min-w-0">
