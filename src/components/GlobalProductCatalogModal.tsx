@@ -612,6 +612,8 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
                         onChange={(val) => setSelectedWarehouseId(val)}
                         options={warehouseOptions}
                         accentColor="rose"
+                        label="Filtrar por Depósito"
+                        icon={<Building2 className="w-4 h-4 text-red-600" />}
                       />
                     </div>
 
@@ -626,6 +628,8 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
                         onChange={(val) => setSelectedCategoryId(val)}
                         options={categoryOptions}
                         accentColor="blue"
+                        label="Filtrar por Subgrupo"
+                        icon={<Tag className="w-4 h-4 text-blue-600" />}
                       />
                     </div>
 
@@ -640,6 +644,8 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
                         onChange={(val) => setStockFilter(val as StockFilterType)}
                         options={stockFilterOptions}
                         accentColor="emerald"
+                        label="Filtrar por Existencia"
+                        icon={<Filter className="w-4 h-4 text-emerald-600" />}
                       />
                     </div>
 
@@ -654,6 +660,8 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
                         onChange={(val) => setSortBy(val as SortOptionType)}
                         options={sortOptions}
                         accentColor="amber"
+                        label="Ordenar Productos"
+                        icon={<ArrowUpDown className="w-4 h-4 text-amber-600" />}
                       />
                     </div>
                   </div>
