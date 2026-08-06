@@ -30,6 +30,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   RefreshCw,
+  X,
 } from 'lucide-react';
 
 export const PhysicalAuditReport: React.FC = () => {
@@ -77,6 +78,25 @@ export const PhysicalAuditReport: React.FC = () => {
     endDate,
     itemsPerPage,
   ]);
+
+  const hasActiveFilters =
+    selectedWarehouseId !== 'ALL' ||
+    selectedCategoryId !== 'ALL' ||
+    selectedStatus !== 'ALL' ||
+    selectedStock !== 'ALL' ||
+    searchQuery.trim() !== '' ||
+    startDate !== '' ||
+    endDate !== '';
+
+  const handleClearAllFilters = () => {
+    setSelectedWarehouseId('ALL');
+    setSelectedCategoryId('ALL');
+    setSelectedStatus('ALL');
+    setSelectedStock('ALL');
+    setSearchQuery('');
+    setStartDate('');
+    setEndDate('');
+  };
 
   // Map latest physical audit per (productId, warehouseId) within optional date range
   const getLatestAuditMap = () => {
@@ -504,8 +524,19 @@ export const PhysicalAuditReport: React.FC = () => {
             )}
           </div>
 
-          <div className="text-[11px] text-slate-500 font-medium">
-            Mostrando <strong className="text-slate-900">{rows.length}</strong> registro(s)
+          <div className="flex items-center justify-between sm:justify-end gap-3.5 flex-wrap w-full sm:w-auto">
+            {hasActiveFilters && (
+              <button
+                onClick={handleClearAllFilters}
+                className="px-3.5 py-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all active:scale-95 select-none shrink-0"
+              >
+                <X className="w-3.5 h-3.5 text-red-600" />
+                <span>Limpiar Filtros</span>
+              </button>
+            )}
+            <div className="text-[11px] text-slate-500 font-medium shrink-0">
+              Mostrando <strong className="text-slate-900">{rows.length}</strong> registro(s)
+            </div>
           </div>
         </div>
       </div>
