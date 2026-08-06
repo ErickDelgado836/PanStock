@@ -614,6 +614,133 @@ export async function saveAuditToSupabase(audit: PhysicalAuditRecord): Promise<b
 }
 
 // SQL Script generator for Supabase setup
+export const SUPABASE_OPTIMIZATION_INDEXES_SQL = `-- ========================================================
+-- SENTENCIAS DE ÍNDICES Y RELACIONES DE OPTIMIZACIÓN
+-- PanStock Inventory System - Supabase / PostgreSQL
+-- Ejecuta este script en el "SQL Editor" de Supabase
+-- para acelerar búsquedas, filtros y garantizar integridad
+-- ========================================================
+
+-- 1. RELACIONES Y LLAVES FORÁNEAS (FOREIGN KEYS)
+DO $$
+BEGIN
+  -- Foreign key: productos.category_id -> categorias.id
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_productos_categoria'
+  ) THEN
+    ALTER TABLE public.productos 
+    ADD CONSTRAINT fk_productos_categoria 
+    FOREIGN KEY (category_id) REFERENCES public.categorias(id) 
+    ON UPDATE CASCADE ON DELETE RESTRICT;
+  END IF;
+
+  -- Foreign key: movimientos.responsible_user -> usuarios.username
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_movimientos_usuario'
+  ) THEN
+    ALTER TABLE public.movimientos 
+    ADD CONSTRAINT fk_movimientos_usuario 
+    FOREIGN KEY (responsible_user) REFERENCES public.usuarios(username) 
+    ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+
+  -- Foreign key: movimientos.source_warehouse_id -> almacenes.id
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_movimientos_almacen_origen'
+  ) THEN
+    ALTER TABLE public.movimientos 
+    ADD CONSTRAINT fk_movimientos_almacen_origen 
+    FOREIGN KEY (source_warehouse_id) REFERENCES public.almacenes(id) 
+    ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+
+  -- Foreign key: movimientos.target_warehouse_id -> almacenes.id
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_movimientos_almacen_destino'
+  ) THEN
+    ALTER TABLE public.movimientos 
+    ADD CONSTRAINT fk_movimientos_almacen_destino 
+    FOREIGN KEY (target_warehouse_id) REFERENCES public.almacenes(id) 
+    ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+
+  -- Foreign key: auditorias.warehouse_id -> almacenes.id
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_auditorias_almacen'
+  ) THEN
+    ALTER TABLE public.auditorias 
+    ADD CONSTRAINT fk_auditorias_almacen 
+    FOREIGN KEY (warehouse_id) REFERENCES public.almacenes(id) 
+    ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+
+  -- Foreign key: auditorias.category_id -> categorias.id
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_auditorias_categoria'
+  ) THEN
+    ALTER TABLE public.auditorias 
+    ADD CONSTRAINT fk_auditorias_categoria 
+    FOREIGN KEY (category_id) REFERENCES public.categorias(id) 
+    ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+
+  -- Foreign key: auditorias.responsible_user -> usuarios.username
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_auditorias_usuario'
+  ) THEN
+    ALTER TABLE public.auditorias 
+    ADD CONSTRAINT fk_auditorias_usuario 
+    FOREIGN KEY (responsible_user) REFERENCES public.usuarios(username) 
+    ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
+-- 2. ÍNDICES DE PRODUCTOS (Acelera catálogo, búsquedas y alertas de vencimiento)
+CREATE INDEX IF NOT EXISTS idx_productos_category_id ON public.productos(category_id);
+CREATE INDEX IF NOT EXISTS idx_productos_code ON public.productos(code);
+CREATE INDEX IF NOT EXISTS idx_productos_name ON public.productos(name);
+CREATE INDEX IF NOT EXISTS idx_productos_expiration_date ON public.productos(expiration_date);
+CREATE INDEX IF NOT EXISTS idx_productos_entry_date ON public.productos(entry_date);
+CREATE INDEX IF NOT EXISTS idx_productos_cat_code ON public.productos(category_id, code);
+CREATE INDEX IF NOT EXISTS idx_productos_stock_gin ON public.productos USING GIN (stock_by_warehouse);
+CREATE INDEX IF NOT EXISTS idx_productos_lots_gin ON public.productos USING GIN (lots);
+
+-- 3. ÍNDICES DE MOVIMIENTOS (Acelera kardex, rango de fechas y filtros por almacén/tipo)
+CREATE INDEX IF NOT EXISTS idx_movimientos_type ON public.movimientos(type);
+CREATE INDEX IF NOT EXISTS idx_movimientos_date ON public.movimientos(date DESC);
+CREATE INDEX IF NOT EXISTS idx_movimientos_created_at ON public.movimientos(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_movimientos_number ON public.movimientos(movement_number);
+CREATE INDEX IF NOT EXISTS idx_movimientos_doc_ref ON public.movimientos(doc_ref);
+CREATE INDEX IF NOT EXISTS idx_movimientos_resp_user ON public.movimientos(responsible_user);
+CREATE INDEX IF NOT EXISTS idx_movimientos_source_wh ON public.movimientos(source_warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_movimientos_target_wh ON public.movimientos(target_warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_movimientos_wh_type_date ON public.movimientos(source_warehouse_id, target_warehouse_id, type, date DESC);
+CREATE INDEX IF NOT EXISTS idx_movimientos_items_gin ON public.movimientos USING GIN (items);
+
+-- 4. ÍNDICES DE AUDITORÍAS FÍSICAS (Acelera reporte de auditorías y cálculo de faltantes/sobrantes)
+CREATE INDEX IF NOT EXISTS idx_auditorias_warehouse_id ON public.auditorias(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_auditorias_category_id ON public.auditorias(category_id);
+CREATE INDEX IF NOT EXISTS idx_auditorias_date ON public.auditorias(date DESC);
+CREATE INDEX IF NOT EXISTS idx_auditorias_user ON public.auditorias(responsible_user);
+CREATE INDEX IF NOT EXISTS idx_auditorias_wh_cat_date ON public.auditorias(warehouse_id, category_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_auditorias_items_gin ON public.auditorias USING GIN (items);
+
+-- 5. ÍNDICES DE ALMACENES, CATEGORÍAS Y USUARIOS
+CREATE INDEX IF NOT EXISTS idx_almacenes_code ON public.almacenes(code);
+CREATE INDEX IF NOT EXISTS idx_almacenes_is_main ON public.almacenes(is_main_entry);
+CREATE INDEX IF NOT EXISTS idx_almacenes_is_sales ON public.almacenes(is_sales_warehouse);
+
+CREATE INDEX IF NOT EXISTS idx_categorias_name ON public.categorias(name);
+CREATE INDEX IF NOT EXISTS idx_categorias_prefix ON public.categorias(code_prefix);
+
+CREATE INDEX IF NOT EXISTS idx_usuarios_role ON public.usuarios(role_name);
+CREATE INDEX IF NOT EXISTS idx_usuarios_is_admin ON public.usuarios(is_admin);
+CREATE INDEX IF NOT EXISTS idx_usuarios_is_suspended ON public.usuarios(is_suspended);
+CREATE INDEX IF NOT EXISTS idx_usuarios_is_deleted ON public.usuarios(is_deleted);
+`;
+
 export const SUPABASE_SETUP_SQL = `-- ========================================================
 -- SENTENCIAS SQL PARA CONFIGURAR LA BASE DE DATOS SUPABASE
 -- PanStock Inventory System
@@ -698,7 +825,128 @@ CREATE TABLE IF NOT EXISTS public.auditorias (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 7. DESACTIVAR O HABILITAR RLS PERMISIVO PARA ACCESO CON ANON KEY
+-- 7. RELACIONES Y LLAVES FORÁNEAS (FOREIGN KEYS CON INTEGRIDAD REFERENCIAL)
+DO $$
+BEGIN
+  -- Foreign key: productos.category_id -> categorias.id
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_productos_categoria'
+  ) THEN
+    ALTER TABLE public.productos 
+    ADD CONSTRAINT fk_productos_categoria 
+    FOREIGN KEY (category_id) REFERENCES public.categorias(id) 
+    ON UPDATE CASCADE ON DELETE RESTRICT;
+  END IF;
+
+  -- Foreign key: movimientos.responsible_user -> usuarios.username
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_movimientos_usuario'
+  ) THEN
+    ALTER TABLE public.movimientos 
+    ADD CONSTRAINT fk_movimientos_usuario 
+    FOREIGN KEY (responsible_user) REFERENCES public.usuarios(username) 
+    ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+
+  -- Foreign key: movimientos.source_warehouse_id -> almacenes.id
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_movimientos_almacen_origen'
+  ) THEN
+    ALTER TABLE public.movimientos 
+    ADD CONSTRAINT fk_movimientos_almacen_origen 
+    FOREIGN KEY (source_warehouse_id) REFERENCES public.almacenes(id) 
+    ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+
+  -- Foreign key: movimientos.target_warehouse_id -> almacenes.id
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_movimientos_almacen_destino'
+  ) THEN
+    ALTER TABLE public.movimientos 
+    ADD CONSTRAINT fk_movimientos_almacen_destino 
+    FOREIGN KEY (target_warehouse_id) REFERENCES public.almacenes(id) 
+    ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+
+  -- Foreign key: auditorias.warehouse_id -> almacenes.id
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_auditorias_almacen'
+  ) THEN
+    ALTER TABLE public.auditorias 
+    ADD CONSTRAINT fk_auditorias_almacen 
+    FOREIGN KEY (warehouse_id) REFERENCES public.almacenes(id) 
+    ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+
+  -- Foreign key: auditorias.category_id -> categorias.id
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_auditorias_categoria'
+  ) THEN
+    ALTER TABLE public.auditorias 
+    ADD CONSTRAINT fk_auditorias_categoria 
+    FOREIGN KEY (category_id) REFERENCES public.categorias(id) 
+    ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+
+  -- Foreign key: auditorias.responsible_user -> usuarios.username
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_auditorias_usuario'
+  ) THEN
+    ALTER TABLE public.auditorias 
+    ADD CONSTRAINT fk_auditorias_usuario 
+    FOREIGN KEY (responsible_user) REFERENCES public.usuarios(username) 
+    ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
+-- 8. ÍNDICES DE OPTIMIZACIÓN (B-Tree, Multicolumn y GIN para JSONB)
+
+-- Índices en Productos
+CREATE INDEX IF NOT EXISTS idx_productos_category_id ON public.productos(category_id);
+CREATE INDEX IF NOT EXISTS idx_productos_code ON public.productos(code);
+CREATE INDEX IF NOT EXISTS idx_productos_name ON public.productos(name);
+CREATE INDEX IF NOT EXISTS idx_productos_expiration_date ON public.productos(expiration_date);
+CREATE INDEX IF NOT EXISTS idx_productos_entry_date ON public.productos(entry_date);
+CREATE INDEX IF NOT EXISTS idx_productos_cat_code ON public.productos(category_id, code);
+CREATE INDEX IF NOT EXISTS idx_productos_stock_gin ON public.productos USING GIN (stock_by_warehouse);
+CREATE INDEX IF NOT EXISTS idx_productos_lots_gin ON public.productos USING GIN (lots);
+
+-- Índices en Movimientos
+CREATE INDEX IF NOT EXISTS idx_movimientos_type ON public.movimientos(type);
+CREATE INDEX IF NOT EXISTS idx_movimientos_date ON public.movimientos(date DESC);
+CREATE INDEX IF NOT EXISTS idx_movimientos_created_at ON public.movimientos(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_movimientos_number ON public.movimientos(movement_number);
+CREATE INDEX IF NOT EXISTS idx_movimientos_doc_ref ON public.movimientos(doc_ref);
+CREATE INDEX IF NOT EXISTS idx_movimientos_resp_user ON public.movimientos(responsible_user);
+CREATE INDEX IF NOT EXISTS idx_movimientos_source_wh ON public.movimientos(source_warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_movimientos_target_wh ON public.movimientos(target_warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_movimientos_wh_type_date ON public.movimientos(source_warehouse_id, target_warehouse_id, type, date DESC);
+CREATE INDEX IF NOT EXISTS idx_movimientos_items_gin ON public.movimientos USING GIN (items);
+
+-- Índices en Auditorías Físicas
+CREATE INDEX IF NOT EXISTS idx_auditorias_warehouse_id ON public.auditorias(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_auditorias_category_id ON public.auditorias(category_id);
+CREATE INDEX IF NOT EXISTS idx_auditorias_date ON public.auditorias(date DESC);
+CREATE INDEX IF NOT EXISTS idx_auditorias_user ON public.auditorias(responsible_user);
+CREATE INDEX IF NOT EXISTS idx_auditorias_wh_cat_date ON public.auditorias(warehouse_id, category_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_auditorias_items_gin ON public.auditorias USING GIN (items);
+
+-- Índices en Almacenes, Categorías y Usuarios
+CREATE INDEX IF NOT EXISTS idx_almacenes_code ON public.almacenes(code);
+CREATE INDEX IF NOT EXISTS idx_almacenes_is_main ON public.almacenes(is_main_entry);
+CREATE INDEX IF NOT EXISTS idx_almacenes_is_sales ON public.almacenes(is_sales_warehouse);
+
+CREATE INDEX IF NOT EXISTS idx_categorias_name ON public.categorias(name);
+CREATE INDEX IF NOT EXISTS idx_categorias_prefix ON public.categorias(code_prefix);
+
+CREATE INDEX IF NOT EXISTS idx_usuarios_role ON public.usuarios(role_name);
+CREATE INDEX IF NOT EXISTS idx_usuarios_is_admin ON public.usuarios(is_admin);
+CREATE INDEX IF NOT EXISTS idx_usuarios_is_suspended ON public.usuarios(is_suspended);
+CREATE INDEX IF NOT EXISTS idx_usuarios_is_deleted ON public.usuarios(is_deleted);
+
+-- 9. DESACTIVAR O HABILITAR RLS PERMISIVO PARA ACCESO CON ANON KEY
 ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.almacenes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categorias ENABLE ROW LEVEL SECURITY;
@@ -725,7 +973,7 @@ CREATE POLICY "Anon Full Access Movimientos" ON public.movimientos FOR ALL USING
 DROP POLICY IF EXISTS "Anon Full Access Auditorias" ON public.auditorias;
 CREATE POLICY "Anon Full Access Auditorias" ON public.auditorias FOR ALL USING (true) WITH CHECK (true);
 
--- 8. INSERTAR DATOS INICIALES (Almacenes base y Usuario Administrador)
+-- 10. INSERTAR DATOS INICIALES (Almacenes base y Usuario Administrador)
 INSERT INTO public.usuarios (username, password, role_name, is_admin, permissions)
 VALUES (
   'admin',
@@ -758,7 +1006,7 @@ INSERT INTO public.categorias (id, name, code_prefix, is_default) VALUES
 ('cat-pan', 'PANIFICACIÓN', 'PAN', true)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, code_prefix = EXCLUDED.code_prefix;
 
--- 9. HABILITAR REPLICACION EN TIEMPO REAL (Supabase Realtime WebSockets)
+-- 11. HABILITAR REPLICACION EN TIEMPO REAL (Supabase Realtime WebSockets)
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
