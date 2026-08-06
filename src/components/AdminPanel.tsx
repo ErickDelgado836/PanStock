@@ -919,7 +919,7 @@ export const AdminPanel: React.FC = () => {
             }`}
           >
             <Box className="w-4 h-4" />
-            <span>Productos (Catálogo)</span>
+            <span>Artículos de Inventario y Servicios</span>
           </button>
           <button
             onClick={() => setActiveTab('HISTORY_PURGE')}

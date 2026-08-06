@@ -122,8 +122,8 @@ export const AdminProducts: React.FC = () => {
     const updated = [...products, newProduct];
     saveProducts(updated);
     setProducts(updated);
-    setMsg({ text: `Producto '${newProduct.name}' agregado al catálogo.`, type: 'success' });
-    showToast('¡Producto Creado con Éxito!', `El producto "${newProduct.name}" (${newProduct.code}) fue registrado en el catálogo.`, 'success');
+    setMsg({ text: `Artículo '${newProduct.name}' agregado a inventario / servicios.`, type: 'success' });
+    showToast('¡Artículo Creado con Éxito!', `El artículo "${newProduct.name}" (${newProduct.code}) fue registrado en el inventario.`, 'success');
 
     // Reset Form
     setName('');
@@ -152,7 +152,7 @@ export const AdminProducts: React.FC = () => {
     const cleanCode = editCode.trim().toUpperCase();
 
     if (!cleanName || !cleanCode || !editCategoryId) {
-      alert('Por favor, complete todos los campos obligatorios del producto.');
+      alert('Por favor, complete todos los campos obligatorios del artículo.');
       return;
     }
 
@@ -161,7 +161,7 @@ export const AdminProducts: React.FC = () => {
       (p) => p.code.toLowerCase() === cleanCode.toLowerCase() && p.id !== editingProduct.id
     );
     if (codeCollision) {
-      alert(`El código '${cleanCode}' ya pertenece a otro producto ('${codeCollision.name}').`);
+      alert(`El código '${cleanCode}' ya pertenece a otro artículo ('${codeCollision.name}').`);
       return;
     }
 
@@ -182,8 +182,8 @@ export const AdminProducts: React.FC = () => {
     setProducts(updated);
     setEditModalOpen(false);
     setEditingProduct(null);
-    setMsg({ text: `Producto '${cleanCode}' actualizado con éxito.`, type: 'success' });
-    showToast('¡Producto Actualizado con Éxito!', `La información del producto "${cleanName}" (${cleanCode}) fue guardada correctamente.`, 'success');
+    setMsg({ text: `Artículo '${cleanCode}' actualizado con éxito.`, type: 'success' });
+    showToast('¡Artículo Actualizado con Éxito!', `La información del artículo "${cleanName}" (${cleanCode}) fue guardada correctamente.`, 'success');
   };
 
   // Open Delete Request Modal
@@ -208,7 +208,7 @@ export const AdminProducts: React.FC = () => {
     setStockBreakdown(breakdown);
     setDischargeNotes(
       breakdown.length > 0
-        ? `Descargo de existencias por baja y eliminación del producto ${p.code} del catálogo`
+        ? `Descargo de existencias por baja y eliminación del artículo ${p.code} del inventario`
         : ''
     );
     setDeleteModalOpen(true);
@@ -257,7 +257,7 @@ export const AdminProducts: React.FC = () => {
     const updated = products.filter((p) => p.id !== productToDelete.id);
     setProducts(updated);
 
-    showToast('¡Producto Eliminado con Éxito!', `El producto "${productToDelete.name}" fue removido completamente del sistema.`, 'success');
+    showToast('¡Artículo Eliminado con Éxito!', `El artículo "${productToDelete.name}" fue removido completamente del sistema.`, 'success');
 
     setDeleteModalOpen(false);
     setProductToDelete(null);
@@ -266,12 +266,12 @@ export const AdminProducts: React.FC = () => {
 
     if (totalStock > 0) {
       setMsg({
-        text: `Producto '${productToDelete.name}' eliminado del catálogo. Se registraron los descargos correspondientes por un total de ${totalStock} ${productToDelete.unit}.`,
+        text: `Artículo '${productToDelete.name}' eliminado. Se registraron los descargos correspondientes por un total de ${totalStock} ${productToDelete.unit}.`,
         type: 'success',
       });
     } else {
       setMsg({
-        text: `Producto '${productToDelete.name}' eliminado del catálogo.`,
+        text: `Artículo '${productToDelete.name}' eliminado.`,
         type: 'success',
       });
     }
@@ -283,7 +283,7 @@ export const AdminProducts: React.FC = () => {
       <div className="lg:col-span-4 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 h-fit lg:sticky lg:top-4">
         <div className="flex items-center gap-2 border-b border-slate-100 pb-4 mb-6">
           <PackageSearch className="w-5 h-5 text-red-600" />
-          <h2 className="text-lg font-bold text-slate-900">Nuevo Producto</h2>
+          <h2 className="text-lg font-bold text-slate-900">Nuevo Artículo / Servicio</h2>
         </div>
 
         {msg.text && (
@@ -302,13 +302,13 @@ export const AdminProducts: React.FC = () => {
         <form onSubmit={handleAddProduct} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Código del Producto
+              Código del Artículo / Servicio
             </label>
             <input
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="Ej: PAN-001"
+              placeholder="Ej: PAN-001 o SERV-01"
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold uppercase text-sm text-slate-900 focus:ring-2 focus:ring-red-500 focus:outline-none"
             />
           </div>
@@ -365,20 +365,20 @@ export const AdminProducts: React.FC = () => {
             className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
           >
             <Plus className="w-4 h-4" />
-            <span>Agregar al Catálogo</span>
+            <span>Agregar a Inventario / Servicios</span>
           </button>
         </form>
       </div>
 
-      {/* Lista Derecha: Catálogo con Buscador y Filtro */}
+      {/* Lista Derecha: Artículos con Buscador y Filtro */}
       <div className="lg:col-span-8 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Box className="w-5 h-5 text-red-600 shrink-0" />
-            <span>Catálogo de Productos ({products.length})</span>
+            <span>Artículos de Inventario y Servicios ({products.length})</span>
           </h2>
           <span className="text-xs text-slate-500 font-medium">
-            Mostrando {filteredProducts.length} de {products.length} productos
+            Mostrando {filteredProducts.length} de {products.length} artículos
           </span>
         </div>
 
@@ -422,63 +422,102 @@ export const AdminProducts: React.FC = () => {
           </div>
         </div>
 
-        {/* Listado de Productos */}
+        {/* Listado de Artículos */}
         <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
           {filteredProducts.length === 0 ? (
             <div className="p-8 text-center text-slate-400 text-xs font-bold bg-slate-50 rounded-xl border border-dashed border-slate-200">
               {products.length === 0
-                ? 'No hay productos registrados en el sistema.'
-                : 'No se encontraron productos que coincidan con la búsqueda.'}
+                ? 'No hay artículos o servicios registrados en el sistema.'
+                : 'No se encontraron artículos que coincidan con la búsqueda.'}
             </div>
           ) : (
             filteredProducts.map((p) => {
               const cat = categories.find((c) => c.id === p.categoryId);
-              const totalStock = Object.values(p.stockByWarehouse || {}).reduce(
-                (acc: number, curr: any) => acc + (Number(curr) || 0),
+              const totalStock: number = Object.values(p.stockByWarehouse || {}).reduce<number>(
+                (acc, curr) => acc + (Number(curr) || 0),
                 0
               );
 
               return (
                 <div
                   key={p.id}
-                  className="p-3.5 bg-slate-50 hover:bg-white rounded-xl border border-slate-200 flex items-center justify-between gap-3 hover:border-slate-300 shadow-2xs transition-all"
+                  className="p-3.5 bg-slate-50 hover:bg-white rounded-xl border border-slate-200 hover:border-slate-300 shadow-2xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="bg-slate-900 text-white font-mono text-[11px] font-bold px-2 py-0.5 rounded shrink-0">
-                        {p.code}
-                      </span>
-                      <span className="font-extrabold text-slate-900 text-sm truncate">{p.name}</span>
+                  {/* Contenedor de Información Principal */}
+                  <div className="min-w-0 flex-1 space-y-2">
+                    {/* Fila 1: Código + Nombre + Botones de Acción Móviles en la esquina superior */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                        <span className="bg-slate-900 text-white font-mono text-[11px] font-bold px-2 py-0.5 rounded shrink-0 shadow-2xs">
+                          {p.code}
+                        </span>
+                        <span className="font-extrabold text-slate-900 text-sm leading-snug break-words">
+                          {p.name}
+                        </span>
+                      </div>
+
+                      {/* Botones compactos visibles únicamente en Móvil */}
+                      <div className="flex sm:hidden items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditModal(p)}
+                          className="p-2 bg-slate-900 hover:bg-blue-600 active:scale-95 text-white rounded-lg transition-all shadow-xs"
+                          title="Editar Artículo / Servicio"
+                          aria-label="Editar"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRequestDelete(p)}
+                          className="p-2 bg-red-50 hover:bg-red-600 hover:text-white active:scale-95 text-red-600 rounded-lg border border-red-200 transition-all shadow-xs"
+                          title="Eliminar Artículo / Servicio"
+                          aria-label="Eliminar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-1.5 text-xs">
-                      <span className="bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-600 font-semibold text-[11px]">
+
+                    {/* Fila 2: Badges descriptivos con envoltura flexible y espaciado claro */}
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs pt-0.5">
+                      <span className="bg-white border border-slate-200 px-2 py-0.5 rounded-md text-slate-600 font-semibold text-[11px] whitespace-nowrap shadow-2xs">
                         {cat?.name || 'Sin Categoría'}
                       </span>
-                      <span className="bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-600 font-semibold text-[11px]">
+                      <span className="bg-white border border-slate-200 px-2 py-0.5 rounded-md text-slate-600 font-semibold text-[11px] whitespace-nowrap shadow-2xs">
                         Medida: {p.unit}
                       </span>
-                      <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded font-extrabold text-[11px]">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-md font-extrabold text-[11px] whitespace-nowrap border shadow-2xs ${
+                          totalStock > 0
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-slate-100 text-slate-600 border-slate-200'
+                        }`}
+                      >
                         Existencias: {totalStock}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Botones de Acción en Vista Escritorio / Tablet */}
+                  <div className="hidden sm:flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
                       onClick={() => handleOpenEditModal(p)}
-                      className="p-2 bg-slate-900 hover:bg-blue-600 text-white rounded-lg transition-colors shadow-xs"
-                      title="Editar Producto (Ventana Flotante)"
+                      className="p-2 bg-slate-900 hover:bg-blue-600 active:scale-95 text-white rounded-lg transition-all shadow-xs flex items-center gap-1.5 text-xs font-bold"
+                      title="Editar Artículo / Servicio"
                     >
                       <Edit2 className="w-4 h-4" />
+                      <span className="hidden md:inline">Editar</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRequestDelete(p)}
-                      className="p-2 bg-red-50 hover:bg-red-600 hover:text-white text-red-600 rounded-lg border border-red-200 transition-colors shadow-xs"
-                      title="Eliminar Producto del Catálogo"
+                      className="p-2 bg-red-50 hover:bg-red-600 hover:text-white active:scale-95 text-red-600 rounded-lg border border-red-200 transition-all shadow-xs flex items-center gap-1.5 text-xs font-bold"
+                      title="Eliminar Artículo / Servicio"
                     >
                       <Trash2 className="w-4 h-4" />
+                      <span className="hidden md:inline">Eliminar</span>
                     </button>
                   </div>
                 </div>
@@ -495,7 +534,7 @@ export const AdminProducts: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
                 <Edit2 className="w-5 h-5 text-blue-600 shrink-0" />
-                <span>Editar Producto [{editingProduct.code}]</span>
+                <span>Editar Artículo / Servicio [{editingProduct.code}]</span>
               </h3>
               <button
                 onClick={() => setEditModalOpen(false)}
@@ -508,7 +547,7 @@ export const AdminProducts: React.FC = () => {
             <form onSubmit={handleSaveEditModal} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Código del Producto
+                  Código del Artículo
                 </label>
                 <input
                   type="text"
@@ -577,7 +616,7 @@ export const AdminProducts: React.FC = () => {
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 active:scale-[0.98]"
                 >
                   <Save className="w-4 h-4" />
-                  <span>Actualizar Producto</span>
+                  <span>Actualizar Artículo</span>
                 </button>
               </div>
             </form>
@@ -592,7 +631,7 @@ export const AdminProducts: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2 text-red-600">
                 <Trash2 className="w-5 h-5 shrink-0" />
-                <span>Eliminar Producto '{productToDelete.code}'</span>
+                <span>Eliminar Artículo '{productToDelete.code}'</span>
               </h3>
               <button
                 onClick={() => setDeleteModalOpen(false)}
@@ -618,7 +657,7 @@ export const AdminProducts: React.FC = () => {
                   <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 space-y-2">
                     <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
                       <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>Este producto tiene existencias registradas en almacén:</span>
+                      <span>Este artículo tiene existencias registradas en almacén:</span>
                     </div>
 
                     <div className="bg-white p-3 rounded-lg border border-amber-200 space-y-1.5 max-h-36 overflow-y-auto">
@@ -664,7 +703,7 @@ export const AdminProducts: React.FC = () => {
                 </>
               ) : (
                 <p className="text-xs text-slate-600 font-medium">
-                  Este producto no tiene existencias registradas en ningún almacén. ¿Está seguro de que desea eliminarlo permanentemente del catálogo?
+                  Este artículo no tiene existencias registradas en ningún almacén. ¿Está seguro de que desea eliminarlo permanentemente del sistema?
                 </p>
               )}
             </div>
@@ -686,7 +725,7 @@ export const AdminProducts: React.FC = () => {
                 <span>
                   {stockBreakdown.length > 0
                     ? 'Descargar Existencias y Eliminar'
-                    : 'Eliminar Producto'}
+                    : 'Eliminar Artículo'}
                 </span>
               </button>
             </div>
