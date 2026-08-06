@@ -11,6 +11,7 @@ import {
 } from '../services/storage';
 import { CustomSelect } from './Common/CustomSelect';
 import { showToast } from '../utils/toast';
+import { formatVE } from '../utils/movementSearch';
 import {
   PackageSearch,
   Plus,
@@ -233,8 +234,8 @@ export const AdminProducts: React.FC = () => {
           id: `mov-del-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           movementNumber: `DSC-DEL-${Date.now().toString().slice(-4)}`,
           type: 'DESCARGO',
-          docRef: `ELIM-${productToDelete.code}-${new Date().toLocaleDateString('es-VE').replace(/\//g, '')}`,
-          date: new Date().toLocaleString('es-VE'),
+          docRef: `ELIM-${productToDelete.code}-${formatVE(new Date()).split(',')[0].replace(/\//g, '')}`,
+          date: formatVE(new Date()),
           responsibleUser: 'ADMINISTRADOR',
           sourceWarehouseId: item.whId,
           targetWarehouseId: item.whId,

@@ -1,6 +1,28 @@
 import { MovementRecord, Warehouse } from '../types';
 
 /**
+ * Formats a Date object into a highly robust and beautiful Venezuelan/Spanish format:
+ * "DD/MM/YYYY, hh:mm:ss a. m. / p. m."
+ * Always uses the browser's local time (which matches the user's computer screen and wall-clock),
+ * avoiding any artificial timezone shifts if the user's OS timezone is misconfigured.
+ */
+export const formatVE = (date: Date = new Date()): string => {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'p. m.' : 'a. m.';
+
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+
+  return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
+};
+
+/**
  * Safely parses any date format (ISO, Spanish locale e.g. "31/7/2026, 12:08:37 p. m.", YYYY-MM-DD, etc.)
  */
 export const parseAnyDate = (dateStr?: string): Date | null => {

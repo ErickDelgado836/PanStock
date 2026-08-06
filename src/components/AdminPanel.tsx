@@ -19,7 +19,7 @@ import {
   subscribeToStorage,
 } from '../services/storage';
 import { ALL_WAREHOUSE_IDS } from '../data/seedData';
-import { matchesMovementSearch } from '../utils/movementSearch';
+import { matchesMovementSearch, formatVE } from '../utils/movementSearch';
 import {
   Users,
   UserPlus,
@@ -699,8 +699,8 @@ export const AdminPanel: React.FC = () => {
           id: `mov-reorg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           movementNumber: `TRS-CAT-${Date.now().toString().slice(-4)}`,
           type: 'TRASLADO',
-          docRef: `REORG-${categoryToDelete.codePrefix}-${new Date().toLocaleDateString('es-VE').replace(/\//g, '')}`,
-          date: new Date().toLocaleString('es-VE'),
+          docRef: `REORG-${categoryToDelete.codePrefix}-${formatVE(new Date()).split(',')[0].replace(/\//g, '')}`,
+          date: formatVE(new Date()),
           responsibleUser: 'ADMINISTRADOR',
           sourceWarehouseId: item.sourceWhId,
           targetWarehouseId: item.targetWhId,
@@ -725,8 +725,8 @@ export const AdminPanel: React.FC = () => {
           id: `mov-reorg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           movementNumber: `DSC-CAT-${Date.now().toString().slice(-4)}`,
           type: 'DESCARGO',
-          docRef: `REORG-${categoryToDelete.codePrefix}-${new Date().toLocaleDateString('es-VE').replace(/\//g, '')}`,
-          date: new Date().toLocaleString('es-VE'),
+          docRef: `REORG-${categoryToDelete.codePrefix}-${formatVE(new Date()).split(',')[0].replace(/\//g, '')}`,
+          date: formatVE(new Date()),
           responsibleUser: 'ADMINISTRADOR',
           sourceWarehouseId: item.sourceWhId,
           targetWarehouseId: item.sourceWhId,
@@ -811,14 +811,7 @@ export const AdminPanel: React.FC = () => {
     try {
       const d = new Date(isoStr);
       if (isNaN(d.getTime())) return isoStr;
-      return d.toLocaleString('es-VE', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-      });
+      return formatVE(d);
     } catch {
       return isoStr;
     }

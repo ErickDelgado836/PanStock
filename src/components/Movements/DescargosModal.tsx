@@ -14,6 +14,7 @@ import { ProductSearchSelect } from './ProductSearchSelect';
 import { deductLotStock, getLotStockInWarehouse } from '../../utils/lotUtils';
 import { showToast } from '../../utils/toast';
 import { CustomSelect } from '../Common/CustomSelect';
+import { formatVE } from '../../utils/movementSearch';
 import {
   X,
   ArrowUpRight,
@@ -343,7 +344,7 @@ export const DescargosModal: React.FC<DescargosModalProps> = ({ isOpen, onClose,
       movementNumber: `DSC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       type: 'DESCARGO',
       docRef: docRef.trim(),
-      date: new Date().toLocaleString('es-VE'),
+      date: formatVE(new Date()),
       responsibleUser: currentUser.username,
       sourceWarehouseId: warehouseId,
       notes: notes || `Descargo de mercancía (${dischargeMode === 'SINGLE' ? 'Único' : 'Múltiple ' + multiItems.length + ' productos'})`,

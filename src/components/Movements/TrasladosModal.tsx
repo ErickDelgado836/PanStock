@@ -14,6 +14,7 @@ import { ProductSearchSelect } from './ProductSearchSelect';
 import { transferLotStock, getLotStockInWarehouse } from '../../utils/lotUtils';
 import { showToast } from '../../utils/toast';
 import { CustomSelect } from '../Common/CustomSelect';
+import { formatVE } from '../../utils/movementSearch';
 import {
   X,
   ArrowRightLeft,
@@ -364,7 +365,7 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
       movementNumber: `TRS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       type: 'TRASLADO',
       docRef: docRef.trim(),
-      date: new Date().toLocaleString('es-VE'),
+      date: formatVE(new Date()),
       responsibleUser: currentUser.username,
       sourceWarehouseId: sourceWhId,
       targetWarehouseId: targetWhId,

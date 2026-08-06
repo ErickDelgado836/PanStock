@@ -16,6 +16,7 @@ import { ProductSearchSelect } from './ProductSearchSelect';
 import { addLotStockOnEntry } from '../../utils/lotUtils';
 import { showToast } from '../../utils/toast';
 import { CustomSelect } from '../Common/CustomSelect';
+import { formatVE } from '../../utils/movementSearch';
 import {
   X,
   ArrowDownLeft,
@@ -450,7 +451,7 @@ export const EntradasModal: React.FC<EntradasModalProps> = ({ isOpen, onClose, c
       movementNumber: `ENT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       type: 'ENTRADA',
       docRef: docRef.trim(),
-      date: new Date().toLocaleString('es-VE'),
+      date: formatVE(new Date()),
       responsibleUser: currentUser.username,
       targetWarehouseId: '00', // Main entry warehouse
       notes: notes || `Ingreso de mercancía (${entryMode === 'SINGLE' ? 'Único' : 'Múltiple ' + multiItems.length + ' productos'})`,

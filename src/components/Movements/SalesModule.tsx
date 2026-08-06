@@ -14,6 +14,7 @@ import { ConfirmationModal } from '../ConfirmationModal';
 import { showToast } from '../../utils/toast';
 import { CustomSelect } from '../Common/CustomSelect';
 import { deductLotStock } from '../../utils/lotUtils';
+import { formatVE } from '../../utils/movementSearch';
 import {
   ShoppingCart,
   Building2,
@@ -244,7 +245,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
       movementNumber: `VTA-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       type: 'VENTA',
       docRef: executedDocRef,
-      date: new Date().toLocaleString('es-VE'),
+      date: formatVE(new Date()),
       responsibleUser: currentUser.username,
       sourceWarehouseId: selectedWarehouseId,
       targetWarehouseId: customerName || 'Cliente Final',

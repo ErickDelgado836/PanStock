@@ -4,6 +4,7 @@ import { Product, Warehouse, Category, UserProfile, PhysicalAuditItem } from '..
 import { addPhysicalAudit, getPhysicalAudits } from '../services/storage';
 import { ConfirmationModal } from './ConfirmationModal';
 import { showToast } from '../utils/toast';
+import { formatVE } from '../utils/movementSearch';
 import { X, ClipboardCheck, Check, Plus, Minus, Equal, Search } from 'lucide-react';
 
 interface PhysicalAuditModalProps {
@@ -96,7 +97,7 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
   });
 
   const handleSaveAudit = () => {
-    const auditDateStr = new Date().toLocaleString('es-VE');
+    const auditDateStr = formatVE(new Date());
     const auditId = `audit-${Date.now()}`;
 
     const record = {

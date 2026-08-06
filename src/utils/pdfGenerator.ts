@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { MovementRecord } from '../types';
 import { DEFAULT_WAREHOUSES } from '../data/seedData';
+import { formatVE } from './movementSearch';
 
 let cachedLogoImage: HTMLImageElement | null = null;
 
@@ -212,7 +213,7 @@ export async function generateMovementPDF(movement: MovementRecord) {
     doc.setFontSize(7.5);
     doc.setTextColor(140, 140, 140);
     doc.text(
-      `Documento generado automáticamente por PanStock Española C.A | Fecha: ${new Date().toLocaleString('es-VE')}`,
+      `Documento generado automáticamente por PanStock Española C.A | Fecha: ${formatVE(new Date())}`,
       14,
       287
     );
@@ -326,7 +327,7 @@ export async function generateAuditReportPDF(
   doc.setFont('helvetica', 'bold');
   doc.text('Fecha Emisión:', 115, 56);
   doc.setFont('helvetica', 'normal');
-  doc.text(new Date().toLocaleString('es-VE'), 145, 56);
+  doc.text(formatVE(new Date()), 145, 56);
 
   // Items Table Header
   const startY = 72;
@@ -416,7 +417,7 @@ export async function generateAuditReportPDF(
     doc.setFontSize(7);
     doc.setTextColor(140, 140, 140);
     doc.text(
-      `Reporte generado por PanStock | Panadería Española C.A | Fecha: ${new Date().toLocaleString('es-VE')}`,
+      `Reporte generado por PanStock | Panadería Española C.A | Fecha: ${formatVE(new Date())}`,
       14,
       287
     );
