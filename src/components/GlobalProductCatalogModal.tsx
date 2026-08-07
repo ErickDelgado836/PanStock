@@ -1058,7 +1058,7 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
               onClick={onClose}
               className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all active:scale-[0.98] cursor-pointer ml-auto"
             >
-              Cerrar Catálogo
+              Cerrar Ventana
             </button>
           </div>
         </motion.div>
