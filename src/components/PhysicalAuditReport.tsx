@@ -444,8 +444,8 @@ export const PhysicalAuditReport: React.FC = () => {
                 { value: 'ALL', label: 'Todos los Estados' },
                 { value: 'PENDING', label: 'Sin Conteo (Pendiente)' },
                 { value: 'CORRECT', label: 'Correcto (Sin Diferencia)' },
-                { value: 'MISSING', label: 'Con Faltante (-)' },
-                { value: 'SURPLUS', label: 'Con Sobrante (+)' },
+                { value: 'MISSING', label: 'Con Faltante Detectado' },
+                { value: 'SURPLUS', label: 'Con Sobrante Detectado' },
               ]}
             />
           </div>

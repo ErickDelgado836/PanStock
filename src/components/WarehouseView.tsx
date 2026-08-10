@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Product, Warehouse, Category, UserProfile, MovementRecord } from '../types';
 import {
   getCategories,
@@ -28,6 +28,9 @@ import {
   Equal,
   Minus,
   Plus,
+  X,
+  RotateCcw,
+  Boxes,
 } from 'lucide-react';
 
 interface WarehouseViewProps {
@@ -51,6 +54,8 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
   const [audits, setAudits] = useState(getPhysicalAudits);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('ALL');
+  const [selectedStockFilter, setSelectedStockFilter] = useState<'ALL' | 'WITH_STOCK' | 'WITHOUT_STOCK'>('ALL');
+  const [selectedAuditStatus, setSelectedAuditStatus] = useState<'ALL' | 'EQUAL' | 'DEFICIT' | 'SURPLUS' | 'AUDITED' | 'UNAUDITED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Physical Audit Modal state
@@ -71,17 +76,93 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
     return subscribeToStorage(loadData);
   }, []);
 
-  // Filter products for search & selected category
-  const warehouseProducts = products.filter((p) => {
-    if (selectedCategoryId !== 'ALL' && p.categoryId !== selectedCategoryId) return false;
+  // Map of productId -> latest audit item in THIS specific warehouse
+  const warehouseAuditMap = useMemo(() => {
+    const map: {
+      [productId: string]: {
+        physicalStock: number;
+        systemStock: number;
+        difference: number;
+        date: string;
+        responsibleUser: string;
+      };
+    } = {};
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
-    }
+    audits.forEach((audit) => {
+      if (audit.warehouseId !== warehouse.id) return;
+      audit.items.forEach((item) => {
+        if (!map[item.productId]) {
+          map[item.productId] = {
+            physicalStock: item.physicalStock,
+            systemStock: item.systemStock,
+            difference: item.difference,
+            date: audit.date,
+            responsibleUser: audit.responsibleUser,
+          };
+        }
+      });
+    });
 
-    return true;
-  });
+    return map;
+  }, [audits, warehouse.id]);
+
+  const hasActiveFilters =
+    selectedCategoryId !== 'ALL' ||
+    selectedStockFilter !== 'ALL' ||
+    selectedAuditStatus !== 'ALL' ||
+    searchQuery.trim() !== '';
+
+  const handleClearFilters = () => {
+    setSelectedCategoryId('ALL');
+    setSelectedStockFilter('ALL');
+    setSelectedAuditStatus('ALL');
+    setSearchQuery('');
+  };
+
+  // Filter products for search, category, local stock presence & local audit status
+  const warehouseProducts = useMemo(() => {
+    return products.filter((p) => {
+      // 1. Category filter
+      if (selectedCategoryId !== 'ALL' && p.categoryId !== selectedCategoryId) {
+        return false;
+      }
+
+      // 2. Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchCode = p.code.toLowerCase().includes(q);
+        const matchName = p.name.toLowerCase().includes(q);
+        if (!matchCode && !matchName) return false;
+      }
+
+      // 3. Local warehouse stock filter
+      const localStock = p.stockByWarehouse[warehouse.id] || 0;
+      if (selectedStockFilter === 'WITH_STOCK' && localStock <= 0) {
+        return false;
+      }
+      if (selectedStockFilter === 'WITHOUT_STOCK' && localStock > 0) {
+        return false;
+      }
+
+      // 4. Local warehouse physical audit status filter
+      if (selectedAuditStatus !== 'ALL') {
+        const auditItem = warehouseAuditMap[p.id];
+        if (selectedAuditStatus === 'UNAUDITED') {
+          if (auditItem) return false;
+        } else if (selectedAuditStatus === 'AUDITED') {
+          if (!auditItem) return false;
+        } else if (selectedAuditStatus === 'EQUAL') {
+          if (!auditItem || auditItem.difference !== 0) return false;
+        } else if (selectedAuditStatus === 'DEFICIT') {
+          if (!auditItem || auditItem.difference >= 0) return false;
+        } else if (selectedAuditStatus === 'SURPLUS') {
+          if (!auditItem || auditItem.difference <= 0) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [products, selectedCategoryId, searchQuery, selectedStockFilter, selectedAuditStatus, warehouse.id, warehouseAuditMap]);
 
   // Helper to get products for physical audit (respecting category and active search query)
   const getAuditProductsForCategory = (cat: Category) => {
@@ -179,6 +260,30 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
     return null;
   };
 
+  const categoryOptions = [
+    { value: 'ALL', label: 'Todas las Categorías (Subgrupos)', badge: 'Todas' },
+    ...categories.map((c) => ({
+      value: c.id,
+      label: c.name,
+      badge: c.codePrefix,
+    })),
+  ];
+
+  const stockOptions = [
+    { value: 'ALL', label: 'Todas las Existencias (Almacén)', badge: 'Todas' },
+    { value: 'WITH_STOCK', label: 'Con Existencia en este Almacén', badge: 'Con Stock' },
+    { value: 'WITHOUT_STOCK', label: 'Sin Existencia en este Almacén', badge: 'Sin Stock' },
+  ];
+
+  const auditStatusOptions = [
+    { value: 'ALL', label: 'Todos los Estados de Auditoría', badge: 'Todos' },
+    { value: 'EQUAL', label: 'Sin Diferencia (Correctos)', badge: 'Correcto' },
+    { value: 'DEFICIT', label: 'Con Faltante Detectado', badge: 'Faltante' },
+    { value: 'SURPLUS', label: 'Con Sobrante Detectado', badge: 'Sobrante' },
+    { value: 'AUDITED', label: 'Auditados / Con Conteo Físico', badge: 'Con Conteo' },
+    { value: 'UNAUDITED', label: 'Sin Conteo / Pendientes', badge: 'Sin Conteo' },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Warehouse Header Card */}
@@ -202,293 +307,367 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
             Artículos Registrados (Ver Listado)
           </span>
           <span className="text-2xl font-black text-amber-400">
-            {warehouseProducts.length}
+            {products.length}
           </span>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex-1 relative min-w-[240px]">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar producto por código o descripción..."
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-red-500"
-          />
+      <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200 space-y-4">
+        {/* Responsive Grid for Search + Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Search Box */}
+          <div className="relative w-full">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por código o nombre..."
+              className="w-full pl-10 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition-all placeholder:text-slate-400"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-200/50 transition-colors cursor-pointer"
+                title="Borrar búsqueda"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Category Filter */}
+          <div className="w-full">
+            <CustomSelect
+              value={selectedCategoryId}
+              onChange={setSelectedCategoryId}
+              accentColor="rose"
+              icon={<Tag className="w-4 h-4 text-slate-400" />}
+              options={categoryOptions}
+            />
+          </div>
+
+          {/* Warehouse Stock Filter */}
+          <div className="w-full">
+            <CustomSelect
+              value={selectedStockFilter}
+              onChange={(val) => setSelectedStockFilter(val as any)}
+              accentColor="emerald"
+              icon={<PackageCheck className="w-4 h-4 text-slate-400" />}
+              options={stockOptions}
+            />
+          </div>
+
+          {/* Audit Discrepancy / Status Filter */}
+          <div className="w-full">
+            <CustomSelect
+              value={selectedAuditStatus}
+              onChange={(val) => setSelectedAuditStatus(val as any)}
+              accentColor="amber"
+              icon={<ClipboardCheck className="w-4 h-4 text-slate-400" />}
+              options={auditStatusOptions}
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 min-w-[220px]">
-          <CustomSelect
-            value={selectedCategoryId}
-            onChange={setSelectedCategoryId}
-            accentColor="rose"
-            icon={<Filter className="w-4 h-4 text-slate-400" />}
-            options={[
-              { value: 'ALL', label: 'Todas las Categorías (Subgrupos)' },
-              ...categories.map((c) => ({
-                value: c.id,
-                label: c.name,
-                badge: c.codePrefix,
-              })),
-            ]}
-          />
+        {/* Counter and Clear Filters Action Bar */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
+          <div className="flex items-center gap-2 flex-wrap text-xs text-slate-500 font-medium">
+            <span>
+              Mostrando <strong className="text-slate-900 font-black">{warehouseProducts.length}</strong> de{' '}
+              <strong className="text-slate-700">{products.length}</strong> producto(s) en{' '}
+              <strong className="text-red-700 font-bold">{warehouse.name}</strong>
+            </span>
+            {hasActiveFilters && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                Filtros aplicados
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 shrink-0">
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="px-3.5 py-1.5 bg-red-50 hover:bg-red-100 active:bg-red-200 border border-red-200 text-red-700 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer select-none w-full sm:w-auto shadow-2xs"
+              >
+                <X className="w-3.5 h-3.5 text-red-600" />
+                <span>Limpiar Filtros</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Categories Sections with Products & Physical Audit Actions */}
-      <div className="space-y-6">
-        {(() => {
-          const activeCatIds = new Set(categories.map((c) => c.id));
-          const orphanProducts = warehouseProducts.filter((p) => !activeCatIds.has(p.categoryId));
+      {/* Empty State when no products match filters */}
+      {warehouseProducts.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center space-y-3 shadow-xs">
+          <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
+            <Search className="w-6 h-6" />
+          </div>
+          <h4 className="text-sm font-extrabold text-slate-800">
+            No se encontraron productos con los filtros seleccionados
+          </h4>
+          <p className="text-xs text-slate-500 max-w-md mx-auto font-medium">
+            No hay ningún artículo registrado en {warehouse.name} ({warehouse.code}) que coincida con los criterios de búsqueda y filtros actuales.
+          </p>
+          {hasActiveFilters && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all active:scale-95 inline-flex items-center gap-2 cursor-pointer shadow-xs"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Restablecer Filtros</span>
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Categories Sections with Products & Physical Audit Actions */
+        <div className="space-y-6">
+          {(() => {
+            const activeCatIds = new Set(categories.map((c) => c.id));
+            const orphanProducts = warehouseProducts.filter((p) => !activeCatIds.has(p.categoryId));
 
-          const displayCategories: Category[] = [...categories];
-          if (orphanProducts.length > 0) {
-            displayCategories.push({
-              id: '__ORPHAN__',
-              name: 'PRODUCTOS SIN CATEGORÍA O SUBGRUPO REASIGNADO',
-              codePrefix: 'SIN-CAT',
-              isDefault: false,
-            });
-          }
-
-          return displayCategories.map((cat) => {
-            if (selectedCategoryId !== 'ALL' && cat.id !== selectedCategoryId && cat.id !== '__ORPHAN__') {
-              return null;
+            const displayCategories: Category[] = [...categories];
+            if (orphanProducts.length > 0) {
+              displayCategories.push({
+                id: '__ORPHAN__',
+                name: 'PRODUCTOS SIN CATEGORÍA O SUBGRUPO REASIGNADO',
+                codePrefix: 'SIN-CAT',
+                isDefault: false,
+              });
             }
 
-            const rawCatProducts =
-              cat.id === '__ORPHAN__'
-                ? orphanProducts
-                : warehouseProducts.filter((p) => p.categoryId === cat.id);
+            return displayCategories.map((cat) => {
+              if (selectedCategoryId !== 'ALL' && cat.id !== selectedCategoryId && cat.id !== '__ORPHAN__') {
+                return null;
+              }
 
-            if (searchQuery.trim() && rawCatProducts.length === 0) return null;
-            if (rawCatProducts.length === 0) return null;
+              const rawCatProducts =
+                cat.id === '__ORPHAN__'
+                  ? orphanProducts
+                  : warehouseProducts.filter((p) => p.categoryId === cat.id);
 
-            // SORTING REQUIREMENT:
-            // Products WITH stock in THIS warehouse appear FIRST.
-            // Products WITHOUT stock in THIS warehouse appear LAST.
-            const catProducts = [...rawCatProducts].sort((a, b) => {
-              const stockA = a.stockByWarehouse[warehouse.id] || 0;
-              const stockB = b.stockByWarehouse[warehouse.id] || 0;
-              const hasStockA = stockA > 0;
-              const hasStockB = stockB > 0;
+              if (rawCatProducts.length === 0) return null;
 
-              if (hasStockA && !hasStockB) return -1;
-              if (!hasStockA && hasStockB) return 1;
+              // SORTING REQUIREMENT:
+              // Products WITH stock in THIS warehouse appear FIRST.
+              // Products WITHOUT stock in THIS warehouse appear LAST.
+              const catProducts = [...rawCatProducts].sort((a, b) => {
+                const stockA = a.stockByWarehouse[warehouse.id] || 0;
+                const stockB = b.stockByWarehouse[warehouse.id] || 0;
+                const hasStockA = stockA > 0;
+                const hasStockB = stockB > 0;
 
-              return a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' });
-            });
+                if (hasStockA && !hasStockB) return -1;
+                if (!hasStockA && hasStockB) return 1;
 
-            const auditKey = `${warehouse.id}_${cat.id}`;
-            const lastAuditDate = lastAudits[auditKey];
+                return a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' });
+              });
 
-            return (
-              <div key={cat.id} className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                {/* Category Header */}
-                <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="px-2.5 py-1 bg-red-100 text-red-900 text-xs font-black rounded-lg tracking-wider border border-red-200">
-                      "{cat.codePrefix}"
-                    </span>
-                    <div>
-                      <h3 className="font-extrabold text-slate-900 text-base leading-none">
-                        {cat.name}
-                      </h3>
-                      <p className="text-[11px] text-slate-500 font-medium mt-1">
-                        {catProducts.length} producto(s) en este subgrupo
-                      </p>
+              const auditKey = `${warehouse.id}_${cat.id}`;
+              const lastAuditDate = lastAudits[auditKey];
+
+              return (
+                <div key={cat.id} className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                  {/* Category Header */}
+                  <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="px-2.5 py-1 bg-red-100 text-red-900 text-xs font-black rounded-lg tracking-wider border border-red-200">
+                        "{cat.codePrefix}"
+                      </span>
+                      <div>
+                        <h3 className="font-extrabold text-slate-900 text-base leading-none">
+                          {cat.name}
+                        </h3>
+                        <p className="text-[11px] text-slate-500 font-medium mt-1">
+                          {catProducts.length} producto(s) en este subgrupo
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {lastAuditDate && (
+                        <span className="text-[11px] font-bold text-slate-500 bg-slate-200/60 px-3 py-1 rounded-full flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-slate-600" />
+                          <span>Último inventario físico: <strong>{lastAuditDate}</strong></span>
+                        </span>
+                      )}
+
+                      {onNavigateToAuditReport && (
+                        <button
+                          onClick={onNavigateToAuditReport}
+                          className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-all flex items-center gap-1.5 border border-slate-300 active:scale-[0.98] cursor-pointer"
+                        >
+                          <FileText className="w-4 h-4 text-red-600" />
+                          <span>Ver Reporte de Auditorías</span>
+                        </button>
+                      )}
+
+                      {currentUser.permissions.canPhysicalInventory && (
+                        <button
+                          onClick={() => handleOpenAudit(cat)}
+                          className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 active:scale-[0.98] cursor-pointer"
+                        >
+                          <ClipboardCheck className="w-4 h-4 text-emerald-400" />
+                          <span>Realizar Inventario en Físico</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  {lastAuditDate && (
-                    <span className="text-[11px] font-bold text-slate-500 bg-slate-200/60 px-3 py-1 rounded-full flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-slate-600" />
-                      <span>Último inventario físico: <strong>{lastAuditDate}</strong></span>
-                    </span>
-                  )}
+                  {/* Products Table */}
+                  {catProducts.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400 text-xs italic">
+                      No hay productos registrados bajo la categoría "{cat.name}" para este almacén.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto touch-auto scrollbar-none scrollbar-hide">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-100/80 text-slate-600 font-extrabold uppercase border-b border-slate-200 whitespace-nowrap">
+                          <tr>
+                            <th className="p-3">Código</th>
+                            <th className="p-3 min-w-[180px]">Descripción del Producto</th>
+                            <th className="p-3 min-w-[180px]">Última Actividad / Movimiento</th>
+                            <th className="p-3 text-center">Fecha Vencimiento</th>
+                            <th className="p-3 text-center">Último Conteo Físico Real</th>
+                            <th className="p-3 text-right">Existencia Sistema Almacén</th>
+                            <th className="p-3 text-right">Existencia Total Sistema</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 whitespace-nowrap">
+                          {catProducts.map((prod) => {
+                            const whStock = prod.stockByWarehouse[warehouse.id] || 0;
+                            const totalStock = calculateTotalStock(prod.stockByWarehouse);
+                            const hasStock = whStock > 0;
+                            const lastMov = getLastMovementInfo(prod.id);
+                            const lastAuditItem = warehouseAuditMap[prod.id];
 
-                  {onNavigateToAuditReport && (
-                    <button
-                      onClick={onNavigateToAuditReport}
-                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-all flex items-center gap-1.5 border border-slate-300 active:scale-[0.98]"
-                    >
-                      <FileText className="w-4 h-4 text-red-600" />
-                      <span>Ver Reporte de Auditorías</span>
-                    </button>
-                  )}
-
-                  {currentUser.permissions.canPhysicalInventory && (
-                    <button
-                      onClick={() => handleOpenAudit(cat)}
-                      className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 active:scale-[0.98]"
-                    >
-                      <ClipboardCheck className="w-4 h-4 text-emerald-400" />
-                      <span>Realizar Inventario en Físico</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Products Table */}
-              {catProducts.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 text-xs italic">
-                  No hay productos registrados bajo la categoría "{cat.name}" para este almacén.
-                </div>
-              ) : (
-                <div className="overflow-x-auto touch-auto scrollbar-none scrollbar-hide">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100/80 text-slate-600 font-extrabold uppercase border-b border-slate-200 whitespace-nowrap">
-                      <tr>
-                        <th className="p-3">Código</th>
-                        <th className="p-3 min-w-[180px]">Descripción del Producto</th>
-                        <th className="p-3 min-w-[180px]">Última Actividad / Movimiento</th>
-                        <th className="p-3 text-center">Fecha Vencimiento</th>
-                        <th className="p-3 text-center">Último Conteo Físico Real</th>
-                        <th className="p-3 text-right">Existencia Sistema Almacén</th>
-                        <th className="p-3 text-right">Existencia Total Sistema</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 whitespace-nowrap">
-                      {catProducts.map((prod) => {
-                        const whStock = prod.stockByWarehouse[warehouse.id] || 0;
-                        const totalStock = calculateTotalStock(prod.stockByWarehouse);
-                        const hasStock = whStock > 0;
-                        const lastMov = getLastMovementInfo(prod.id);
-
-                        // Find latest audit item for this product in this warehouse
-                        let lastAuditItem = null;
-                        for (const a of audits) {
-                          if (a.warehouseId === warehouse.id) {
-                            const item = a.items.find((i) => i.productId === prod.id);
-                            if (item) {
-                              lastAuditItem = item;
-                              break;
-                            }
-                          }
-                        }
-
-                        return (
-                          <tr
-                            key={prod.id}
-                            className={`transition-colors ${
-                              hasStock
-                                ? 'bg-white hover:bg-slate-50/80'
-                                : 'bg-slate-50/40 opacity-75 hover:bg-slate-50'
-                            }`}
-                          >
-                            <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">
-                              <span
-                                className={`px-2 py-0.5 rounded border whitespace-nowrap ${
+                            return (
+                              <tr
+                                key={prod.id}
+                                className={`transition-colors ${
                                   hasStock
-                                    ? 'bg-slate-100 text-slate-800 border-slate-200 font-black'
-                                    : 'bg-slate-100/60 text-slate-400 border-slate-200/80 font-normal'
+                                    ? 'bg-white hover:bg-slate-50/80'
+                                    : 'bg-slate-50/40 opacity-75 hover:bg-slate-50'
                                 }`}
                               >
-                                {prod.code}
-                              </span>
-                            </td>
-                            <td className="p-3 font-bold max-w-[320px] truncate whitespace-normal">
-                              <span className={hasStock ? 'text-slate-900' : 'text-slate-500 font-medium'}>
-                                {prod.name}
-                              </span>
-                              {!hasStock && (
-                                <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-slate-200/60 text-slate-500 rounded font-normal whitespace-nowrap">
-                                  Sin stock local
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-3">
-                              {lastMov ? (
-                                <div className="space-y-0.5 whitespace-normal">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span
-                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border whitespace-nowrap ${lastMov.badgeBg}`}
-                                    >
-                                      {lastMov.icon}
-                                      <span>{lastMov.typeText}</span>
-                                      <span className="font-mono">({lastMov.qtyText})</span>
-                                    </span>
-                                  </div>
-                                  <div className="text-[10px] text-slate-500 flex items-center gap-2 flex-wrap font-medium">
-                                    <span className="flex items-center gap-1 whitespace-nowrap">
-                                      <Clock className="w-3 h-3 text-slate-400" />
-                                      {lastMov.date}
-                                    </span>
-                                    <span>•</span>
-                                    <span>{lastMov.detail}</span>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="text-[11px] text-slate-400 font-medium italic whitespace-nowrap">
-                                  {prod.entryDate ? `Ingreso General: ${prod.entryDate}` : 'Sin movimientos recientes'}
-                                </div>
-                              )}
-                            </td>
-                            <td className="p-3 text-center font-medium text-slate-600 whitespace-nowrap">
-                              {prod.expirationDate ? (
-                                <span className="bg-slate-100 px-2 py-0.5 rounded font-mono whitespace-nowrap">
-                                  {prod.expirationDate}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">N/A</span>
-                              )}
-                            </td>
-                            <td className="p-3 text-center whitespace-nowrap">
-                              {lastAuditItem ? (
-                                <div className="inline-flex flex-col items-center">
-                                  <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">
-                                    {lastAuditItem.physicalStock} {prod.unit}
+                                <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">
+                                  <span
+                                    className={`px-2 py-0.5 rounded border whitespace-nowrap ${
+                                      hasStock
+                                        ? 'bg-slate-100 text-slate-800 border-slate-200 font-black'
+                                        : 'bg-slate-100/60 text-slate-400 border-slate-200/80 font-normal'
+                                    }`}
+                                  >
+                                    {prod.code}
                                   </span>
-                                  {lastAuditItem.difference === 0 ? (
-                                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 rounded border border-emerald-200 whitespace-nowrap">
-                                      Correcto
-                                    </span>
-                                  ) : lastAuditItem.difference < 0 ? (
-                                    <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-1.5 rounded border border-rose-200 whitespace-nowrap">
-                                      Falta {Math.abs(lastAuditItem.difference)} {prod.unit}
-                                    </span>
-                                  ) : (
-                                    <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-1.5 rounded border border-teal-200 whitespace-nowrap">
-                                      Sobra +{lastAuditItem.difference} {prod.unit}
+                                </td>
+                                <td className="p-3 font-bold max-w-[320px] truncate whitespace-normal">
+                                  <span className={hasStock ? 'text-slate-900' : 'text-slate-500 font-medium'}>
+                                    {prod.name}
+                                  </span>
+                                  {!hasStock && (
+                                    <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-slate-200/60 text-slate-500 rounded font-normal whitespace-nowrap">
+                                      Sin stock local
                                     </span>
                                   )}
-                                </div>
-                              ) : (
-                                <span className="text-[11px] text-slate-400 italic font-medium whitespace-nowrap">
-                                  Sin conteo
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-3 text-right whitespace-nowrap">
-                              <span
-                                className={`font-black text-sm px-2.5 py-1 rounded-lg border inline-flex items-center whitespace-nowrap ${
-                                  hasStock
-                                    ? 'bg-emerald-50 text-emerald-900 border-emerald-300 shadow-2xs'
-                                    : 'bg-slate-100 text-slate-400 border-slate-200 font-semibold'
-                                }`}
-                              >
-                                {whStock} {prod.unit}
-                              </span>
-                            </td>
-                            <td className="p-3 text-right font-black text-slate-700 whitespace-nowrap">
-                              {totalStock} {prod.unit}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                                </td>
+                                <td className="p-3">
+                                  {lastMov ? (
+                                    <div className="space-y-0.5 whitespace-normal">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span
+                                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border whitespace-nowrap ${lastMov.badgeBg}`}
+                                        >
+                                          {lastMov.icon}
+                                          <span>{lastMov.typeText}</span>
+                                          <span className="font-mono">({lastMov.qtyText})</span>
+                                        </span>
+                                      </div>
+                                      <div className="text-[10px] text-slate-500 flex items-center gap-2 flex-wrap font-medium">
+                                        <span className="flex items-center gap-1 whitespace-nowrap">
+                                          <Clock className="w-3 h-3 text-slate-400" />
+                                          {lastMov.date}
+                                        </span>
+                                        <span>•</span>
+                                        <span>{lastMov.detail}</span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="text-[11px] text-slate-400 font-medium italic whitespace-nowrap">
+                                      {prod.entryDate ? `Ingreso General: ${prod.entryDate}` : 'Sin movimientos recientes'}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="p-3 text-center font-medium text-slate-600 whitespace-nowrap">
+                                  {prod.expirationDate ? (
+                                    <span className="bg-slate-100 px-2 py-0.5 rounded font-mono whitespace-nowrap">
+                                      {prod.expirationDate}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400">N/A</span>
+                                  )}
+                                </td>
+                                <td className="p-3 text-center whitespace-nowrap">
+                                  {lastAuditItem ? (
+                                    <div className="inline-flex flex-col items-center">
+                                      <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">
+                                        {lastAuditItem.physicalStock} {prod.unit}
+                                      </span>
+                                      {lastAuditItem.difference === 0 ? (
+                                        <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 rounded border border-emerald-200 whitespace-nowrap">
+                                          Correcto
+                                        </span>
+                                      ) : lastAuditItem.difference < 0 ? (
+                                        <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-1.5 rounded border border-rose-200 whitespace-nowrap">
+                                          Falta {Math.abs(lastAuditItem.difference)} {prod.unit}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-1.5 rounded border border-teal-200 whitespace-nowrap">
+                                          Sobra +{lastAuditItem.difference} {prod.unit}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-[11px] text-slate-400 italic font-medium whitespace-nowrap">
+                                      Sin conteo
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="p-3 text-right whitespace-nowrap">
+                                  <span
+                                    className={`font-black text-sm px-2.5 py-1 rounded-lg border inline-flex items-center whitespace-nowrap ${
+                                      hasStock
+                                        ? 'bg-emerald-50 text-emerald-900 border-emerald-300 shadow-2xs'
+                                        : 'bg-slate-100 text-slate-400 border-slate-200 font-semibold'
+                                    }`}
+                                  >
+                                    {whStock} {prod.unit}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-right font-black text-slate-700 whitespace-nowrap">
+                                  {totalStock} {prod.unit}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          );
-        });
-      })()}
-      </div>
+              );
+            });
+          })()}
+        </div>
+      )}
 
       {/* Audit Modal */}
       {auditCategory && (
@@ -507,4 +686,5 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
     </div>
   );
 };
+
 
