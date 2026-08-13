@@ -153,7 +153,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       >
         <video
           ref={videoRef}
-          src="/fondo.mp4"
           poster="/fondo_poster.jpg"
           autoPlay
           loop
@@ -163,6 +162,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           className="w-full h-full object-cover filter brightness-105 scale-105 opacity-95"
         >
           <source src="/fondo.mp4" type="video/mp4" />
+          <source src="/pan_video.mp4" type="video/mp4" />
+          <source src="/fondo.webm" type="video/webm" />
           <source src="/background.mp4" type="video/mp4" />
         </video>
         {/* Soft Contrast Overlay to Let Video Shine While Preserving Text Legibility */}

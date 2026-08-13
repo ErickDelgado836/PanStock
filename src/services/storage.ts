@@ -269,7 +269,15 @@ export function getUsers(): UserProfile[] {
     localStorage.setItem(KEYS.USERS, JSON.stringify(initial));
     return initial;
   }
-  return JSON.parse(data);
+  try {
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [DEFAULT_ADMIN_USER];
+  } catch (e) {
+    console.error('[Storage] Corrupt users data, resetting', e);
+    const initial = [DEFAULT_ADMIN_USER];
+    localStorage.setItem(KEYS.USERS, JSON.stringify(initial));
+    return initial;
+  }
 }
 
 export function saveUsers(users: UserProfile[]) {
@@ -287,7 +295,13 @@ export function saveUsers(users: UserProfile[]) {
 export function getCurrentUser(): UserProfile | null {
   const data = localStorage.getItem(KEYS.CURRENT_USER);
   if (!data) return null;
-  return JSON.parse(data);
+  try {
+    return JSON.parse(data);
+  } catch (e) {
+    console.error('[Storage] Corrupt current_user data', e);
+    localStorage.removeItem(KEYS.CURRENT_USER);
+    return null;
+  }
 }
 
 export function setCurrentUser(user: UserProfile | null) {
@@ -315,7 +329,15 @@ export function getCategories(): Category[] {
     localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(DEFAULT_CATEGORIES));
     return DEFAULT_CATEGORIES;
   }
-  let cats: Category[] = JSON.parse(data);
+  let cats: Category[] = DEFAULT_CATEGORIES;
+  try {
+    const parsed = JSON.parse(data);
+    if (Array.isArray(parsed)) {
+      cats = parsed;
+    }
+  } catch (e) {
+    console.error('[Storage] Corrupt categories data', e);
+  }
   let updated = false;
 
   DEFAULT_CATEGORIES.forEach((defCat) => {
@@ -496,7 +518,13 @@ export async function purgeMovements(warehouseId: string, purgeType: string) {
 // Physical Audits
 export function getPhysicalAudits(): PhysicalAuditRecord[] {
   const data = localStorage.getItem(KEYS.AUDITS);
-  return data ? JSON.parse(data) : [];
+  if (!data) return [];
+  try {
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
 }
 
 export function addPhysicalAudit(audit: PhysicalAuditRecord) {
@@ -523,7 +551,13 @@ export function addPhysicalAudit(audit: PhysicalAuditRecord) {
 
 export function getLastAuditsMap(): WarehouseCategoryLastAudit {
   const data = localStorage.getItem(KEYS.LAST_AUDITS);
-  return data ? JSON.parse(data) : {};
+  if (!data) return {};
+  try {
+    const parsed = JSON.parse(data);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) {
+    return {};
+  }
 }
 
 // Utility for total stock calculation
