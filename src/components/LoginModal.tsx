@@ -220,17 +220,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
           {/* Featured Hero Card for Panadería Española Logo */}
           <div className="bg-white rounded-2xl p-2.5 sm:p-4 shadow-xl border border-amber-200/40 relative flex flex-col items-center justify-center transform transition-transform hover:scale-[1.01]">
-            <img
-              src="/espanola.png"
-              alt="Panadería Española - El Secreto del Mejor Pan!"
-              className="max-h-20 xs:max-h-24 sm:max-h-36 w-auto object-contain my-0.5"
-              onError={(e) => {
-                // If /espanola.png is not uploaded yet, hide this img and fallback gracefully
-                (e.target as HTMLElement).style.display = 'none';
-                const fallbackEl = document.getElementById('espanola-logo-fallback');
-                if (fallbackEl) fallbackEl.style.display = 'block';
-              }}
-            />
+            <picture>
+              <source srcSet="/espanola.webp" type="image/webp" />
+              <img
+                src="/espanola.png"
+                alt="Panadería Española - El Secreto del Mejor Pan!"
+                className="max-h-20 xs:max-h-24 sm:max-h-36 w-auto object-contain my-0.5"
+                loading="eager"
+                decoding="async"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                  const fallbackEl = document.getElementById('espanola-logo-fallback');
+                  if (fallbackEl) fallbackEl.style.display = 'block';
+                }}
+              />
+            </picture>
             <div id="espanola-logo-fallback" style={{ display: 'none' }}>
               <EspañolaFullLogo width={220} height={140} className="my-0.5" />
             </div>

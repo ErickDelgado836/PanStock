@@ -76,22 +76,27 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
 
             {/* Main Featured Logo Box (YEYE NUEVO LOGO) */}
             <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-xl border border-amber-100 relative flex flex-col items-center justify-center transform transition-transform hover:scale-[1.01]">
-              <img
-                src="/YEYE NUEVO LOGO.png"
-                alt="Panadería Española - El Secreto del Mejor Pan!"
-                className="max-h-20 sm:max-h-24 w-auto object-contain drop-shadow-md"
-                onError={(e) => {
-                  // Fallback to espanola.png if YEYE NUEVO LOGO fails
-                  const target = e.target as HTMLImageElement;
-                  if (target.src.includes('YEYE')) {
-                    target.src = '/espanola.png';
-                  } else {
-                    target.style.display = 'none';
-                    const fallbackEl = document.getElementById('welcome-logo-fallback');
-                    if (fallbackEl) fallbackEl.style.display = 'block';
-                  }
-                }}
-              />
+              <picture>
+                <source srcSet="/yeye_logo.webp" type="image/webp" />
+                <source srcSet="/espanola.webp" type="image/webp" />
+                <img
+                  src="/yeye_logo.png"
+                  alt="Panadería Española - El Secreto del Mejor Pan!"
+                  className="max-h-20 sm:max-h-24 w-auto object-contain drop-shadow-md"
+                  loading="eager"
+                  decoding="async"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    if (!target.src.includes('espanola')) {
+                      target.src = '/espanola.png';
+                    } else {
+                      target.style.display = 'none';
+                      const fallbackEl = document.getElementById('welcome-logo-fallback');
+                      if (fallbackEl) fallbackEl.style.display = 'block';
+                    }
+                  }}
+                />
+              </picture>
               <div id="welcome-logo-fallback" style={{ display: 'none' }}>
                 <EspañolaFullLogo width={160} height={70} />
               </div>

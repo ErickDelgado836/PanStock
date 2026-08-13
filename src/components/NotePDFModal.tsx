@@ -71,16 +71,21 @@ export const NotePDFModal: React.FC<NotePDFModalProps> = ({ isOpen, onClose, mov
             <div className="bg-white p-4 sm:p-8 rounded-2xl shadow-sm border border-slate-200 space-y-6">
               {/* Bakery Header */}
               <div className="flex flex-wrap items-center justify-between border-b border-slate-200 pb-4 gap-4">
-                <img
-                  src="/espanola.png"
-                  alt="Panadería Española"
-                  className="h-12 w-auto object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                    const fallbackEl = document.getElementById('note-logo-fallback');
-                    if (fallbackEl) fallbackEl.style.display = 'block';
-                  }}
-                />
+                <picture>
+                  <source srcSet="/espanola.webp" type="image/webp" />
+                  <img
+                    src="/espanola.png"
+                    alt="Panadería Española"
+                    className="h-12 w-auto object-contain"
+                    loading="eager"
+                    decoding="async"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                      const fallbackEl = document.getElementById('note-logo-fallback');
+                      if (fallbackEl) fallbackEl.style.display = 'block';
+                    }}
+                  />
+                </picture>
                 <div id="note-logo-fallback" style={{ display: 'none' }}>
                   <EspañolaFullLogo width={140} height={50} />
                 </div>
