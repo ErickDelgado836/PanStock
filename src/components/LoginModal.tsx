@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import {
   Lock,
@@ -32,6 +32,60 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Guarantee browser autoplay and seamless infinite looping
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+
+    videoEl.defaultMuted = true;
+    videoEl.muted = true;
+    videoEl.playsInline = true;
+    videoEl.loop = true;
+
+    const playVideo = () => {
+      if (!videoEl) return;
+      videoEl.playbackRate = 1.15; // Smooth, natural fluid speed
+      const promise = videoEl.play();
+      if (promise !== undefined) {
+        promise
+          .then(() => {
+            setVideoLoaded(true);
+          })
+          .catch((err) => {
+            console.log('Autoplay deferred until user interaction:', err);
+          });
+      }
+    };
+
+    playVideo();
+
+    // Ensure endless looping even if browser drops loop event
+    const handleEnded = () => {
+      if (videoEl) {
+        videoEl.currentTime = 0;
+        videoEl.play().catch(() => {});
+      }
+    };
+
+    videoEl.addEventListener('ended', handleEnded);
+
+    const handleUserGesture = () => {
+      playVideo();
+    };
+
+    window.addEventListener('click', handleUserGesture, { once: true });
+    window.addEventListener('touchstart', handleUserGesture, { once: true });
+    window.addEventListener('keydown', handleUserGesture, { once: true });
+
+    return () => {
+      videoEl.removeEventListener('ended', handleEnded);
+      window.removeEventListener('click', handleUserGesture);
+      window.removeEventListener('touchstart', handleUserGesture);
+      window.removeEventListener('keydown', handleUserGesture);
+    };
+  }, []);
 
   const handleToggleMode = (toAdmin: boolean) => {
     setIsAdminMode(toAdmin);
@@ -92,23 +146,24 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   return (
     <div className="min-h-screen bg-[#0f0c0a] text-slate-100 flex items-center justify-center p-5 xs:p-6 sm:p-6 relative overflow-y-auto font-sans selection:bg-amber-500 selection:text-white">
-      {/* Background Video with Crystal-Clear Lighting & Balanced Dark Overlay */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+      {/* Background Video with Crystal-Clear Lighting & Dynamic Ambient Motion */}
+      <div 
+        className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-cover bg-center"
+        style={{ backgroundImage: 'url("/fondo_poster.jpg")' }}
+      >
         <video
+          ref={videoRef}
+          src="/fondo.mp4"
+          poster="/fondo_poster.jpg"
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
-          className="w-full h-full object-cover filter brightness-105 scale-105 opacity-90 transition-opacity duration-1000"
-          onError={(e) => {
-            (e.target as HTMLElement).style.display = 'none';
-          }}
+          className="w-full h-full object-cover filter brightness-105 scale-105 opacity-95"
         >
           <source src="/fondo.mp4" type="video/mp4" />
           <source src="/background.mp4" type="video/mp4" />
-          <source src="https://videos.pexels.com/video-files/30782430/13166800_3840_2160_30fps.mp4" type="video/mp4" />
-          <source src="https://www.pexels.com/es-es/download/video/30782430/" type="video/mp4" />
         </video>
         {/* Soft Contrast Overlay to Let Video Shine While Preserving Text Legibility */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0f0c0a]/70 via-[#0f0c0a]/20 to-[#0f0c0a]/45" />
