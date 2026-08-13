@@ -46,20 +46,32 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
     const playVideo = () => {
       if (!videoEl) return;
-      videoEl.playbackRate = 1.15; // Smooth, natural fluid speed
-      const promise = videoEl.play();
-      if (promise !== undefined) {
-        promise
-          .then(() => {
-            setVideoLoaded(true);
-          })
-          .catch((err) => {
-            console.log('Autoplay deferred until user interaction:', err);
-          });
-      }
+      videoEl.playbackRate = 1.15;
+      videoEl
+        .play()
+        .then(() => {
+          setVideoLoaded(true);
+        })
+        .catch((err) => {
+          console.warn('Autoplay waiting for user gesture or load:', err);
+        });
     };
 
+    // Load video element if needed
+    try {
+      videoEl.load();
+    } catch (e) {
+      // ignore
+    }
+
     playVideo();
+
+    const handleCanPlay = () => {
+      playVideo();
+    };
+
+    videoEl.addEventListener('canplay', handleCanPlay);
+    videoEl.addEventListener('loadeddata', handleCanPlay);
 
     // Ensure endless looping even if browser drops loop event
     const handleEnded = () => {
@@ -72,14 +84,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     videoEl.addEventListener('ended', handleEnded);
 
     const handleUserGesture = () => {
-      playVideo();
+      if (videoEl && videoEl.paused) {
+        playVideo();
+      }
     };
 
-    window.addEventListener('click', handleUserGesture, { once: true });
-    window.addEventListener('touchstart', handleUserGesture, { once: true });
-    window.addEventListener('keydown', handleUserGesture, { once: true });
+    window.addEventListener('click', handleUserGesture);
+    window.addEventListener('touchstart', handleUserGesture);
+    window.addEventListener('keydown', handleUserGesture);
 
     return () => {
+      videoEl.removeEventListener('canplay', handleCanPlay);
+      videoEl.removeEventListener('loadeddata', handleCanPlay);
       videoEl.removeEventListener('ended', handleEnded);
       window.removeEventListener('click', handleUserGesture);
       window.removeEventListener('touchstart', handleUserGesture);
@@ -153,6 +169,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       >
         <video
           ref={videoRef}
+          src="/fondo.mp4"
           poster="/fondo_poster.jpg"
           autoPlay
           loop
