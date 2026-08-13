@@ -1010,36 +1010,101 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
                             })}
                           </div>
 
-                          {/* Registered Lots if any */}
-                          {product.lots && product.lots.length > 0 && (
-                            <div className="mt-2.5 pt-2 border-t border-slate-200/80">
-                              <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
-                                <Calendar className="w-3 h-3 text-amber-600" />
-                                <span>Lotes Registrados ({product.lots.length})</span>
-                              </h5>
+                          {/* Registered Lots or Expiration Status */}
+                          {(() => {
+                            const totalProdStock = calculateTotalStock(product.stockByWarehouse);
+                            const hasLots = product.lots && product.lots.length > 0;
 
-                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5">
-                                {product.lots.map((lot) => (
-                                  <div
-                                    key={lot.id}
-                                    className="p-1.5 px-2 bg-white border border-slate-200 rounded-lg text-xs flex items-center justify-between gap-2"
-                                  >
-                                    <div>
-                                      <span className="font-mono font-bold text-slate-900 text-[11px] block">
-                                        Lote: {lot.lotNumber}
+                            if (hasLots) {
+                              const totalAssignedInLots = (product.lots || []).reduce((sum, l) => {
+                                const lQty = l.quantity !== undefined ? l.quantity : Object.values(l.stockByWarehouse || {}).reduce((a, b) => Number(a) + Number(b), 0);
+                                return sum + Number(lQty || 0);
+                              }, 0);
+                              const unassignedQty = Math.max(0, totalProdStock - totalAssignedInLots);
+
+                              return (
+                                <div className="mt-2.5 pt-2.5 border-t border-slate-200/80 space-y-2">
+                                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                                      <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                                      <span>Desglose de Lotes y Vencimientos ({product.lots.length} {product.lots.length === 1 ? 'lote' : 'lotes'})</span>
+                                    </h5>
+                                    <div className="flex items-center gap-1.5 text-[10px] font-bold font-mono">
+                                      <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-md">
+                                        Con Vencimiento: {totalAssignedInLots} {product.unit}
                                       </span>
-                                      <span className="text-[10px] text-slate-500 font-medium block">
-                                        Vence: {lot.expirationDate}
-                                      </span>
+                                      {unassignedQty > 0 && (
+                                        <span className="bg-slate-100 text-slate-700 border border-slate-300 px-2 py-0.5 rounded-md">
+                                          Sin Fecha: {unassignedQty} {product.unit}
+                                        </span>
+                                      )}
                                     </div>
-                                    <span className="font-black text-slate-900 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded text-[10px]">
-                                      {lot.quantity} {product.unit}
-                                    </span>
                                   </div>
-                                ))}
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5">
+                                    {product.lots.map((lot) => {
+                                      const lotQty = lot.quantity !== undefined ? lot.quantity : Object.values(lot.stockByWarehouse || {}).reduce((a, b) => Number(a) + Number(b), 0);
+                                      return (
+                                        <div
+                                          key={lot.id}
+                                          className="p-2 bg-white border border-slate-200 rounded-xl text-xs flex items-center justify-between gap-2 shadow-2xs"
+                                        >
+                                          <div>
+                                            <span className="font-mono font-black text-slate-900 text-[11px] block">
+                                              Lote: {lot.lotNumber || 'S/N'}
+                                            </span>
+                                            <span className={`text-[10px] font-bold block ${lot.expirationDate ? 'text-slate-600' : 'text-amber-700'}`}>
+                                              📅 Vence: {lot.expirationDate || 'Sin Fecha'}
+                                            </span>
+                                          </div>
+                                          <span className="font-black text-amber-900 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg text-[10px] font-mono shrink-0">
+                                            {lotQty} {product.unit}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+
+                                    {/* Card for Unassigned / Stock without expiration date */}
+                                    {unassignedQty > 0 && (
+                                      <div className="p-2 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-xs flex items-center justify-between gap-2">
+                                        <div>
+                                          <span className="font-mono font-black text-slate-700 text-[11px] block">
+                                            Sin Lote Asignado
+                                          </span>
+                                          <span className="text-[10px] font-bold text-slate-500 block">
+                                            Sin Fecha de Vencimiento
+                                          </span>
+                                        </div>
+                                        <span className="font-black text-slate-800 bg-slate-200/80 border border-slate-300 px-2 py-0.5 rounded-lg text-[10px] font-mono shrink-0">
+                                          {unassignedQty} {product.unit}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between gap-2 text-[11px]">
+                                <div className="flex items-center gap-1.5">
+                                  <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  {product.expirationDate ? (
+                                    <span className="font-bold text-slate-700">
+                                      Vence: <strong className="font-mono text-slate-900">{product.expirationDate}</strong>
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 italic font-medium">
+                                      Sin registros de vencimiento para este producto
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="font-mono text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                  Total: {totalProdStock} {product.unit}
+                                </span>
                               </div>
-                            </div>
-                          )}
+                            );
+                          })()}
                         </motion.div>
                       )}
                     </AnimatePresence>

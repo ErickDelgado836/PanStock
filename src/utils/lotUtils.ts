@@ -27,11 +27,7 @@ export function getLotStockInWarehouse(lot: ProductLot, warehouseId: string): nu
  */
 export function getLotTotalStock(lot: ProductLot): number {
   const stockMap = getLotStockMap(lot);
-  const total = Object.values(stockMap).reduce((sum, q) => sum + Number(q || 0), 0);
-  if (total === 0 && Number(lot.quantity) > 0) {
-    return Number(lot.quantity);
-  }
-  return total;
+  return Object.values(stockMap).reduce((sum, q) => sum + Number(q || 0), 0);
 }
 
 /**
@@ -267,19 +263,6 @@ export function reconcileProductLots(product: Product): Product {
 
           excess -= deduct;
         }
-      } else if (totalLotStockInWh < whStock) {
-        // Deficit lot stock -> Add deficit to the latest or first active lot in this warehouse
-        const deficit = whStock - totalLotStockInWh;
-        let targetLot = product.lots!.find((l) => getLotStockInWarehouse(l, whId) > 0);
-        if (!targetLot) targetLot = product.lots![0];
-
-        if (targetLot) {
-          const currentInWh = getLotStockInWarehouse(targetLot, whId);
-          const stockMap = getLotStockMap(targetLot);
-          stockMap[whId] = currentInWh + deficit;
-          targetLot.stockByWarehouse = stockMap;
-          targetLot.quantity = getLotTotalStock(targetLot);
-        }
       }
     }
   });
@@ -300,6 +283,8 @@ export function reconcileProductLots(product: Product): Product {
 
   if (activeDates.length > 0) {
     product.expirationDate = activeDates[0];
+  } else {
+    delete product.expirationDate;
   }
 
   return product;

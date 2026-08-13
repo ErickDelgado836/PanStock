@@ -13,7 +13,7 @@ import {
 import { ConfirmationModal } from '../ConfirmationModal';
 import { showToast } from '../../utils/toast';
 import { CustomSelect } from '../Common/CustomSelect';
-import { deductLotStock } from '../../utils/lotUtils';
+import { deductLotStock, getLotStockInWarehouse } from '../../utils/lotUtils';
 import { formatVE } from '../../utils/movementSearch';
 import {
   ShoppingCart,
@@ -41,6 +41,8 @@ interface SalesModuleProps {
 interface CartItem {
   product: Product;
   quantityToSell: number | string;
+  selectedLotId?: string;
+  ignoreLotRestrictions?: boolean;
 }
 
 export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
@@ -192,7 +194,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
       return;
     }
 
-    // Verify all cart items again
+    // Verify all cart items again & check lot restrictions
     for (const item of cart) {
       const numQty =
         typeof item.quantityToSell === 'number'
@@ -211,6 +213,35 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
           `La cantidad a vender para "${item.product.name}" (${numQty.toLocaleString('es-ES')}) no puede ser mayor a la disponible (${stockInWh.toLocaleString('es-ES')}).`
         );
         return;
+      }
+
+      // Check per-lot limits if restriction is active
+      if (dbProduct && dbProduct.lots && dbProduct.lots.length > 0) {
+        const activeLotsInWh = dbProduct.lots
+          .filter((l) => getLotStockInWarehouse(l, selectedWarehouseId) > 0)
+          .sort((a, b) => (a.expirationDate || '').localeCompare(b.expirationDate || ''));
+
+        if (!item.ignoreLotRestrictions && activeLotsInWh.length > 0) {
+          if (item.selectedLotId) {
+            const chosenLot = activeLotsInWh.find((l) => l.id === item.selectedLotId);
+            const chosenLotQty = chosenLot ? getLotStockInWarehouse(chosenLot, selectedWarehouseId) : 0;
+            if (numQty > chosenLotQty) {
+              setErrorMsg(
+                `La cantidad a vender de "${dbProduct.name}" (${numQty.toLocaleString('es-ES')}) supera las ${chosenLotQty.toLocaleString('es-ES')} ${dbProduct.unit} disponibles en el lote seleccionado (Vence: ${chosenLot?.expirationDate || 'N/A'}). Si deseas abarcar más inventario de otros lotes, activa la opción 'Hacer operación total sin contar fechas de vencimiento'.`
+              );
+              return;
+            }
+          } else {
+            const firstLot = activeLotsInWh[0];
+            const firstLotQty = firstLot ? getLotStockInWarehouse(firstLot, selectedWarehouseId) : 0;
+            if (numQty > firstLotQty && activeLotsInWh.length > 1) {
+              setErrorMsg(
+                `La cantidad a vender de "${dbProduct.name}" (${numQty.toLocaleString('es-ES')}) abarca más de un lote con distinta fecha de vencimiento. El lote más próximo a vencer (${firstLot?.lotNumber || 'S/N'}, Exp: ${firstLot?.expirationDate || 'N/A'}) sólo cuenta con ${firstLotQty.toLocaleString('es-ES')} ${dbProduct.unit}. Si deseas realizar la venta total abarcando múltiples lotes, marca la casilla 'Hacer operación total sin contar fechas de vencimiento' o selecciona el lote específico que deseas vender.`
+              );
+              return;
+            }
+          }
+        }
       }
     }
 
@@ -233,7 +264,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
       if (p) {
         const currentStock = p.stockByWarehouse[selectedWarehouseId] || 0;
         p.stockByWarehouse[selectedWarehouseId] = Math.max(0, currentStock - numQty);
-        deductLotStock(p, selectedWarehouseId, numQty);
+        deductLotStock(p, selectedWarehouseId, numQty, cartItem.selectedLotId);
       }
     });
 
@@ -255,12 +286,21 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
           typeof i.quantityToSell === 'number'
             ? i.quantityToSell
             : parseFloat(String(i.quantityToSell).replace(',', '.')) || 0;
+
+        const dbP = products.find((p) => p.id === i.product.id);
+        const activeLots = (dbP?.lots || []).filter(
+          (l) => getLotStockInWarehouse(l, selectedWarehouseId) > 0
+        );
+        const chosenLot = activeLots.find((l) => l.id === i.selectedLotId) || activeLots[0];
+
         return {
           productId: i.product.id,
           productCode: i.product.code,
           productName: i.product.name,
           quantity: numQty,
           unit: i.product.unit,
+          lotNumber: chosenLot?.lotNumber,
+          expirationDate: chosenLot?.expirationDate || dbP?.expirationDate,
         };
       }),
     };
@@ -628,6 +668,10 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
               ) : (
                 cart.map((item) => {
                   const stockInWh = item.product.stockByWarehouse[selectedWarehouseId] || 0;
+                  const activeLotsInWh = (item.product.lots || [])
+                    .filter((l) => getLotStockInWarehouse(l, selectedWarehouseId) > 0)
+                    .sort((a, b) => (a.expirationDate || '').localeCompare(b.expirationDate || ''));
+
                   return (
                     <div key={item.product.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                       <div className="flex items-start justify-between gap-2">
@@ -698,6 +742,64 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
                           </div>
                         </div>
                       </div>
+
+                      {/* Lot Selection & Expiration Restrictions */}
+                      {activeLotsInWh.length > 0 && (
+                        <div className="pt-2 border-t border-slate-200/80 space-y-2">
+                          <div>
+                            <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                              Lote / Fecha de Vencimiento:
+                            </label>
+                            <select
+                              value={item.selectedLotId || ''}
+                              onChange={(e) => {
+                                const lotId = e.target.value;
+                                setCart(
+                                  cart.map((i) =>
+                                    i.product.id === item.product.id
+                                      ? { ...i, selectedLotId: lotId || undefined }
+                                      : i
+                                  )
+                                );
+                              }}
+                              className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="">
+                                Automático FEFO (Lote más próximo a vencer)
+                              </option>
+                              {activeLotsInWh.map((lot) => {
+                                const lStock = getLotStockInWarehouse(lot, selectedWarehouseId);
+                                return (
+                                  <option key={lot.id} value={lot.id}>
+                                    Lote: {lot.lotNumber || 'S/N'} — Vence: {lot.expirationDate || 'Sin Fecha'} ({lStock} {item.product.unit})
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+
+                          <label className="flex items-start gap-2 cursor-pointer select-none text-[10px] font-bold text-slate-700 bg-amber-50/90 hover:bg-amber-100/90 p-2 rounded-lg border border-amber-200 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(item.ignoreLotRestrictions)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setCart(
+                                  cart.map((i) =>
+                                    i.product.id === item.product.id
+                                      ? { ...i, ignoreLotRestrictions: checked }
+                                      : i
+                                  )
+                                );
+                              }}
+                              className="w-3.5 h-3.5 mt-0.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 shrink-0"
+                            />
+                            <span className="leading-tight">
+                              Hacer operación total sin contar fechas de vencimiento (abarca múltiples lotes)
+                            </span>
+                          </label>
+                        </div>
+                      )}
                     </div>
                   );
                 })

@@ -203,6 +203,12 @@ export const MovementsHistory: React.FC = () => {
           bg: 'bg-purple-100 text-purple-900 border-purple-300',
           icon: <ClipboardCheck className="w-3.5 h-3.5 text-purple-600" />,
         };
+      case 'EDICION_VENCIMIENTO':
+        return {
+          label: 'EDICIÓN DE VENCIMIENTO',
+          bg: 'bg-amber-100 text-amber-900 border-amber-300',
+          icon: <Calendar className="w-3.5 h-3.5 text-amber-600" />,
+        };
       default:
         return {
           label: type,
@@ -349,6 +355,7 @@ export const MovementsHistory: React.FC = () => {
                 { value: 'DESCARGO', label: 'Descargos (Salidas)' },
                 { value: 'VENTA', label: 'Ventas Realizadas' },
                 { value: 'AJUSTE_INVENTARIO', label: 'Ajustes de Inventario (Auditorías)' },
+                { value: 'EDICION_VENCIMIENTO', label: 'Ediciones de Fecha de Vencimiento' },
               ]}
             />
           </div>

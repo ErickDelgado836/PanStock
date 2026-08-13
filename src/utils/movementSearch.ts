@@ -136,6 +136,9 @@ export const matchesMovementSearch = (
       case 'AJUSTE_INVENTARIO':
         searchableTextParts.push('ajuste', 'ajustes', 'inventario', 'auditoria', 'fisico', 'ajus');
         break;
+      case 'EDICION_VENCIMIENTO':
+        searchableTextParts.push('edicion', 'ediciones', 'vencimiento', 'vencimientos', 'lote', 'lotes', 'ed', 'modificacion', 'cambio');
+        break;
     }
   }
 

@@ -4,7 +4,7 @@ import { MovementRecord } from '../types';
 import { DEFAULT_WAREHOUSES } from '../data/seedData';
 import { generateMovementPDF } from '../utils/pdfGenerator';
 import { EspañolaFullLogo } from './Logos';
-import { X, FileText, Download, Printer, ArrowRight } from 'lucide-react';
+import { X, FileText, Download, Printer, ArrowRight, Calendar } from 'lucide-react';
 
 interface NotePDFModalProps {
   isOpen: boolean;
@@ -30,6 +30,8 @@ export const NotePDFModal: React.FC<NotePDFModalProps> = ({ isOpen, onClose, mov
         return { label: 'COMPROBANTE DE VENTA', bg: 'bg-blue-100 text-blue-900 border-blue-300' };
       case 'AJUSTE_INVENTARIO':
         return { label: 'COMPROBANTE DE AJUSTE DE INVENTARIO', bg: 'bg-purple-100 text-purple-900 border-purple-300' };
+      case 'EDICION_VENCIMIENTO':
+        return { label: 'COMPROBANTE DE MODIFICACIÓN DE VENCIMIENTO', bg: 'bg-amber-100 text-amber-900 border-amber-300' };
       default:
         return { label: movement.type || 'COMPROBANTE DE MOVIMIENTO', bg: 'bg-slate-100 text-slate-900 border-slate-300' };
     }
@@ -155,7 +157,20 @@ export const NotePDFModal: React.FC<NotePDFModalProps> = ({ isOpen, onClose, mov
                         <tr key={idx} className="hover:bg-slate-50">
                           <td className="p-3 font-bold text-slate-400">{idx + 1}</td>
                           <td className="p-3 font-mono font-bold text-slate-900">{item.productCode}</td>
-                          <td className="p-3 font-bold text-slate-800">{item.productName}</td>
+                          <td className="p-3 font-bold text-slate-800">
+                            <div>{item.productName}</div>
+                            {(item.previousExpirationDate || item.newExpirationDate) && (
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                                <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2 py-0.5 rounded font-mono font-bold border border-red-200">
+                                  Anterior: {item.previousExpirationDate || 'Sin Fecha'}
+                                </span>
+                                <span className="text-slate-400 font-bold">➔</span>
+                                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded font-mono font-bold border border-emerald-200">
+                                  Nueva: {item.newExpirationDate || 'Sin Fecha'}
+                                </span>
+                              </div>
+                            )}
+                          </td>
                           <td className="p-3 text-right font-black text-slate-900">{item.quantity}</td>
                           <td className="p-3 font-medium text-slate-600">{item.unit}</td>
                         </tr>
@@ -170,7 +185,7 @@ export const NotePDFModal: React.FC<NotePDFModalProps> = ({ isOpen, onClose, mov
                 <span className="text-xs font-bold text-slate-700 uppercase block mb-1">
                   Observaciones y Notas:
                 </span>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs italic text-slate-700">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs italic text-slate-700 break-words whitespace-pre-wrap">
                   {movement.notes || 'Sin observaciones adicionales.'}
                 </div>
               </div>

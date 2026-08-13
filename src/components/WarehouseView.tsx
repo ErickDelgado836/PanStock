@@ -255,6 +255,17 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
           badgeBg: 'bg-indigo-50 text-indigo-800 border-indigo-200',
         };
       }
+
+      if (m.type === 'EDICION_VENCIMIENTO' && (isTarget || isSource)) {
+        return {
+          typeText: 'Edición Vencimiento',
+          qtyText: item.newExpirationDate ? `${item.previousExpirationDate || 'Sin Fecha'} ➔ ${item.newExpirationDate}` : 'Vencimiento',
+          detail: `Por: ${m.responsibleUser}`,
+          date: m.date,
+          icon: <Calendar className="w-3.5 h-3.5 text-amber-600 shrink-0" />,
+          badgeBg: 'bg-amber-50 text-amber-800 border-amber-200',
+        };
+      }
     }
 
     return null;
@@ -607,13 +618,53 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
                                   )}
                                 </td>
                                 <td className="p-3 text-center font-medium text-slate-600 whitespace-nowrap">
-                                  {prod.expirationDate ? (
-                                    <span className="bg-slate-100 px-2 py-0.5 rounded font-mono whitespace-nowrap">
-                                      {prod.expirationDate}
-                                    </span>
-                                  ) : (
-                                    <span className="text-slate-400">N/A</span>
-                                  )}
+                                  {(() => {
+                                    if (prod.lots && prod.lots.length > 0) {
+                                      const currentWhId = warehouse?.id;
+                                      const prodStockInWh = Number(prod.stockByWarehouse?.[currentWhId] || 0);
+
+                                      const assignedStockInWh = prod.lots.reduce((acc, l) => {
+                                        const qty = Number(l.stockByWarehouse?.[currentWhId] || 0);
+                                        return acc + qty;
+                                      }, 0);
+
+                                      const unassignedStockInWh = Math.max(0, prodStockInWh - assignedStockInWh);
+
+                                      if (assignedStockInWh > 0 && unassignedStockInWh > 0) {
+                                        return (
+                                          <div className="flex flex-col items-center gap-0.5 text-[10px]">
+                                            <span className="bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded font-mono font-bold whitespace-nowrap">
+                                              {assignedStockInWh} {prod.unit} ({prod.lots[0]?.expirationDate || 'Varios'})
+                                            </span>
+                                            <span className="bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded font-mono font-bold whitespace-nowrap">
+                                              {unassignedStockInWh} {prod.unit} (Sin Fecha)
+                                            </span>
+                                          </div>
+                                        );
+                                      } else if (assignedStockInWh > 0) {
+                                        const activeLotsInWh = prod.lots.filter((l) => Number(l.stockByWarehouse?.[currentWhId] || 0) > 0);
+                                        return (
+                                          <span className="bg-slate-100 px-2 py-0.5 rounded font-mono whitespace-nowrap text-xs font-bold text-slate-800 border border-slate-200">
+                                            {activeLotsInWh.length === 1 ? (activeLotsInWh[0].expirationDate || 'Sin Fecha') : `${activeLotsInWh.length} Lotes`}
+                                          </span>
+                                        );
+                                      } else if (unassignedStockInWh > 0) {
+                                        return (
+                                          <span className="bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-mono text-[11px] font-medium">
+                                            Sin Fecha ({unassignedStockInWh} {prod.unit})
+                                          </span>
+                                        );
+                                      }
+                                    }
+
+                                    return prod.expirationDate ? (
+                                      <span className="bg-slate-100 px-2 py-0.5 rounded font-mono whitespace-nowrap text-xs font-bold border border-slate-200">
+                                        {prod.expirationDate}
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-400 text-xs">N/A</span>
+                                    );
+                                  })()}
                                 </td>
                                 <td className="p-3 text-center whitespace-nowrap">
                                   {lastAuditItem ? (

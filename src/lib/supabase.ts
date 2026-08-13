@@ -190,6 +190,7 @@ export async function fetchUsersFromSupabase(): Promise<UserProfile[] | null> {
         canExits: true,
         canTransfers: true,
         canExpiry: true,
+        canEditExpiry: true,
         canSales: true,
         canPhysicalInventory: true,
         allowedWarehouses: ['00', '01', '02', '002', '03', '09', '05', '06', '07', '08'],

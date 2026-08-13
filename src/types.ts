@@ -5,6 +5,7 @@ export interface UserPermissions {
   canExits: boolean;
   canTransfers: boolean;
   canExpiry: boolean;
+  canEditExpiry?: boolean;
   canSales: boolean;
   canPhysicalInventory: boolean;
   allowedWarehouses: string[]; // Warehouse IDs allowed, e.g. ['00', '01', '02', '002', '03', '09', '05', '06', '07', '08']
@@ -68,7 +69,13 @@ export interface Product {
   minStockAlert?: number;
 }
 
-export type MovementType = 'ENTRADA' | 'TRASLADO' | 'DESCARGO' | 'VENTA' | 'AJUSTE_INVENTARIO';
+export type MovementType =
+  | 'ENTRADA'
+  | 'TRASLADO'
+  | 'DESCARGO'
+  | 'VENTA'
+  | 'AJUSTE_INVENTARIO'
+  | 'EDICION_VENCIMIENTO';
 
 export interface MovementItem {
   productId: string;
@@ -76,6 +83,10 @@ export interface MovementItem {
   productName: string;
   quantity: number;
   unit: UnitOfMeasure;
+  previousExpirationDate?: string;
+  newExpirationDate?: string;
+  expirationDate?: string;
+  lotNumber?: string;
 }
 
 export interface MovementRecord {

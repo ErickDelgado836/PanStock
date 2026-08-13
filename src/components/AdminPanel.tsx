@@ -86,6 +86,7 @@ export const AdminPanel: React.FC = () => {
     canExits: true,
     canTransfers: true,
     canExpiry: true,
+    canEditExpiry: true,
     canSales: true,
     canPhysicalInventory: true,
     allowedWarehouses: [...ALL_WAREHOUSE_IDS],
@@ -325,6 +326,7 @@ export const AdminPanel: React.FC = () => {
       canExits: true,
       canTransfers: true,
       canExpiry: true,
+      canEditExpiry: true,
       canSales: true,
       canPhysicalInventory: true,
       allowedWarehouses: [...ALL_WAREHOUSE_IDS],
@@ -347,7 +349,10 @@ export const AdminPanel: React.FC = () => {
     setNewUsername(user.username);
     setNewPassword(user.password);
     setNewRoleName(user.roleName);
-    setNewPermissions({ ...user.permissions });
+    setNewPermissions({
+      ...user.permissions,
+      canEditExpiry: user.permissions.canEditExpiry ?? user.permissions.canExpiry ?? true,
+    });
     setUserErrorMsg('');
     setUserSuccessMsg('');
 
@@ -1227,8 +1232,27 @@ export const AdminPanel: React.FC = () => {
                         : 'bg-slate-50 border-slate-200 text-slate-400'
                     }`}
                   >
-                    <span>FECHA VENCIMIENTO</span>
-                    <span className="font-extrabold">{newPermissions.canExpiry ? 'SÍ' : 'NO'}</span>
+                    <div className="text-left">
+                      <span className="block text-xs">FECHA VENCIMIENTO (VER)</span>
+                      <span className="text-[10px] font-normal text-slate-500 block">Módulo Vencimientos</span>
+                    </div>
+                    <span className="font-extrabold text-xs shrink-0 ml-1">{newPermissions.canExpiry ? 'SÍ' : 'NO'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => togglePermission('canEditExpiry')}
+                    className={`p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all ${
+                      newPermissions.canEditExpiry !== false
+                        ? 'bg-amber-50 border-amber-300 text-amber-900'
+                        : 'bg-slate-50 border-slate-200 text-slate-400'
+                    }`}
+                  >
+                    <div className="text-left">
+                      <span className="block text-xs">EDICIÓN VENCIMIENTO</span>
+                      <span className="text-[10px] font-normal text-slate-500 block">Crear/Editar/Borrar Lotes</span>
+                    </div>
+                    <span className="font-extrabold text-xs shrink-0 ml-1">{newPermissions.canEditExpiry !== false ? 'SÍ' : 'NO'}</span>
                   </button>
 
                   <button
@@ -1517,6 +1541,12 @@ export const AdminPanel: React.FC = () => {
                         </span>
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${user.permissions.canSales ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500 line-through'}`}>
                           Ventas
+                        </span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${user.permissions.canExpiry ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500 line-through'}`}>
+                          Vencimientos
+                        </span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${user.permissions.canEditExpiry !== false ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-200 text-slate-500 line-through'}`}>
+                          Edición Venc.
                         </span>
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
                           {user.permissions.allowedWarehouses.length} Almacén(es)

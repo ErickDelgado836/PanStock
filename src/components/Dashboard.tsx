@@ -372,7 +372,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Centered Responsive Pie Chart Container */}
             <div className="w-full h-full relative z-0 flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={260}>
                 <PieChart>
                   <Pie
                     data={warehouseDistribution}
@@ -383,10 +383,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     paddingAngle={3.5}
                     dataKey="totalUnits"
                     nameKey="name"
-                    isAnimationActive={true}
-                    animationBegin={0}
-                    animationDuration={450}
-                    animationEasing="ease-out"
+                    isAnimationActive={false}
                     activeIndex={activePieIndex !== null ? activePieIndex : undefined}
                     activeShape={renderCustom3DShape}
                     onMouseEnter={(_, index) => setActivePieIndex(index)}
@@ -399,7 +396,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         fill={entry.color}
                         stroke="#ffffff"
                         strokeWidth={2.5}
-                        className="cursor-pointer hover:opacity-90"
+                        className="cursor-pointer hover:opacity-90 transition-opacity"
                       />
                     ))}
                   </Pie>

@@ -88,6 +88,7 @@ export const DEFAULT_ADMIN_USER: UserProfile = {
     canExits: true,
     canTransfers: true,
     canExpiry: true,
+    canEditExpiry: true,
     canSales: true,
     canPhysicalInventory: true,
     allowedWarehouses: ALL_WAREHOUSE_IDS,
