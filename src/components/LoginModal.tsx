@@ -43,21 +43,28 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     videoEl.muted = true;
     videoEl.playsInline = true;
     videoEl.loop = true;
+    videoEl.setAttribute('muted', '');
+    videoEl.setAttribute('playsinline', '');
+    videoEl.setAttribute('webkit-playsinline', '');
+    videoEl.setAttribute('autoplay', '');
+    videoEl.setAttribute('loop', '');
 
     const playVideo = () => {
       if (!videoEl) return;
       videoEl.playbackRate = 1.15;
-      videoEl
-        .play()
-        .then(() => {
-          setVideoLoaded(true);
-        })
-        .catch((err) => {
-          console.warn('Autoplay waiting for user gesture or load:', err);
-        });
+      const playPromise = videoEl.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setVideoLoaded(true);
+          })
+          .catch(() => {
+            // Wait for user interaction if browser policy requires it
+          });
+      }
     };
 
-    // Load video element if needed
+    // Load video element
     try {
       videoEl.load();
     } catch (e) {
@@ -72,6 +79,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
     videoEl.addEventListener('canplay', handleCanPlay);
     videoEl.addEventListener('loadeddata', handleCanPlay);
+    videoEl.addEventListener('loadedmetadata', handleCanPlay);
 
     // Ensure endless looping even if browser drops loop event
     const handleEnded = () => {
@@ -96,6 +104,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     return () => {
       videoEl.removeEventListener('canplay', handleCanPlay);
       videoEl.removeEventListener('loadeddata', handleCanPlay);
+      videoEl.removeEventListener('loadedmetadata', handleCanPlay);
       videoEl.removeEventListener('ended', handleEnded);
       window.removeEventListener('click', handleUserGesture);
       window.removeEventListener('touchstart', handleUserGesture);
