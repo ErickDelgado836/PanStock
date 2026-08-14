@@ -171,38 +171,29 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   return (
     <div className="min-h-screen bg-[#0f0c0a] text-slate-100 flex items-center justify-center p-5 xs:p-6 sm:p-6 relative overflow-y-auto font-sans selection:bg-amber-500 selection:text-white">
-      {/* Background Video with Crystal-Clear Lighting & Dynamic Ambient Motion */}
+      {/* Background Video with Crisp Clarity & Motion */}
       <div 
-        className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-cover bg-center"
-        style={{ backgroundImage: 'url("/fondo_poster.jpg")' }}
+        className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black"
       >
         <video
           ref={videoRef}
           src="/fondo.mp4"
           poster="/fondo_poster.jpg"
-          autoPlay
-          loop
-          muted
-          playsInline
+          autoPlay={true}
+          loop={true}
+          muted={true}
+          playsInline={true}
+          controls={false}
           preload="auto"
-          className="w-full h-full object-cover filter brightness-105 scale-105 opacity-95"
+          className="w-full h-full object-cover filter brightness-100 contrast-105"
         >
           <source src="/fondo.mp4" type="video/mp4" />
           <source src="/pan_video.mp4" type="video/mp4" />
-          <source src="/fondo.webm" type="video/webm" />
           <source src="/background.mp4" type="video/mp4" />
         </video>
-        {/* Soft Contrast Overlay to Let Video Shine While Preserving Text Legibility */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0f0c0a]/70 via-[#0f0c0a]/20 to-[#0f0c0a]/45" />
+        {/* Balanced Dark Vignette to let the Bakery Video shine vividly while keeping the central card readable */}
+        <div className="absolute inset-0 bg-black/40 backdrop-brightness-95" />
       </div>
-
-      {/* High-Class Ambient Bakery Lighting & Warm Gradients */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,#3d1408_0%,transparent_60%)] pointer-events-none" />
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-amber-600/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-red-600/15 rounded-full blur-3xl pointer-events-none" />
-
-      {/* Subtle Grain Overlay */}
-      <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
 
       {/* Main Luxury Container */}
       <motion.div
