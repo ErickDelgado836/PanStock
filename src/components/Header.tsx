@@ -86,21 +86,16 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
           {/* Brand Logo & Slogan */}
           <div className="flex items-center gap-4">
-            <picture>
-              <source srcSet="/espanola.webp" type="image/webp" />
-              <img
-                src="/espanola.png"
-                alt="Panadería Española - El Secreto del Mejor Pan!"
-                className="h-11 w-auto object-contain"
-                loading="eager"
-                decoding="async"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                  const fallbackEl = document.getElementById('header-logo-fallback');
-                  if (fallbackEl) fallbackEl.style.display = 'block';
-                }}
-              />
-            </picture>
+            <img
+              src="/espanola.png"
+              alt="Panadería Española - El Secreto del Mejor Pan!"
+              className="h-11 w-auto object-contain"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+                const fallbackEl = document.getElementById('header-logo-fallback');
+                if (fallbackEl) fallbackEl.style.display = 'block';
+              }}
+            />
             <div id="header-logo-fallback" style={{ display: 'none' }}>
               <EspañolaFullLogo width={120} height={50} />
             </div>
