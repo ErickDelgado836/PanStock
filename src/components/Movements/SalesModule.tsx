@@ -553,7 +553,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
 
                             <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                               <span className="text-[11px] font-medium text-slate-500">
-                                {qtyInCart > 0 ? `En lista: ${qtyInCart} ${p.unit}` : 'Sin agregar'}
+                                {Number(qtyInCart) > 0 ? `En lista: ${qtyInCart} ${p.unit}` : 'Sin agregar'}
                               </span>
 
                               <button

@@ -305,7 +305,7 @@ export const ExpiryAlerts: React.FC<{ currentUser?: UserProfile }> = ({ currentU
         expiredCount: filteredLots.filter((i) => i.status === 'EXPIRED').length,
         nearCount: filteredLots.filter((i) => i.status === 'NEAR').length,
         safeCount: filteredLots.filter((i) => i.status === 'SAFE').length,
-        generatedBy: user?.name || user?.username || 'Usuario del Sistema',
+        generatedBy: user?.username ? `${user.username}${user.roleName ? ` (${user.roleName})` : ''}` : 'Usuario del Sistema',
       };
 
       await generateExpiryReportPDF(pdfSummary, pdfItems);

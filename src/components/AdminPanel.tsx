@@ -68,7 +68,11 @@ import { AdminProducts } from './AdminProducts';
 import { generateMovementPDF } from '../utils/pdfGenerator';
 import { CustomSelect } from './Common/CustomSelect';
 
-export const AdminPanel: React.FC = () => {
+interface AdminPanelProps {
+  currentUser?: UserProfile;
+}
+
+export const AdminPanel: React.FC<AdminPanelProps> = () => {
   const [users, setUsers] = useState<UserProfile[]>(getUsers);
   const [categories, setCategories] = useState<Category[]>(getCategories);
   const [warehouses, setWarehouses] = useState<Warehouse[]>(getWarehouses);

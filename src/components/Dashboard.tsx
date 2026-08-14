@@ -384,8 +384,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     dataKey="totalUnits"
                     nameKey="name"
                     isAnimationActive={false}
-                    activeIndex={activePieIndex !== null ? activePieIndex : undefined}
-                    activeShape={renderCustom3DShape}
+                    {...({
+                      activeIndex: activePieIndex !== null ? activePieIndex : undefined,
+                      activeShape: renderCustom3DShape,
+                    } as any)}
                     onMouseEnter={(_, index) => setActivePieIndex(index)}
                     onMouseLeave={() => setActivePieIndex(null)}
                     onClick={(_, index) => setActivePieIndex(activePieIndex === index ? null : index)}
