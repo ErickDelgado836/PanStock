@@ -16,8 +16,9 @@ import {
   Maximize2,
   Download,
   Eye,
+  Reply,
   Trash2,
-  RefreshCw,
+  CornerDownRight,
   Sparkles,
   ArrowLeft,
   ChevronDown,
@@ -40,6 +41,7 @@ import {
   fetchChatMessagesFromSupabase,
   fetchAllUserChatMessages,
   sendChatMessage,
+  deleteChatMessage,
   markMessagesAsRead,
   pingUserPresence,
   fetchAllUserPresences,
@@ -74,11 +76,13 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const [showSqlHelp, setShowSqlHelp] = useState(false);
   const [sqlCopied, setSqlCopied] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<any>(null);
   const userCarouselRef = useRef<HTMLDivElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
 
   const scrollUsers = (direction: 'left' | 'right') => {
     if (userCarouselRef.current) {
@@ -187,10 +191,20 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
       attachments: [...pendingAttachments],
       timestamp: new Date().toISOString(),
       isRead: false,
+      replyTo: replyingTo
+        ? {
+            id: replyingTo.id,
+            sender: replyingTo.sender,
+            content:
+              replyingTo.content ||
+              (replyingTo.attachments?.length ? `[${replyingTo.attachments[0].name}]` : 'Mensaje'),
+          }
+        : undefined,
     };
 
     setInputText('');
     setPendingAttachments([]);
+    setReplyingTo(null);
     setIsTyping(false);
 
     // Optimistic append
@@ -198,6 +212,31 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     setAllMessages((prev) => [...prev, newMsg]);
 
     await sendChatMessage(newMsg);
+  };
+
+  const handleStartReply = (msg: ChatMessage) => {
+    setReplyingTo(msg);
+    setTimeout(() => {
+      textInputRef.current?.focus();
+    }, 50);
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    const confirmDelete = window.confirm('¿Deseas eliminar este mensaje para todos?');
+    if (!confirmDelete) return;
+
+    // Optimistic update
+    const updateList = (list: ChatMessage[]) =>
+      list.map((m) =>
+        m.id === msgId
+          ? { ...m, isDeleted: true, content: '🚫 Este mensaje fue eliminado', attachments: [] }
+          : m
+      );
+
+    setMessages((prev) => updateList(prev));
+    setAllMessages((prev) => updateList(prev));
+
+    await deleteChatMessage(msgId);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -831,11 +870,13 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
               messages.map((msg) => {
                 const isMine =
                   msg.sender.toLowerCase() === currentUser?.username?.toLowerCase();
+                const isDeleted = msg.isDeleted;
 
                 return (
                   <div
                     key={msg.id}
-                    className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
+                    id={`chat-msg-${msg.id}`}
+                    className={`group/msg flex flex-col relative transition-all ${isMine ? 'items-end' : 'items-start'}`}
                   >
                     {/* Sender name for global room or other users */}
                     {!isMine && (
@@ -847,82 +888,134 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
                       </span>
                     )}
 
-                    {/* Message Bubble */}
-                    <div
-                      className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-3.5 py-2.5 shadow-2xs space-y-2 ${
-                        isMine
-                          ? 'bg-gradient-to-br from-red-600 to-amber-700 text-white rounded-br-xs'
-                          : 'bg-white text-slate-900 border border-slate-200 rounded-bl-xs'
-                      }`}
-                    >
-                      {/* Text content */}
-                      {msg.content && (
-                        <p className="text-xs leading-relaxed whitespace-pre-wrap break-words font-medium">
-                          {msg.content}
-                        </p>
-                      )}
-
-                      {/* Attachments */}
-                      {msg.attachments && msg.attachments.length > 0 && (
-                        <div className="space-y-1.5 pt-1">
-                          {msg.attachments.map((att, idx) => (
-                            <div key={idx} className="rounded-xl overflow-hidden border border-black/10">
-                              {att.type === 'image' ? (
-                                <div className="relative group cursor-pointer" onClick={() => setPreviewAttachment(att)}>
-                                  <img
-                                    src={att.url}
-                                    alt={att.name}
-                                    className="max-h-48 w-full object-cover rounded-lg"
-                                  />
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-xs font-bold">
-                                    <Eye className="w-4 h-4" /> Ver imagen
-                                  </div>
-                                </div>
-                              ) : (
-                                <div
-                                  className={`p-2.5 flex items-center justify-between gap-2 text-xs rounded-lg ${
-                                    isMine ? 'bg-black/20 text-white' : 'bg-slate-50 text-slate-800'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <FileText className={`w-4 h-4 shrink-0 ${isMine ? 'text-amber-300' : 'text-red-600'}`} />
-                                    <span className="truncate font-medium">{att.name}</span>
-                                  </div>
-                                  <a
-                                    href={att.url}
-                                    download={att.name}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className={`p-1 rounded-md hover:bg-black/10 transition-colors shrink-0 ${
-                                      isMine ? 'text-white' : 'text-slate-700'
-                                    }`}
-                                    title="Descargar archivo"
-                                  >
-                                    <Download className="w-3.5 h-3.5" />
-                                  </a>
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                    {/* Message Bubble + Action Buttons Container */}
+                    <div className={`flex items-center gap-1.5 max-w-[90%] sm:max-w-[80%] ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
+                      {/* Action buttons (Reply & Delete) on hover */}
+                      {!isDeleted && (
+                        <div className="opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-1 shrink-0 px-1">
+                          <button
+                            type="button"
+                            onClick={() => handleStartReply(msg)}
+                            className="p-1 rounded-lg bg-white/90 border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 shadow-2xs cursor-pointer transition-colors"
+                            title="Responder / Citar mensaje"
+                          >
+                            <Reply className="w-3 h-3" />
+                          </button>
+                          {(isMine || currentUser?.isAdmin) && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              className="p-1 rounded-lg bg-white/90 border border-slate-200 text-slate-400 hover:text-red-600 hover:bg-red-50 shadow-2xs cursor-pointer transition-colors"
+                              title="Eliminar mensaje"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
                       )}
 
-                      {/* Timestamp & Status */}
+                      {/* Message Bubble */}
                       <div
-                        className={`flex items-center justify-end gap-1 text-[9px] ${
-                          isMine ? 'text-amber-100' : 'text-slate-400'
+                        className={`w-full rounded-2xl px-3.5 py-2.5 shadow-2xs space-y-1.5 ${
+                          isDeleted
+                            ? 'bg-slate-200/80 text-slate-500 border border-slate-300/60 italic'
+                            : isMine
+                            ? 'bg-gradient-to-br from-red-600 to-amber-700 text-white rounded-br-xs'
+                            : 'bg-white text-slate-900 border border-slate-200 rounded-bl-xs'
                         }`}
                       >
-                        <span>{formatMessageTime(msg.timestamp)}</span>
-                        {isMine && activeRecipient !== 'GLOBAL' && (
-                          <span title={msg.isRead ? 'Leído' : 'Entregado'}>
-                            {msg.isRead ? (
-                              <CheckCheck className="w-3.5 h-3.5 text-sky-300 inline" />
-                            ) : (
-                              <Check className="w-3.5 h-3.5 text-white/70 inline" />
-                            )}
-                          </span>
+                        {/* Quote preview if this is a reply to another message */}
+                        {msg.replyTo && !isDeleted && (
+                          <div
+                            onClick={() => {
+                              const el = document.getElementById(`chat-msg-${msg.replyTo?.id}`);
+                              el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }}
+                            className={`p-2 rounded-xl text-xs border-l-3 cursor-pointer transition-opacity hover:opacity-90 flex flex-col gap-0.5 mb-1.5 ${
+                              isMine
+                                ? 'bg-black/25 border-amber-300 text-white/90'
+                                : 'bg-slate-100 border-red-500 text-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1 font-black text-[10px] uppercase tracking-wider">
+                              <CornerDownRight className="w-2.5 h-2.5" />
+                              <span>@{msg.replyTo.sender}</span>
+                            </div>
+                            <p className="line-clamp-2 text-[11px] font-medium leading-tight">
+                              {msg.replyTo.content}
+                            </p>
+                          </div>
                         )}
+
+                        {/* Text content */}
+                        {msg.content && (
+                          <p className={`text-xs leading-relaxed whitespace-pre-wrap break-words ${isDeleted ? 'font-normal italic' : 'font-medium'}`}>
+                            {msg.content}
+                          </p>
+                        )}
+
+                        {/* Attachments */}
+                        {!isDeleted && msg.attachments && msg.attachments.length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            {msg.attachments.map((att, idx) => (
+                              <div key={idx} className="rounded-xl overflow-hidden border border-black/10">
+                                {att.type === 'image' ? (
+                                  <div className="relative group cursor-pointer" onClick={() => setPreviewAttachment(att)}>
+                                    <img
+                                      src={att.url}
+                                      alt={att.name}
+                                      className="max-h-48 w-full object-cover rounded-lg"
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-xs font-bold">
+                                      <Eye className="w-4 h-4" /> Ver imagen
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div
+                                    className={`p-2.5 flex items-center justify-between gap-2 text-xs rounded-lg ${
+                                      isMine ? 'bg-black/20 text-white' : 'bg-slate-50 text-slate-800'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <FileText className={`w-4 h-4 shrink-0 ${isMine ? 'text-amber-300' : 'text-red-600'}`} />
+                                      <span className="truncate font-medium">{att.name}</span>
+                                    </div>
+                                    <a
+                                      href={att.url}
+                                      download={att.name}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className={`p-1 rounded-md hover:bg-black/10 transition-colors shrink-0 ${
+                                        isMine ? 'text-white' : 'text-slate-700'
+                                      }`}
+                                      title="Descargar archivo"
+                                    >
+                                      <Download className="w-3.5 h-3.5" />
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Timestamp & Status */}
+                        <div
+                          className={`flex items-center justify-end gap-1 text-[9px] ${
+                            isMine && !isDeleted ? 'text-amber-100' : 'text-slate-400'
+                          }`}
+                        >
+                          <span>{formatMessageTime(msg.timestamp)}</span>
+                          {isMine && !isDeleted && activeRecipient !== 'GLOBAL' && (
+                            <span title={msg.isRead ? 'Leído' : 'Entregado'}>
+                              {msg.isRead ? (
+                                <CheckCheck className="w-3.5 h-3.5 text-sky-300 inline" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5 text-white/70 inline" />
+                              )}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -940,6 +1033,33 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
 
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Replying To Banner (WhatsApp style) */}
+          {replyingTo && (
+            <div className="bg-slate-100 border-t border-slate-300 px-3 py-2 flex items-center justify-between gap-2 shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-150">
+              <div className="flex items-center gap-2.5 min-w-0 border-l-4 border-red-600 pl-2.5 py-0.5">
+                <Reply className="w-4 h-4 text-red-600 shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-[11px] font-black text-slate-800 flex items-center gap-1">
+                    <span>Respondiendo a</span>
+                    <span className="text-red-600 font-black">@{replyingTo.sender}</span>
+                  </div>
+                  <p className="text-xs text-slate-600 truncate max-w-xs font-medium">
+                    {replyingTo.content ||
+                      (replyingTo.attachments?.length ? `[${replyingTo.attachments[0].name}]` : 'Mensaje')}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReplyingTo(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer shrink-0"
+                title="Cancelar respuesta"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           {/* Pending Attachments Bar */}
           {pendingAttachments.length > 0 && (
@@ -993,10 +1113,15 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
             </button>
 
             <input
+              ref={textInputRef}
               type="text"
-              placeholder={`Escribir mensaje a ${
-                activeRecipient === 'GLOBAL' ? 'todos' : '@' + activeRecipient
-              }...`}
+              placeholder={
+                replyingTo
+                  ? `Respondiendo a @${replyingTo.sender}...`
+                  : `Escribir mensaje a ${
+                      activeRecipient === 'GLOBAL' ? 'todos' : '@' + activeRecipient
+                    }...`
+              }
               value={inputText}
               onChange={handleInputChange}
               className="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-red-500 focus:outline-hidden"

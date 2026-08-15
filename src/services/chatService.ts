@@ -37,8 +37,16 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   is_read BOOLEAN NOT NULL DEFAULT FALSE,
   read_at TIMESTAMPTZ,
+  reply_to JSONB DEFAULT NULL,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Asegurar columnas si la tabla ya existía
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS reply_to JSONB DEFAULT NULL;
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
 
 -- 2. TABLA DE PRESENCIA / ESTADO EN LÍNEA
 CREATE TABLE IF NOT EXISTS public.user_presence (
@@ -147,6 +155,9 @@ export async function fetchChatMessagesFromSupabase(
       timestamp: row.timestamp,
       isRead: row.is_read ?? false,
       readAt: row.read_at,
+      replyTo: row.reply_to || undefined,
+      isDeleted: row.is_deleted ?? false,
+      deletedAt: row.deleted_at || undefined,
     }));
 
     // Update local cache
@@ -195,6 +206,9 @@ export async function fetchAllUserChatMessages(currentUser: string): Promise<Cha
       timestamp: row.timestamp,
       isRead: row.is_read ?? false,
       readAt: row.read_at,
+      replyTo: row.reply_to || undefined,
+      isDeleted: row.is_deleted ?? false,
+      deletedAt: row.deleted_at || undefined,
     }));
 
     // Sync to local
@@ -224,7 +238,7 @@ export async function sendChatMessage(msg: ChatMessage): Promise<boolean> {
 
   // 2. Push to Supabase
   try {
-    const payload = {
+    const payload: any = {
       id: msg.id,
       sender: msg.sender,
       recipient: msg.recipient,
@@ -233,6 +247,9 @@ export async function sendChatMessage(msg: ChatMessage): Promise<boolean> {
       timestamp: msg.timestamp,
       is_read: msg.isRead,
       read_at: msg.readAt,
+      reply_to: msg.replyTo || null,
+      is_deleted: msg.isDeleted || false,
+      deleted_at: msg.deletedAt || null,
     };
 
     const { error } = await supabase.from('chat_messages').upsert(payload, { onConflict: 'id' });
@@ -248,6 +265,52 @@ export async function sendChatMessage(msg: ChatMessage): Promise<boolean> {
     return true;
   } catch (err) {
     console.error('[Supabase Chat] sendChatMessage Exception:', err);
+    return false;
+  }
+}
+
+// Delete a message (mark as deleted)
+export async function deleteChatMessage(messageId: string): Promise<boolean> {
+  const now = new Date().toISOString();
+
+  // 1. Update local cache immediately
+  const local = getLocalChatMessages();
+  const msg = local.find((m) => m.id === messageId);
+  if (msg) {
+    msg.isDeleted = true;
+    msg.deletedAt = now;
+    msg.content = '🚫 Este mensaje fue eliminado';
+    msg.attachments = [];
+    saveLocalChatMessages(local);
+  }
+
+  if (!checkIsSupabaseConfigured() || supabaseChatTablesAvailable === false) {
+    return true;
+  }
+
+  // 2. Update Supabase
+  try {
+    const { error } = await supabase
+      .from('chat_messages')
+      .update({
+        is_deleted: true,
+        deleted_at: now,
+        content: '🚫 Este mensaje fue eliminado',
+        attachments: [],
+      })
+      .eq('id', messageId);
+
+    if (error) {
+      if (isMissingTableError(error)) {
+        supabaseChatTablesAvailable = false;
+      } else {
+        console.error('[Supabase Chat] deleteChatMessage Error:', error);
+      }
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[Supabase Chat] deleteChatMessage Exception:', err);
     return false;
   }
 }

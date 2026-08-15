@@ -133,6 +133,12 @@ export interface ChatAttachment {
   mimeType?: string;
 }
 
+export interface ChatReplyPreview {
+  id: string;
+  sender: string;
+  content: string;
+}
+
 export interface ChatMessage {
   id: string;
   sender: string; // username
@@ -142,6 +148,9 @@ export interface ChatMessage {
   timestamp: string;
   isRead: boolean;
   readAt?: string;
+  replyTo?: ChatReplyPreview;
+  isDeleted?: boolean;
+  deletedAt?: string;
 }
 
 export interface UserPresence {
