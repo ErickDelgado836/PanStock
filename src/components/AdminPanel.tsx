@@ -4,6 +4,7 @@ import { UserProfile, Category, Warehouse, MovementRecord, UserPermissions } fro
 import {
   getUsers,
   saveUsers,
+  deleteUser,
   getCategories,
   addCategory,
   deleteCategory,
@@ -405,6 +406,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
     });
 
     saveUsers(updated);
+    setUsers(updated);
     if (newSuspendedState) {
       setUserSuccessMsg(`El usuario '${targetUsername}' ha sido suspendido.`);
       setUserActionBanner({
@@ -457,6 +459,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
       return u;
     });
     saveUsers(updated);
+    setUsers(updated);
     setUserSuccessMsg(`Usuario '${username}' marcado como eliminado.`);
     setUserActionBanner({
       type: 'DELETE',
@@ -490,6 +493,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
       return u;
     });
     saveUsers(updated);
+    setUsers(updated);
     setUserSuccessMsg(`Usuario '${username}' restaurado exitosamente.`);
     setUserActionBanner({
       type: 'RESTORE',
@@ -506,14 +510,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
 
   const handlePermanentDeleteUser = (username: string) => {
     if (username.toLowerCase() === 'admin') return;
-    const currentUsers = getUsers().filter((u) => u.username.toLowerCase() !== username.toLowerCase());
-    saveUsers(currentUsers);
+    deleteUser(username);
+    const remaining = getUsers();
+    setUsers(remaining);
     setUserSuccessMsg(`Usuario '${username}' eliminado definitivamente.`);
     setUserActionBanner({
       type: 'DELETE',
       username: username,
-      message: `El usuario '${username}' fue eliminado definitivamente.`,
+      message: `El usuario '${username}' fue eliminado definitivamente del sistema y la base de datos.`,
     });
+    setHighlightedUser(null);
     triggerNotification(
       '¡Eliminación Definitiva!',
       `El usuario '${username}' fue borrado permanentemente del sistema.`,

@@ -314,8 +314,9 @@ export function setCurrentUser(user: UserProfile | null) {
 }
 
 export function deleteUser(username: string) {
-  const users = getUsers().filter((u) => u.username !== username);
-  saveUsers(users);
+  const users = getUsers().filter((u) => u.username.toLowerCase() !== username.toLowerCase());
+  localStorage.setItem(KEYS.USERS, JSON.stringify(users));
+  notifyStorageChange();
 
   if (checkIsSupabaseConfigured()) {
     deleteUserFromSupabase(username).catch((err) => console.error('[Supabase Delete User Error]', err));
