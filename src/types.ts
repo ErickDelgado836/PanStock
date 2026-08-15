@@ -124,3 +124,31 @@ export interface PhysicalAuditRecord {
 export interface WarehouseCategoryLastAudit {
   [key: string]: string; // `${warehouseId}_${categoryId}` => date string
 }
+
+export interface ChatAttachment {
+  name: string;
+  type: 'image' | 'pdf' | 'document' | 'other';
+  url: string;
+  size?: number;
+  mimeType?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  sender: string; // username
+  recipient: string; // username or 'GLOBAL'
+  content: string;
+  attachments?: ChatAttachment[];
+  timestamp: string;
+  isRead: boolean;
+  readAt?: string;
+}
+
+export interface UserPresence {
+  username: string;
+  lastActive: string;
+  isOnline: boolean;
+  currentScreen?: string;
+  isTypingTo?: string; // username they are typing to
+}
+

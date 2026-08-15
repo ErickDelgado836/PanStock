@@ -27,6 +27,7 @@ import { EntradasModal } from './components/Movements/EntradasModal';
 import { TrasladosModal } from './components/Movements/TrasladosModal';
 import { DescargosModal } from './components/Movements/DescargosModal';
 import { GlobalProductCatalogModal } from './components/GlobalProductCatalogModal';
+import { FloatingChatWidget } from './components/FloatingChatWidget';
 
 import { Building2, Plus, ArrowRightLeft, ArrowUpRight, Shield, Layers, RefreshCw } from 'lucide-react';
 
@@ -398,6 +399,14 @@ export default function App() {
 
       {/* Global Toast Notifications */}
       <ToastContainer />
+
+      {/* Floating Internal Chat Widget */}
+      {currentUser && (
+        <FloatingChatWidget
+          currentUser={currentUser}
+          currentScreen={activeTab}
+        />
+      )}
 
       {/* Welcome Announcement Modal with Background Blur */}
       <WelcomeModal
