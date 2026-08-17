@@ -107,21 +107,68 @@ export function saveLocalChatMessages(messages: ChatMessage[]) {
   }
 }
 
+// Helper to accurately filter messages for any conversation
+export function filterMessagesForConversation(
+  all: ChatMessage[],
+  currentUser: string,
+  recipient: string = 'GLOBAL'
+): ChatMessage[] {
+  if (!recipient || recipient === 'GLOBAL') {
+    return all.filter((m) => m.recipient === 'GLOBAL');
+  }
+  const u1 = currentUser.toLowerCase();
+  const u2 = recipient.toLowerCase();
+  return all.filter((m) => {
+    const s = m.sender.toLowerCase();
+    const r = m.recipient.toLowerCase();
+    return (s === u1 && r === u2) || (s === u2 && r === u1);
+  });
+}
+
+// Subtle notification sound using Web Audio API (no external file needed)
+export function playNotificationSound() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+
+    const now = ctx.currentTime;
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, now); // D5
+    osc1.frequency.exponentialRampToValueAtTime(880, now + 0.12); // A5
+
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(880, now);
+    osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.15); // D6
+
+    gainNode.gain.setValueAtTime(0.08, now);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    osc1.connect(gainNode);
+    osc2.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + 0.35);
+    osc2.stop(now + 0.35);
+  } catch {
+    // Audio autoplay might be blocked by browser policy until user interacts
+  }
+}
+
 // Fetch messages between two users or global room
 export async function fetchChatMessagesFromSupabase(
   user1: string,
-  user2?: string
+  user2: string = 'GLOBAL'
 ): Promise<ChatMessage[]> {
   if (!checkIsSupabaseConfigured()) {
     const local = getLocalChatMessages();
-    if (!user2 || user2 === 'GLOBAL') {
-      return local.filter((m) => m.recipient === 'GLOBAL');
-    }
-    return local.filter(
-      (m) =>
-        (m.sender.toLowerCase() === user1.toLowerCase() && m.recipient.toLowerCase() === user2.toLowerCase()) ||
-        (m.sender.toLowerCase() === user2.toLowerCase() && m.recipient.toLowerCase() === user1.toLowerCase())
-    );
+    return filterMessagesForConversation(local, user1, user2);
   }
 
   try {
@@ -142,7 +189,7 @@ export async function fetchChatMessagesFromSupabase(
       } else {
         console.warn('[Supabase Chat] Fallback to local on error:', error.message);
       }
-      return getLocalChatMessages();
+      return filterMessagesForConversation(getLocalChatMessages(), user1, user2);
     }
     supabaseChatTablesAvailable = true;
 
@@ -170,7 +217,7 @@ export async function fetchChatMessagesFromSupabase(
     return formatted;
   } catch (err) {
     console.error('[Supabase Chat] fetchChatMessages Exception', err);
-    return getLocalChatMessages();
+    return filterMessagesForConversation(getLocalChatMessages(), user1, user2);
   }
 }
 
