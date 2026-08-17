@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   MessageSquare,
   X,
@@ -73,6 +73,112 @@ interface ToastNotification {
 }
 
 const GLOBAL_LAST_SEEN_KEY = 'panstock_chat_global_last_seen';
+
+interface ChatAttachmentItemProps {
+  attachment: ChatAttachment;
+  isMine: boolean;
+  onPreview: (att: ChatAttachment) => void;
+}
+
+const ChatAttachmentItem: React.FC<ChatAttachmentItemProps> = ({ attachment, isMine, onPreview }) => {
+  const [hasError, setHasError] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  const isImage =
+    attachment.type === 'image' ||
+    (attachment.mimeType && attachment.mimeType.startsWith('image/')) ||
+    /\.(jpe?g|png|gif|webp|svg)$/i.test(attachment.name || '') ||
+    (attachment.url && attachment.url.startsWith('data:image/'));
+
+  // Valid and renderable image
+  if (isImage && !hasError && attachment.url && attachment.url.length > 200) {
+    return (
+      <div className="rounded-xl overflow-hidden border border-black/10 relative group my-1 bg-black/5">
+        {!isLoaded && (
+          <div className="h-36 w-full bg-slate-200/70 animate-pulse flex items-center justify-center text-slate-500 text-xs gap-2">
+            <ImageIcon className="w-4 h-4 animate-bounce text-slate-400" />
+            <span className="font-semibold">Cargando imagen...</span>
+          </div>
+        )}
+        <img
+          src={attachment.url}
+          alt={attachment.name || 'Imagen'}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+          className={`max-h-52 w-full object-cover rounded-xl transition-all cursor-pointer hover:opacity-95 ${
+            !isLoaded ? 'hidden' : 'block'
+          }`}
+          onClick={() => onPreview(attachment)}
+        />
+        {isLoaded && (
+          <div
+            onClick={() => onPreview(attachment)}
+            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-xs font-bold cursor-pointer"
+          >
+            <Eye className="w-4 h-4" />
+            <span>Ver imagen completa</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Fallback for non-images OR if image data was truncated/corrupted
+  return (
+    <div
+      className={`p-2.5 flex items-center justify-between gap-3 text-xs rounded-xl border my-1 transition-all ${
+        isMine
+          ? 'bg-black/25 text-white border-white/20 hover:bg-black/35'
+          : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50 shadow-2xs'
+      }`}
+    >
+      <div
+        className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
+        onClick={() => onPreview(attachment)}
+      >
+        <div
+          className={`p-2 rounded-lg shrink-0 ${
+            isMine ? 'bg-white/20 text-amber-300' : 'bg-red-50 text-red-600'
+          }`}
+        >
+          {isImage ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-bold text-[11px] leading-tight">{attachment.name || 'Archivo adjunto'}</p>
+          <p className={`text-[10px] ${isMine ? 'text-white/80' : 'text-slate-500'}`}>
+            {isImage ? 'Imagen adjunta • Toca para ver' : 'Documento adjunto'}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          type="button"
+          onClick={() => onPreview(attachment)}
+          className={`p-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+            isMine ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          }`}
+          title="Ver archivo"
+        >
+          <Eye className="w-3.5 h-3.5" />
+        </button>
+        {attachment.url && (
+          <a
+            href={attachment.url}
+            download={attachment.name || 'archivo'}
+            target="_blank"
+            rel="noreferrer"
+            className={`p-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+              isMine ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+            }`}
+            title="Descargar archivo"
+          >
+            <Download className="w-3.5 h-3.5" />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
   currentUser,
@@ -404,6 +510,43 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     }
   };
 
+  // Mark conversation as read instantly in React state & Supabase
+  const markConversationReadLocally = useCallback(
+    (targetUser: string) => {
+      if (!currentUser?.username || !targetUser) return;
+      const myUname = currentUser.username.toLowerCase();
+      const targetUname = targetUser.toLowerCase();
+
+      if (targetUser === 'GLOBAL') {
+        const nowIso = new Date().toISOString();
+        setGlobalLastSeen(nowIso);
+        localStorage.setItem(GLOBAL_LAST_SEEN_KEY, nowIso);
+        return;
+      }
+
+      // 1. Immediately update React state to clear unread badges with 0 delay
+      setAllMessages((prev) => {
+        let changed = false;
+        const updated = prev.map((m) => {
+          if (
+            m.recipient.toLowerCase() === myUname &&
+            m.sender.toLowerCase() === targetUname &&
+            !m.isRead
+          ) {
+            changed = true;
+            return { ...m, isRead: true, readAt: new Date().toISOString() };
+          }
+          return m;
+        });
+        return changed ? updated : prev;
+      });
+
+      // 2. Persist to Supabase & local cache
+      markMessagesAsRead(targetUser, currentUser.username);
+    },
+    [currentUser?.username]
+  );
+
   // Direct Realtime listener for zero-latency Supabase streaming
   useEffect(() => {
     const unregister = registerSupabaseRealtimeCallback((payload) => {
@@ -425,23 +568,32 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
               deletedAt: row.deleted_at || undefined,
             };
 
+            const myUname = currentUser?.username?.toLowerCase() || '';
+            const isToMe = formatted.recipient.toLowerCase() === myUname;
+            const isGlobal = formatted.recipient === 'GLOBAL';
+            const isNotMine = formatted.sender.toLowerCase() !== myUname;
+
+            const isCurrentlyActiveChat =
+              isOpen &&
+              viewTab === 'CHAT' &&
+              ((isToMe && activeRecipient.toLowerCase() === formatted.sender.toLowerCase()) ||
+                (isGlobal && activeRecipient === 'GLOBAL'));
+
+            // If this new message is for the currently open chat window, mark as read immediately
+            if (isCurrentlyActiveChat && isToMe) {
+              formatted.isRead = true;
+              formatted.readAt = new Date().toISOString();
+              markMessagesAsRead(formatted.sender, currentUser.username);
+            }
+
             // 1. Instant state injection (0 delay)
             setAllMessages((prev) => mergeChatMessages(prev, [formatted]));
 
-            // 2. Play sound / toast if it's for me
+            // 2. Play sound / toast if it's for me and not currently open
             if (!knownMessageIdsRef.current.has(formatted.id)) {
               knownMessageIdsRef.current.add(formatted.id);
-              const myUname = currentUser?.username?.toLowerCase() || '';
-              const isToMe = formatted.recipient.toLowerCase() === myUname;
-              const isGlobal = formatted.recipient === 'GLOBAL';
-              const isNotMine = formatted.sender.toLowerCase() !== myUname;
 
               if ((isToMe || isGlobal) && isNotMine && !formatted.isDeleted) {
-                const isCurrentlyActiveChat =
-                  isOpen &&
-                  ((isToMe && activeRecipient.toLowerCase() === formatted.sender.toLowerCase()) ||
-                    (isGlobal && activeRecipient === 'GLOBAL'));
-
                 if (!isCurrentlyActiveChat) {
                   if (soundEnabled) playNotificationSound();
                   setToastNotification({
@@ -483,7 +635,7 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     return () => {
       unregister();
     };
-  }, [activeRecipient, currentUser?.username, isOpen, soundEnabled]);
+  }, [activeRecipient, currentUser?.username, isOpen, soundEnabled, viewTab]);
 
   // Fast polling fallback + Focus trigger
   useEffect(() => {
@@ -514,15 +666,9 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
   // Mark active chat as read upon opening or switching
   useEffect(() => {
     if (isOpen && currentUser?.username) {
-      if (activeRecipient !== 'GLOBAL') {
-        markMessagesAsRead(activeRecipient, currentUser.username);
-      } else {
-        const nowIso = new Date().toISOString();
-        setGlobalLastSeen(nowIso);
-        localStorage.setItem(GLOBAL_LAST_SEEN_KEY, nowIso);
-      }
+      markConversationReadLocally(activeRecipient);
     }
-  }, [activeRecipient, isOpen, currentUser?.username]);
+  }, [activeRecipient, isOpen, currentUser?.username, markConversationReadLocally]);
 
   // Auto dismiss toast notification after 7 seconds
   useEffect(() => {
@@ -682,6 +828,7 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     setViewTab('CHAT');
     setSearchFilter('');
     setToastNotification(null);
+    markConversationReadLocally(username);
   };
 
   return (
@@ -1362,43 +1509,12 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
                             {!isDeleted && msg.attachments && msg.attachments.length > 0 && (
                               <div className="space-y-1.5 pt-1">
                                 {msg.attachments.map((att, idx) => (
-                                  <div key={idx} className="rounded-xl overflow-hidden border border-black/10">
-                                    {att.type === 'image' ? (
-                                      <div className="relative group cursor-pointer" onClick={() => setPreviewAttachment(att)}>
-                                        <img
-                                          src={att.url}
-                                          alt={att.name}
-                                          className="max-h-48 w-full object-cover rounded-lg"
-                                        />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-xs font-bold">
-                                          <Eye className="w-4 h-4" /> Ver imagen
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div
-                                        className={`p-2.5 flex items-center justify-between gap-2 text-xs rounded-lg ${
-                                          isMine ? 'bg-black/20 text-white' : 'bg-slate-50 text-slate-800'
-                                        }`}
-                                      >
-                                        <div className="flex items-center gap-2 min-w-0">
-                                          <FileText className={`w-4 h-4 shrink-0 ${isMine ? 'text-amber-300' : 'text-red-600'}`} />
-                                          <span className="truncate font-medium">{att.name}</span>
-                                        </div>
-                                        <a
-                                          href={att.url}
-                                          download={att.name}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className={`p-1 rounded-md hover:bg-black/10 transition-colors shrink-0 ${
-                                            isMine ? 'text-white' : 'text-slate-700'
-                                          }`}
-                                          title="Descargar archivo"
-                                        >
-                                          <Download className="w-3.5 h-3.5" />
-                                        </a>
-                                      </div>
-                                    )}
-                                  </div>
+                                  <ChatAttachmentItem
+                                    key={idx}
+                                    attachment={att}
+                                    isMine={isMine}
+                                    onPreview={(a) => setPreviewAttachment(a)}
+                                  />
                                 ))}
                               </div>
                             )}

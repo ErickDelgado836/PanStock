@@ -105,35 +105,25 @@ export function getLocalChatMessages(): ChatMessage[] {
 
 export function saveLocalChatMessages(messages: ChatMessage[]) {
   try {
-    // Keep only the most recent 80 messages for local backup cache
-    const recent = messages.slice(-80);
-
-    // Strip out heavy base64 files from localStorage to avoid blowing the 5MB browser quota
-    const lightweight = recent.map((m) => {
-      if (!m.attachments || m.attachments.length === 0) return m;
-      return {
-        ...m,
-        attachments: m.attachments.map((att) => ({
-          ...att,
-          // Keep URL if small (<40KB), otherwise truncate for local storage to preserve quota
-          url: att.url && att.url.length > 40000 ? att.url.substring(0, 80) + '...' : att.url,
-        })),
-      };
-    });
-
-    localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(lightweight));
+    // Keep only the most recent 50 messages for local fast caching
+    const recent = messages.slice(-50);
+    localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(recent));
   } catch (e) {
-    console.warn('[LocalChat] LocalStorage quota limit detected, pruning local cache...', e);
+    console.warn('[LocalChat] LocalStorage quota limit detected, safely pruning local cache...', e);
     try {
-      // Emergency recovery: save only the last 25 text-only messages
-      const emergency = messages.slice(-25).map((m) => ({ ...m, attachments: [] }));
-      localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(emergency));
+      // Emergency recovery: strip attachments from older messages to save space without breaking URLs
+      const lightweight = messages.slice(-30).map((m, idx, arr) => {
+        // Keep full attachments for the last 5 messages, strip from older
+        if (idx >= arr.length - 5) return m;
+        return { ...m, attachments: [] };
+      });
+      localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(lightweight));
     } catch {
-      // If localStorage is completely full, remove the local chat key safely
       try {
-        localStorage.removeItem(LOCAL_CHAT_KEY);
+        const minimal = messages.slice(-15).map((m) => ({ ...m, attachments: [] }));
+        localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(minimal));
       } catch {
-        // ignore
+        // ignore safely
       }
     }
   }
@@ -460,8 +450,8 @@ export async function markMessagesAsRead(sender: string, recipient: string): Pro
     const { error } = await supabase
       .from('chat_messages')
       .update({ is_read: true, read_at: now })
-      .eq('sender', sender)
-      .eq('recipient', recipient)
+      .ilike('sender', sender)
+      .ilike('recipient', recipient)
       .eq('is_read', false);
 
     if (error) {
