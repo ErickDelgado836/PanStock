@@ -191,13 +191,89 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     return 'Desconectado hace días';
   };
 
+  // Combine all known users from storage + presence + chat messages
+  const allKnownUsers = useMemo(() => {
+    const map = new Map<string, UserProfile>();
+
+    // 1. From storage / user profiles
+    usersList.forEach((u) => {
+      if (u.username) {
+        map.set(u.username.toLowerCase(), u);
+      }
+    });
+
+    // 2. From presences in Supabase
+    Object.values(presences).forEach((p) => {
+      if (p.username && !map.has(p.username.toLowerCase())) {
+        map.set(p.username.toLowerCase(), {
+          username: p.username,
+          password: '',
+          roleName: 'Compañero de Equipo',
+          isAdmin: p.username.toLowerCase() === 'admin',
+          permissions: {
+            canEntries: true,
+            canExits: true,
+            canTransfers: true,
+            canExpiry: true,
+            canSales: true,
+            canPhysicalInventory: true,
+            allowedWarehouses: ['00', '01', '02', '002', '03', '09', '05', '06', '07', '08'],
+          },
+          createdAt: new Date().toISOString(),
+        });
+      }
+    });
+
+    // 3. From message history
+    allMessages.forEach((m) => {
+      if (m.sender && m.sender !== 'GLOBAL' && !map.has(m.sender.toLowerCase())) {
+        map.set(m.sender.toLowerCase(), {
+          username: m.sender,
+          password: '',
+          roleName: 'Compañero de Equipo',
+          isAdmin: m.sender.toLowerCase() === 'admin',
+          permissions: {
+            canEntries: true,
+            canExits: true,
+            canTransfers: true,
+            canExpiry: true,
+            canSales: true,
+            canPhysicalInventory: true,
+            allowedWarehouses: ['00', '01', '02', '002', '03', '09', '05', '06', '07', '08'],
+          },
+          createdAt: new Date().toISOString(),
+        });
+      }
+      if (m.recipient && m.recipient !== 'GLOBAL' && !map.has(m.recipient.toLowerCase())) {
+        map.set(m.recipient.toLowerCase(), {
+          username: m.recipient,
+          password: '',
+          roleName: 'Compañero de Equipo',
+          isAdmin: m.recipient.toLowerCase() === 'admin',
+          permissions: {
+            canEntries: true,
+            canExits: true,
+            canTransfers: true,
+            canExpiry: true,
+            canSales: true,
+            canPhysicalInventory: true,
+            allowedWarehouses: ['00', '01', '02', '002', '03', '09', '05', '06', '07', '08'],
+          },
+          createdAt: new Date().toISOString(),
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [usersList, presences, allMessages]);
+
   // Contacts list
   const otherUsers = useMemo(() => {
     if (!currentUser?.username) return [];
-    return usersList.filter(
+    return allKnownUsers.filter(
       (u) => u.username.toLowerCase() !== currentUser.username.toLowerCase()
     );
-  }, [usersList, currentUser?.username]);
+  }, [allKnownUsers, currentUser?.username]);
 
   // Smart sorted & filtered list (Unread first, then Online, then alphabetized)
   const filteredUsers = useMemo(() => {
@@ -234,7 +310,7 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     return otherUsers.filter((u) => getUnreadForUser(u.username) > 0).length;
   }, [otherUsers, allMessages]);
 
-  // Presence heartbeat every 20 seconds
+  // Presence heartbeat every 10 seconds
   useEffect(() => {
     if (!currentUser?.username) return;
 
@@ -247,18 +323,28 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     };
 
     doPing();
-    const interval = setInterval(doPing, 20000);
+    const interval = setInterval(doPing, 10000);
 
     const refreshPresences = async () => {
       const p = await fetchAllUserPresences();
       setPresences(p);
     };
     refreshPresences();
-    const presenceInterval = setInterval(refreshPresences, 10000);
+    const presenceInterval = setInterval(refreshPresences, 5000);
+
+    const handleFocus = () => {
+      doPing();
+      refreshPresences();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('visibilitychange', handleFocus);
 
     return () => {
       clearInterval(interval);
       clearInterval(presenceInterval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('visibilitychange', handleFocus);
     };
   }, [currentUser?.username, currentScreen, isTyping, activeRecipient]);
 
@@ -331,11 +417,23 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     };
   }, [activeRecipient, currentUser?.username, isOpen, soundEnabled]);
 
-  // Periodic polling fallback
+  // Fast polling fallback + Focus trigger
   useEffect(() => {
     loadAllData();
-    const poll = setInterval(loadAllData, 3500);
-    return () => clearInterval(poll);
+    const poll = setInterval(loadAllData, 2000);
+
+    const handleWindowFocus = () => {
+      loadAllData();
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('visibilitychange', handleWindowFocus);
+
+    return () => {
+      clearInterval(poll);
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('visibilitychange', handleWindowFocus);
+    };
   }, [activeRecipient, isOpen, currentUser?.username]);
 
   // Scroll to bottom when messages update

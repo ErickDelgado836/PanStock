@@ -1,21 +1,11 @@
 import { ChatMessage, UserPresence, ChatAttachment } from '../types';
 import { checkIsSupabaseConfigured, getSupabaseCredentials, supabase } from '../lib/supabase';
 
-// Flag to track whether chat tables exist in Supabase
-let supabaseChatTablesAvailable: boolean | null = null;
-const PRESENCE_TIMEOUT_MS = 60000; // 1 minute to consider online
-
-// Helper to check if an error is PGRST205 (missing table in schema)
-function isMissingTableError(error: any): boolean {
-  return (
-    error?.code === 'PGRST205' ||
-    error?.message?.includes?.('Could not find the table') ||
-    error?.message?.includes?.('does not exist')
-  );
-}
+// 5 minutes timeout to consider user online (handles server/client clock skew)
+const PRESENCE_TIMEOUT_MS = 300000;
 
 export function areSupabaseChatTablesConfigured(): boolean {
-  return supabaseChatTablesAvailable !== false;
+  return checkIsSupabaseConfigured();
 }
 
 // ==========================================
@@ -118,10 +108,12 @@ export function filterMessagesForConversation(
   }
   const u1 = currentUser.toLowerCase();
   const u2 = recipient.toLowerCase();
+
   return all.filter((m) => {
-    const s = m.sender.toLowerCase();
-    const r = m.recipient.toLowerCase();
-    return (s === u1 && r === u2) || (s === u2 && r === u1);
+    if (m.recipient === 'GLOBAL') return false;
+    const sender = m.sender.toLowerCase();
+    const recip = m.recipient.toLowerCase();
+    return (sender === u1 && recip === u2) || (sender === u2 && recip === u1);
   });
 }
 
@@ -237,49 +229,36 @@ export async function fetchChatMessagesFromSupabase(
   }
 
   try {
-    let query = supabase.from('chat_messages').select('*').order('timestamp', { ascending: true });
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .order('timestamp', { ascending: true });
 
-    if (!user2 || user2 === 'GLOBAL') {
-      query = query.eq('recipient', 'GLOBAL');
-    } else {
-      query = query.or(
-        `and(sender.eq.${user1},recipient.eq.${user2}),and(sender.eq.${user2},recipient.eq.${user1})`
-      );
-    }
-
-    const { data, error } = await query;
     if (error) {
-      if (isMissingTableError(error)) {
-        supabaseChatTablesAvailable = false;
-      } else {
-        console.warn('[Supabase Chat] Fallback to local on error:', error.message);
-      }
+      console.warn('[Supabase Chat] Fallback to local on error:', error.message);
       return filterMessagesForConversation(getLocalChatMessages(), user1, user2);
     }
-    supabaseChatTablesAvailable = true;
 
     const formatted: ChatMessage[] = (data || []).map((row: any) => ({
       id: row.id,
       sender: row.sender,
       recipient: row.recipient,
-      content: row.content,
+      content: row.content || '',
       attachments: row.attachments || [],
-      timestamp: row.timestamp,
-      isRead: row.is_read ?? false,
+      timestamp: row.timestamp || new Date().toISOString(),
+      isRead: Boolean(row.is_read),
       readAt: row.read_at,
       replyTo: row.reply_to || undefined,
-      isDeleted: row.is_deleted ?? false,
+      isDeleted: Boolean(row.is_deleted),
       deletedAt: row.deleted_at || undefined,
     }));
 
     // Update local cache
     const existing = getLocalChatMessages();
-    const map = new Map<string, ChatMessage>();
-    existing.forEach((m) => map.set(m.id, m));
-    formatted.forEach((m) => map.set(m.id, m));
-    saveLocalChatMessages(Array.from(map.values()));
+    const merged = mergeChatMessages(existing, formatted);
+    saveLocalChatMessages(merged);
 
-    return formatted;
+    return filterMessagesForConversation(merged, user1, user2);
   } catch (err) {
     console.error('[Supabase Chat] fetchChatMessages Exception', err);
     return filterMessagesForConversation(getLocalChatMessages(), user1, user2);
@@ -287,7 +266,7 @@ export async function fetchChatMessagesFromSupabase(
 }
 
 // Fetch all messages (for calculating unread badge counters across all contacts)
-export async function fetchAllUserChatMessages(currentUser: string): Promise<ChatMessage[]> {
+export async function fetchAllUserChatMessages(currentUser?: string): Promise<ChatMessage[]> {
   if (!checkIsSupabaseConfigured()) {
     return getLocalChatMessages();
   }
@@ -296,36 +275,32 @@ export async function fetchAllUserChatMessages(currentUser: string): Promise<Cha
     const { data, error } = await supabase
       .from('chat_messages')
       .select('*')
-      .or(`recipient.eq.GLOBAL,recipient.eq.${currentUser},sender.eq.${currentUser}`)
       .order('timestamp', { ascending: true });
 
     if (error) {
-      if (isMissingTableError(error)) {
-        supabaseChatTablesAvailable = false;
-      } else {
-        console.warn('[Supabase Chat] fetchAllUserChatMessages error:', error.message);
-      }
+      console.warn('[Supabase Chat] fetchAllUserChatMessages error:', error.message);
       return getLocalChatMessages();
     }
-    supabaseChatTablesAvailable = true;
 
     const formatted: ChatMessage[] = (data || []).map((row: any) => ({
       id: row.id,
       sender: row.sender,
       recipient: row.recipient,
-      content: row.content,
+      content: row.content || '',
       attachments: row.attachments || [],
-      timestamp: row.timestamp,
-      isRead: row.is_read ?? false,
+      timestamp: row.timestamp || new Date().toISOString(),
+      isRead: Boolean(row.is_read),
       readAt: row.read_at,
       replyTo: row.reply_to || undefined,
-      isDeleted: row.is_deleted ?? false,
+      isDeleted: Boolean(row.is_deleted),
       deletedAt: row.deleted_at || undefined,
     }));
 
-    // Sync to local
-    saveLocalChatMessages(formatted);
-    return formatted;
+    // Merge and sync to local
+    const local = getLocalChatMessages();
+    const merged = mergeChatMessages(local, formatted);
+    saveLocalChatMessages(merged);
+    return merged;
   } catch (err) {
     console.error('[Supabase Chat] fetchAllUserChatMessages exception', err);
     return getLocalChatMessages();
@@ -344,7 +319,7 @@ export async function sendChatMessage(msg: ChatMessage): Promise<boolean> {
   }
   saveLocalChatMessages(local);
 
-  if (!checkIsSupabaseConfigured() || supabaseChatTablesAvailable === false) {
+  if (!checkIsSupabaseConfigured()) {
     return true;
   }
 
@@ -357,23 +332,18 @@ export async function sendChatMessage(msg: ChatMessage): Promise<boolean> {
       content: msg.content,
       attachments: msg.attachments || [],
       timestamp: msg.timestamp,
-      is_read: msg.isRead,
-      read_at: msg.readAt,
+      is_read: Boolean(msg.isRead),
+      read_at: msg.readAt || null,
       reply_to: msg.replyTo || null,
-      is_deleted: msg.isDeleted || false,
+      is_deleted: Boolean(msg.isDeleted),
       deleted_at: msg.deletedAt || null,
     };
 
     const { error } = await supabase.from('chat_messages').upsert(payload, { onConflict: 'id' });
     if (error) {
-      if (isMissingTableError(error)) {
-        supabaseChatTablesAvailable = false;
-      } else {
-        console.error('[Supabase Chat] sendChatMessage Error:', error);
-      }
+      console.error('[Supabase Chat] sendChatMessage Error:', error);
       return false;
     }
-    supabaseChatTablesAvailable = true;
     return true;
   } catch (err) {
     console.error('[Supabase Chat] sendChatMessage Exception:', err);
@@ -396,7 +366,7 @@ export async function deleteChatMessage(messageId: string): Promise<boolean> {
     saveLocalChatMessages(local);
   }
 
-  if (!checkIsSupabaseConfigured() || supabaseChatTablesAvailable === false) {
+  if (!checkIsSupabaseConfigured()) {
     return true;
   }
 
@@ -413,11 +383,7 @@ export async function deleteChatMessage(messageId: string): Promise<boolean> {
       .eq('id', messageId);
 
     if (error) {
-      if (isMissingTableError(error)) {
-        supabaseChatTablesAvailable = false;
-      } else {
-        console.error('[Supabase Chat] deleteChatMessage Error:', error);
-      }
+      console.error('[Supabase Chat] deleteChatMessage Error:', error);
       return false;
     }
     return true;
@@ -447,7 +413,7 @@ export async function markMessagesAsRead(sender: string, recipient: string): Pro
   });
   if (modified) saveLocalChatMessages(local);
 
-  if (!checkIsSupabaseConfigured() || supabaseChatTablesAvailable === false) return true;
+  if (!checkIsSupabaseConfigured()) return true;
 
   try {
     const { error } = await supabase
@@ -458,14 +424,9 @@ export async function markMessagesAsRead(sender: string, recipient: string): Pro
       .eq('is_read', false);
 
     if (error) {
-      if (isMissingTableError(error)) {
-        supabaseChatTablesAvailable = false;
-      } else {
-        console.error('[Supabase Chat] markMessagesAsRead Error:', error);
-      }
+      console.error('[Supabase Chat] markMessagesAsRead Error:', error);
       return false;
     }
-    supabaseChatTablesAvailable = true;
     return true;
   } catch (err) {
     console.error('[Supabase Chat] markMessagesAsRead Exception:', err);
@@ -514,7 +475,7 @@ export async function pingUserPresence(
 
     const { error } = await supabase.from('user_presence').upsert(payload, { onConflict: 'username' });
     if (error) {
-      // Don't clutter console if table is not yet created
+      console.warn('[Supabase Presence] ping error:', error.message);
       return false;
     }
     return true;
@@ -524,29 +485,34 @@ export async function pingUserPresence(
 }
 
 export async function fetchAllUserPresences(): Promise<Record<string, UserPresence>> {
-  if (!checkIsSupabaseConfigured()) {
+  const localPresences = (() => {
     try {
       const raw = localStorage.getItem(LOCAL_PRESENCE_KEY);
       return raw ? JSON.parse(raw) : {};
     } catch {
       return {};
     }
+  })();
+
+  if (!checkIsSupabaseConfigured()) {
+    return localPresences;
   }
 
   try {
     const { data, error } = await supabase.from('user_presence').select('*');
     if (error) {
-      const raw = localStorage.getItem(LOCAL_PRESENCE_KEY);
-      return raw ? JSON.parse(raw) : {};
+      console.warn('[Supabase Presence] fetch error:', error.message);
+      return localPresences;
     }
 
-    const result: Record<string, UserPresence> = {};
+    const result: Record<string, UserPresence> = { ...localPresences };
     const nowTime = Date.now();
 
     (data || []).forEach((row: any) => {
       const lastActiveTime = new Date(row.last_active).getTime();
-      // Considered online if active within the last 90 seconds
-      const isOnline = Boolean(row.is_online && nowTime - lastActiveTime < PRESENCE_TIMEOUT_MS);
+      const diff = Math.abs(nowTime - lastActiveTime);
+      // Online if flagged online and pinged within last 5 minutes (allowing for clock skew)
+      const isOnline = Boolean(row.is_online && diff < PRESENCE_TIMEOUT_MS);
 
       result[row.username.toLowerCase()] = {
         username: row.username,
@@ -560,7 +526,7 @@ export async function fetchAllUserPresences(): Promise<Record<string, UserPresen
     localStorage.setItem(LOCAL_PRESENCE_KEY, JSON.stringify(result));
     return result;
   } catch {
-    return {};
+    return localPresences;
   }
 }
 
