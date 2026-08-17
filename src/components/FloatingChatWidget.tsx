@@ -45,6 +45,7 @@ import {
   fetchChatMessagesFromSupabase,
   fetchAllUserChatMessages,
   filterMessagesForConversation,
+  mergeChatMessages,
   sendChatMessage,
   deleteChatMessage,
   markMessagesAsRead,
@@ -52,6 +53,7 @@ import {
   fetchAllUserPresences,
   readFileAsBase64,
   playNotificationSound,
+  unlockAudioOnUserInteraction,
   SUPABASE_CHAT_SETUP_SQL,
 } from '../services/chatService';
 import { getUsers } from '../services/storage';
@@ -113,10 +115,24 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     }
   };
 
-  // Load all registered users
+  // Load all registered users and attach mobile audio unlocker
   useEffect(() => {
     const users = getUsers().filter((u) => !u.isDeleted && !u.isSuspended);
     setUsersList(users);
+
+    const handleFirstGesture = () => {
+      unlockAudioOnUserInteraction();
+    };
+
+    window.addEventListener('click', handleFirstGesture, { passive: true });
+    window.addEventListener('touchstart', handleFirstGesture, { passive: true });
+    window.addEventListener('keydown', handleFirstGesture, { passive: true });
+
+    return () => {
+      window.removeEventListener('click', handleFirstGesture);
+      window.removeEventListener('touchstart', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+    };
   }, [isOpen]);
 
   // Derive conversation messages directly from allMessages (ensures 100% sync and zero flicker)
@@ -286,7 +302,7 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
       allMsg.forEach((m) => knownMessageIdsRef.current.add(m.id));
       initialLoadRef.current = false;
 
-      setAllMessages(allMsg);
+      setAllMessages((prev) => mergeChatMessages(prev, allMsg));
       setPresences(p);
 
       // Auto mark as read if conversation is open
@@ -390,7 +406,7 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     setIsTyping(false);
     knownMessageIdsRef.current.add(newMsg.id);
 
-    setAllMessages((prev) => [...prev, newMsg]);
+    setAllMessages((prev) => mergeChatMessages(prev, [newMsg]));
 
     // 2. Dispatch to Supabase / Local Storage asynchronously
     sendChatMessage(newMsg).catch((err) => {

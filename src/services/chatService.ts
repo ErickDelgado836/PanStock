@@ -125,12 +125,50 @@ export function filterMessagesForConversation(
   });
 }
 
-// Subtle notification sound using Web Audio API (no external file needed)
-export function playNotificationSound() {
+// Audio context singleton for mobile & desktop
+let sharedAudioContext: AudioContext | null = null;
+let isAudioUnlocked = false;
+
+// Unlock mobile audio upon first user gesture (touch, click, tap)
+export function unlockAudioOnUserInteraction() {
+  if (isAudioUnlocked) return;
   try {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
+    if (!sharedAudioContext) {
+      sharedAudioContext = new AudioContextClass();
+    }
+    if (sharedAudioContext.state === 'suspended') {
+      sharedAudioContext.resume().then(() => {
+        isAudioUnlocked = true;
+      });
+    } else {
+      isAudioUnlocked = true;
+    }
+  } catch {
+    // Ignore autoplay restriction failures until valid gesture
+  }
+}
+
+// Subtle notification sound + mobile vibration
+export function playNotificationSound() {
+  try {
+    // 1. Mobile Vibration feedback
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([60, 40, 80]);
+    }
+
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    if (!sharedAudioContext) {
+      sharedAudioContext = new AudioContextClass();
+    }
+
+    const ctx = sharedAudioContext;
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
 
     const now = ctx.currentTime;
     const osc1 = ctx.createOscillator();
@@ -145,7 +183,7 @@ export function playNotificationSound() {
     osc2.frequency.setValueAtTime(880, now);
     osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.15); // D6
 
-    gainNode.gain.setValueAtTime(0.08, now);
+    gainNode.gain.setValueAtTime(0.12, now);
     gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
 
     osc1.connect(gainNode);
@@ -157,8 +195,35 @@ export function playNotificationSound() {
     osc1.stop(now + 0.35);
     osc2.stop(now + 0.35);
   } catch {
-    // Audio autoplay might be blocked by browser policy until user interacts
+    // Audio autoplay might be blocked on some mobile browsers before interaction
   }
+}
+
+// Merge two message arrays deduplicating by ID and sorting by timestamp
+export function mergeChatMessages(
+  current: ChatMessage[],
+  incoming: ChatMessage[]
+): ChatMessage[] {
+  const map = new Map<string, ChatMessage>();
+  current.forEach((m) => map.set(m.id, m));
+  incoming.forEach((m) => {
+    const existing = map.get(m.id);
+    if (!existing) {
+      map.set(m.id, m);
+    } else {
+      // Keep newer properties (e.g. read status, deleted flag)
+      map.set(m.id, {
+        ...existing,
+        ...m,
+        isRead: m.isRead || existing.isRead,
+        isDeleted: m.isDeleted || existing.isDeleted,
+      });
+    }
+  });
+
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
 }
 
 // Fetch messages between two users or global room
