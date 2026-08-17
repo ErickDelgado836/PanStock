@@ -57,7 +57,7 @@ import {
   SUPABASE_CHAT_SETUP_SQL,
 } from '../services/chatService';
 import { getUsers } from '../services/storage';
-import { checkIsSupabaseConfigured, registerSupabaseRealtimeCallback } from '../lib/supabase';
+import { checkIsSupabaseConfigured, registerSupabaseRealtimeCallback, fetchUsersFromSupabase } from '../lib/supabase';
 
 interface FloatingChatWidgetProps {
   currentUser: UserProfile;
@@ -221,10 +221,31 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     }
   };
 
-  // Load all registered users and attach mobile audio unlocker
+  // Load all registered users from Supabase & Local Storage + attach mobile audio unlocker
   useEffect(() => {
-    const users = getUsers().filter((u) => !u.isDeleted && !u.isSuspended);
-    setUsersList(users);
+    const loadAllUsers = async () => {
+      const localUsers = getUsers().filter((u) => !u.isDeleted && !u.isSuspended);
+      if (checkIsSupabaseConfigured()) {
+        try {
+          const remoteUsers = await fetchUsersFromSupabase();
+          if (remoteUsers && remoteUsers.length > 0) {
+            const mergedMap = new Map<string, UserProfile>();
+            localUsers.forEach((u) => mergedMap.set(u.username.toLowerCase(), u));
+            remoteUsers
+              .filter((u) => !u.isDeleted && !u.isSuspended)
+              .forEach((u) => mergedMap.set(u.username.toLowerCase(), u));
+            setUsersList(Array.from(mergedMap.values()));
+            return;
+          }
+        } catch {
+          // fallback to local
+        }
+      }
+      setUsersList(localUsers);
+    };
+
+    loadAllUsers();
+    const interval = setInterval(loadAllUsers, 10000);
 
     const handleFirstGesture = () => {
       unlockAudioOnUserInteraction();
@@ -235,6 +256,7 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     window.addEventListener('keydown', handleFirstGesture, { passive: true });
 
     return () => {
+      clearInterval(interval);
       window.removeEventListener('click', handleFirstGesture);
       window.removeEventListener('touchstart', handleFirstGesture);
       window.removeEventListener('keydown', handleFirstGesture);
