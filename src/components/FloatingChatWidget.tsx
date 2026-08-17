@@ -404,11 +404,79 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     }
   };
 
-  // Realtime subscription for Supabase
+  // Direct Realtime listener for zero-latency Supabase streaming
   useEffect(() => {
     const unregister = registerSupabaseRealtimeCallback((payload) => {
-      if (payload.table === 'chat_messages' || payload.table === 'user_presence') {
-        loadAllData();
+      if (payload.table === 'chat_messages') {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const row = payload.new;
+          if (row && row.id) {
+            const formatted: ChatMessage = {
+              id: row.id,
+              sender: row.sender,
+              recipient: row.recipient,
+              content: row.content || '',
+              attachments: row.attachments || [],
+              timestamp: row.timestamp || new Date().toISOString(),
+              isRead: Boolean(row.is_read),
+              readAt: row.read_at,
+              replyTo: row.reply_to || undefined,
+              isDeleted: Boolean(row.is_deleted),
+              deletedAt: row.deleted_at || undefined,
+            };
+
+            // 1. Instant state injection (0 delay)
+            setAllMessages((prev) => mergeChatMessages(prev, [formatted]));
+
+            // 2. Play sound / toast if it's for me
+            if (!knownMessageIdsRef.current.has(formatted.id)) {
+              knownMessageIdsRef.current.add(formatted.id);
+              const myUname = currentUser?.username?.toLowerCase() || '';
+              const isToMe = formatted.recipient.toLowerCase() === myUname;
+              const isGlobal = formatted.recipient === 'GLOBAL';
+              const isNotMine = formatted.sender.toLowerCase() !== myUname;
+
+              if ((isToMe || isGlobal) && isNotMine && !formatted.isDeleted) {
+                const isCurrentlyActiveChat =
+                  isOpen &&
+                  ((isToMe && activeRecipient.toLowerCase() === formatted.sender.toLowerCase()) ||
+                    (isGlobal && activeRecipient === 'GLOBAL'));
+
+                if (!isCurrentlyActiveChat) {
+                  if (soundEnabled) playNotificationSound();
+                  setToastNotification({
+                    id: formatted.id,
+                    sender: formatted.sender,
+                    content:
+                      formatted.content ||
+                      (formatted.attachments?.length ? '📎 Archivo adjunto' : 'Nuevo mensaje'),
+                    timestamp: formatted.timestamp,
+                    isGlobal,
+                  });
+                }
+              }
+            }
+          }
+        } else if (payload.eventType === 'DELETE') {
+          if (payload.old?.id) {
+            setAllMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
+          }
+        }
+      } else if (payload.table === 'user_presence') {
+        if (payload.new && payload.new.username) {
+          const row = payload.new;
+          const unameKey = row.username.toLowerCase();
+          setPresences((prev) => ({
+            ...prev,
+            [unameKey]: {
+              username: row.username,
+              lastActive: row.last_active,
+              isOnline: Boolean(row.is_online),
+              currentScreen: row.current_screen,
+              isTypingTo: row.is_typing_to,
+            },
+          }));
+        }
       }
     });
 

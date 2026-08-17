@@ -1,18 +1,18 @@
 import { ChatMessage, UserPresence, ChatAttachment } from '../types';
 import { checkIsSupabaseConfigured, getSupabaseCredentials, supabase } from '../lib/supabase';
 
-// 5 minutes timeout to consider user online (handles server/client clock skew)
+// 5 minutes tolerance for online presence (prevents clock skew issues)
 const PRESENCE_TIMEOUT_MS = 300000;
 
 export function areSupabaseChatTablesConfigured(): boolean {
   return checkIsSupabaseConfigured();
 }
 
-// ==========================================
-// SQL SCRIPT FOR CHAT SETUP IN SUPABASE
-// ==========================================
+// ========================================================
+// SQL SCRIPT FOR SUPABASE REALTIME & CHAT SETUP
+// ========================================================
 export const SUPABASE_CHAT_SETUP_SQL = `-- ========================================================
--- TABLAS Y REGLAS PARA EL MÓDULO DE CHAT INTERNO Y PRESENCIA
+-- SCRIPT DE TIEMPO REAL INSTANTÁNEO PARA CHAT Y PRESENCIA
 -- PanStock Inventory System - Supabase / PostgreSQL
 -- Ejecuta este script en el "SQL Editor" de tu panel Supabase
 -- ========================================================
@@ -47,7 +47,11 @@ CREATE TABLE IF NOT EXISTS public.user_presence (
   is_typing_to TEXT DEFAULT NULL
 );
 
--- 3. ÍNDICES DE VELOCIDAD PARA CHAT
+-- 3. HABILITAR IDENTIDAD DE RÉPLICA COMPLETA (CRUCIAL PARA REALTIME EN SUPABASE)
+ALTER TABLE public.chat_messages REPLICA IDENTITY FULL;
+ALTER TABLE public.user_presence REPLICA IDENTITY FULL;
+
+-- 4. ÍNDICES DE VELOCIDAD PARA CHAT
 CREATE INDEX IF NOT EXISTS idx_chat_messages_sender ON public.chat_messages(sender);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_recipient ON public.chat_messages(recipient);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp ON public.chat_messages(timestamp DESC);
@@ -55,7 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_is_read ON public.chat_messages(is_
 CREATE INDEX IF NOT EXISTS idx_chat_messages_pair ON public.chat_messages(sender, recipient, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_user_presence_last_active ON public.user_presence(last_active DESC);
 
--- 4. SEGURIDAD Y PERMISOS (RLS Habilitado con acceso público para anon key)
+-- 5. SEGURIDAD Y PERMISOS RLS (Acceso público permitido con anon key)
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_presence ENABLE ROW LEVEL SECURITY;
 
@@ -65,14 +69,24 @@ CREATE POLICY "Anon Full Access Chat Messages" ON public.chat_messages FOR ALL U
 DROP POLICY IF EXISTS "Anon Full Access User Presence" ON public.user_presence;
 CREATE POLICY "Anon Full Access User Presence" ON public.user_presence FOR ALL USING (true) WITH CHECK (true);
 
--- 5. HABILITAR REPLICACIÓN EN TIEMPO REAL (WebSockets Realtime)
+-- 6. HABILITAR REPLICACIÓN EN TIEMPO REAL (WebSockets Realtime)
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages, public.user_presence;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    CREATE PUBLICATION supabase_realtime;
   END IF;
-EXCEPTION WHEN OTHERS THEN
-  NULL;
+
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
+  EXCEPTION WHEN duplicate_object THEN
+    NULL;
+  END;
+
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.user_presence;
+  EXCEPTION WHEN duplicate_object THEN
+    NULL;
+  END;
 END $$;
 `;
 
@@ -145,7 +159,7 @@ export function unlockAudioOnUserInteraction() {
 // Subtle notification sound + mobile vibration
 export function playNotificationSound() {
   try {
-    // 1. Mobile Vibration feedback
+    // Mobile Vibration feedback
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate([60, 40, 80]);
     }
@@ -203,7 +217,6 @@ export function mergeChatMessages(
     if (!existing) {
       map.set(m.id, m);
     } else {
-      // Keep newer properties (e.g. read status, deleted flag)
       map.set(m.id, {
         ...existing,
         ...m,
@@ -441,7 +454,8 @@ export async function markMessagesAsRead(sender: string, recipient: string): Pro
 export async function pingUserPresence(
   username: string,
   currentScreen?: string,
-  isTypingTo?: string | null
+  isTypingTo?: string | null,
+  isOnline: boolean = true
 ): Promise<boolean> {
   if (!username) return false;
   const now = new Date().toISOString();
@@ -453,7 +467,7 @@ export async function pingUserPresence(
     presences[username.toLowerCase()] = {
       username,
       lastActive: now,
-      isOnline: true,
+      isOnline,
       currentScreen,
       isTypingTo: isTypingTo || undefined,
     };
@@ -468,7 +482,7 @@ export async function pingUserPresence(
     const payload = {
       username,
       last_active: now,
-      is_online: true,
+      is_online: isOnline,
       current_screen: currentScreen || 'Sistema',
       is_typing_to: isTypingTo || null,
     };
@@ -511,7 +525,7 @@ export async function fetchAllUserPresences(): Promise<Record<string, UserPresen
     (data || []).forEach((row: any) => {
       const lastActiveTime = new Date(row.last_active).getTime();
       const diff = Math.abs(nowTime - lastActiveTime);
-      // Online if flagged online and pinged within last 5 minutes (allowing for clock skew)
+      // Online if flagged online and pinged within last 5 minutes (handles clock skew)
       const isOnline = Boolean(row.is_online && diff < PRESENCE_TIMEOUT_MS);
 
       result[row.username.toLowerCase()] = {
