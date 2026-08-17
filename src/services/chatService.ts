@@ -543,8 +543,9 @@ export async function fetchAllUserPresences(): Promise<Record<string, UserPresen
     (data || []).forEach((row: any) => {
       const lastActiveTime = new Date(row.last_active).getTime();
       const diff = Math.abs(nowTime - lastActiveTime);
-      // Online if flagged online and pinged within last 5 minutes (handles clock skew)
-      const isOnline = Boolean(row.is_online && diff < PRESENCE_TIMEOUT_MS);
+      // Online if flagged online and pinged within last 15 minutes (accommodates slow networks & client clock variances)
+      const isRecent = !isNaN(lastActiveTime) ? diff < 900000 : true;
+      const isOnline = Boolean(row.is_online && isRecent);
 
       result[row.username.toLowerCase()] = {
         username: row.username,
