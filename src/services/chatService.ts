@@ -105,9 +105,37 @@ export function getLocalChatMessages(): ChatMessage[] {
 
 export function saveLocalChatMessages(messages: ChatMessage[]) {
   try {
-    localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(messages));
+    // Keep only the most recent 80 messages for local backup cache
+    const recent = messages.slice(-80);
+
+    // Strip out heavy base64 files from localStorage to avoid blowing the 5MB browser quota
+    const lightweight = recent.map((m) => {
+      if (!m.attachments || m.attachments.length === 0) return m;
+      return {
+        ...m,
+        attachments: m.attachments.map((att) => ({
+          ...att,
+          // Keep URL if small (<40KB), otherwise truncate for local storage to preserve quota
+          url: att.url && att.url.length > 40000 ? att.url.substring(0, 80) + '...' : att.url,
+        })),
+      };
+    });
+
+    localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(lightweight));
   } catch (e) {
-    console.error('[LocalChat] Failed to save messages to localStorage', e);
+    console.warn('[LocalChat] LocalStorage quota limit detected, pruning local cache...', e);
+    try {
+      // Emergency recovery: save only the last 25 text-only messages
+      const emergency = messages.slice(-25).map((m) => ({ ...m, attachments: [] }));
+      localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(emergency));
+    } catch {
+      // If localStorage is completely full, remove the local chat key safely
+      try {
+        localStorage.removeItem(LOCAL_CHAT_KEY);
+      } catch {
+        // ignore
+      }
+    }
   }
 }
 
@@ -544,12 +572,50 @@ export async function fetchAllUserPresences(): Promise<Record<string, UserPresen
   }
 }
 
-// Convert uploaded File to base64 DataURL
+// Convert uploaded File to base64 DataURL (with automatic high-performance image compression)
 export function readFileAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-    reader.readAsDataURL(file);
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDimension = 1200;
+          let { width, height } = img;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(e.target?.result as string);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          // Compress into webp/jpeg to reduce payload from megabytes to ~120KB
+          const compressed = canvas.toDataURL('image/jpeg', 0.82);
+          resolve(compressed);
+        };
+        img.onerror = () => resolve(e.target?.result as string);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    }
   });
 }
