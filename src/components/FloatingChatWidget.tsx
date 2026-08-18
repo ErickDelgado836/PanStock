@@ -218,35 +218,31 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     return otherUsers.filter((u) => getUnreadForUser(u.username) > 0).length;
   }, [otherUsers, allMessages]);
 
-  // Presence heartbeat every 20 seconds
+  // Presence heartbeat every 45 seconds (only when tab is visible)
   useEffect(() => {
     if (!currentUser?.username) return;
 
     const doPing = () => {
-      pingUserPresence(
-        currentUser.username,
-        currentScreen,
-        isTyping ? activeRecipient : null
-      );
+      if (document.visibilityState === 'visible') {
+        pingUserPresence(
+          currentUser.username,
+          currentScreen,
+          isTyping ? activeRecipient : null
+        );
+      }
     };
 
     doPing();
-    const interval = setInterval(doPing, 20000);
-
-    const refreshPresences = async () => {
-      const p = await fetchAllUserPresences();
-      setPresences(p);
-    };
-    refreshPresences();
-    const presenceInterval = setInterval(refreshPresences, 10000);
+    const interval = setInterval(doPing, 45000);
 
     return () => {
       clearInterval(interval);
-      clearInterval(presenceInterval);
     };
   }, [currentUser?.username, currentScreen, isTyping, activeRecipient]);
 
-  // Central message loader & notification detector
+  // Central message loader & notification detector (with debounce and error throttle)
+  const loadDataDebounceRef = useRef<any>(null);
+
   const loadAllData = async () => {
     if (!currentUser?.username) return;
 
@@ -298,15 +294,22 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
         localStorage.setItem(GLOBAL_LAST_SEEN_KEY, nowIso);
       }
     } catch (err) {
-      console.error('[ChatWidget] Error in loadAllData:', err);
+      console.warn('[ChatWidget] Graceful recovery in loadAllData:', err);
     }
   };
 
-  // Realtime subscription for Supabase
+  const debouncedLoadAllData = () => {
+    if (loadDataDebounceRef.current) clearTimeout(loadDataDebounceRef.current);
+    loadDataDebounceRef.current = setTimeout(() => {
+      loadAllData();
+    }, 600);
+  };
+
+  // Realtime subscription for Supabase (WebSockets push instantly without DB load)
   useEffect(() => {
     const unregister = registerSupabaseRealtimeCallback((payload) => {
       if (payload.table === 'chat_messages' || payload.table === 'user_presence') {
-        loadAllData();
+        debouncedLoadAllData();
       }
     });
 
@@ -315,10 +318,16 @@ export const FloatingChatWidget: React.FC<FloatingChatWidgetProps> = ({
     };
   }, [activeRecipient, currentUser?.username, isOpen, soundEnabled]);
 
-  // Periodic polling fallback
+  // Relaxed background polling fallback (only when tab is active/visible)
   useEffect(() => {
     loadAllData();
-    const poll = setInterval(loadAllData, 3500);
+    const pollIntervalMs = isOpen ? 30000 : 90000;
+    const poll = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadAllData();
+      }
+    }, pollIntervalMs);
+
     return () => clearInterval(poll);
   }, [activeRecipient, isOpen, currentUser?.username]);
 

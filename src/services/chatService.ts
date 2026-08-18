@@ -3,7 +3,7 @@ import { checkIsSupabaseConfigured, getSupabaseCredentials, supabase } from '../
 
 // Flag to track whether chat tables exist in Supabase
 let supabaseChatTablesAvailable: boolean | null = null;
-const PRESENCE_TIMEOUT_MS = 60000; // 1 minute to consider online
+const PRESENCE_TIMEOUT_MS = 120000; // 2 minutes to consider online reliably
 
 // Helper to check if an error is PGRST205 (missing table in schema)
 function isMissingTableError(error: any): boolean {
@@ -89,6 +89,7 @@ END $$;
 // Local storage fallback keys
 const LOCAL_CHAT_KEY = 'panstock_chat_messages';
 const LOCAL_PRESENCE_KEY = 'panstock_user_presence';
+const MAX_LOCAL_MESSAGES = 50;
 
 export function getLocalChatMessages(): ChatMessage[] {
   try {
@@ -100,10 +101,54 @@ export function getLocalChatMessages(): ChatMessage[] {
 }
 
 export function saveLocalChatMessages(messages: ChatMessage[]) {
+  if (!messages || messages.length === 0) {
+    try {
+      localStorage.removeItem(LOCAL_CHAT_KEY);
+    } catch {}
+    return;
+  }
+
+  // Keep only the latest MAX_LOCAL_MESSAGES for local cache
+  const recentMessages = messages.slice(-MAX_LOCAL_MESSAGES);
+
+  // Sanitize heavy attachments (strip large base64 strings from localStorage fallback to prevent QuotaExceededError)
+  const sanitizedForLocalStorage = recentMessages.map((m) => {
+    if (!m.attachments || m.attachments.length === 0) return m;
+    return {
+      ...m,
+      attachments: m.attachments.map((att) => {
+        // If url exceeds 15KB (e.g. raw base64 data url), strip it for local fallback cache
+        if (att.url && att.url.length > 15000) {
+          return {
+            ...att,
+            url: '', // Omits heavy base64 from local fallback; Supabase keeps full data
+          };
+        }
+        return att;
+      }),
+    };
+  });
+
+  const trySave = (items: any[]) => {
+    localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(items));
+  };
+
   try {
-    localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(messages));
-  } catch (e) {
-    console.error('[LocalChat] Failed to save messages to localStorage', e);
+    trySave(sanitizedForLocalStorage);
+  } catch {
+    // Graceful recovery for QuotaExceededError: progressively reduce message count
+    try {
+      trySave(sanitizedForLocalStorage.slice(-25));
+    } catch {
+      try {
+        trySave(sanitizedForLocalStorage.slice(-10));
+      } catch {
+        try {
+          // If still failing, purge local chat key so it doesn't block other app storage
+          localStorage.removeItem(LOCAL_CHAT_KEY);
+        } catch {}
+      }
+    }
   }
 }
 
@@ -492,19 +537,64 @@ export async function fetchAllUserPresences(): Promise<Record<string, UserPresen
       };
     });
 
-    localStorage.setItem(LOCAL_PRESENCE_KEY, JSON.stringify(result));
+    try {
+      localStorage.setItem(LOCAL_PRESENCE_KEY, JSON.stringify(result));
+    } catch {
+      // Ignore quota error for transient presence
+    }
     return result;
   } catch {
     return {};
   }
 }
 
-// Convert uploaded File to base64 DataURL
+// Convert uploaded File to base64 DataURL (with automatic smart image compression)
 export function readFileAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-    reader.readAsDataURL(file);
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const rawResult = e.target?.result as string;
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1200;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(rawResult);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.82);
+          resolve(compressed);
+        };
+        img.onerror = () => {
+          resolve(rawResult);
+        };
+        img.src = rawResult;
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    }
   });
 }

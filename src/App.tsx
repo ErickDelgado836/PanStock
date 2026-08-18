@@ -68,17 +68,12 @@ export default function App() {
     return unsub;
   }, []);
 
-  // Background sync every 20 seconds
+  // Initial sync when currentUser logs in
   useEffect(() => {
-    if (currentUser) {
-      const syncInterval = setInterval(() => {
-        if (navigator.onLine) {
-          syncFromSupabase().catch((err) => console.error('[Background Sync Error]', err));
-        }
-      }, 20000);
-      return () => clearInterval(syncInterval);
+    if (currentUser && navigator.onLine) {
+      syncFromSupabase().catch((err) => console.error('[Initial Sync Error]', err));
     }
-  }, [currentUser]);
+  }, [currentUser?.username]);
 
   // Ensure non-admin users are automatically redirected to INICIO if they land on ADMIN tab
   useEffect(() => {

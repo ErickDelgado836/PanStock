@@ -222,34 +222,52 @@ export async function syncFromSupabase(): Promise<boolean> {
 }
 
 // Auto-trigger sync on module load if Supabase is configured
+let lastSyncTimestamp = 0;
+let realtimeDebounceTimer: any = null;
+
 if (typeof window !== 'undefined') {
   if (checkIsSupabaseConfigured()) {
     setTimeout(() => {
+      lastSyncTimestamp = Date.now();
       syncFromSupabase();
     }, 100);
 
-    // Register realtime callback to trigger full sync when any changes are detected
+    // Register realtime callback to trigger full sync when any changes are detected (debounced to avoid spam)
     registerSupabaseRealtimeCallback((payload) => {
-      console.log('[Supabase Realtime] Change received in storage service, syncing...', payload);
-      syncFromSupabase().catch((err) => console.error('[Supabase Realtime Sync Error]', err));
+      const table = payload?.table;
+      // Chat and presence are handled separately in chatService, ignore here to avoid redundant table queries
+      if (table === 'chat_messages' || table === 'user_presence') {
+        return;
+      }
+
+      console.log('[Supabase Realtime] Change received in storage service for table:', table);
+      if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
+      realtimeDebounceTimer = setTimeout(() => {
+        lastSyncTimestamp = Date.now();
+        syncFromSupabase().catch((err) => console.error('[Supabase Realtime Sync Error]', err));
+      }, 1200);
     });
 
-    // Automatic background polling interval every 6 seconds as a guaranteed fallback for all users
+    // Relaxed background safety sync every 2 minutes (120s) - ONLY if tab is visible
     setInterval(() => {
-      if (checkIsSupabaseConfigured()) {
+      if (
+        document.visibilityState === 'visible' &&
+        checkIsSupabaseConfigured() &&
+        Date.now() - lastSyncTimestamp > 90000
+      ) {
+        lastSyncTimestamp = Date.now();
         syncFromSupabase().catch((err) => console.error('[Background Sync Error]', err));
       }
-    }, 6000);
+    }, 120000);
 
-    // Sync instantly when user switches back to window/tab
-    window.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && checkIsSupabaseConfigured()) {
-        syncFromSupabase().catch((err) => console.error('[Visibility Sync Error]', err));
-      }
-    });
-
+    // Sync when user focuses back on the window if not synced recently
     window.addEventListener('focus', () => {
-      if (checkIsSupabaseConfigured()) {
+      if (
+        document.visibilityState === 'visible' &&
+        checkIsSupabaseConfigured() &&
+        Date.now() - lastSyncTimestamp > 45000
+      ) {
+        lastSyncTimestamp = Date.now();
         syncFromSupabase().catch((err) => console.error('[Focus Sync Error]', err));
       }
     });
