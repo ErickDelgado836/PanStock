@@ -28,7 +28,6 @@ import { TrasladosModal } from './components/Movements/TrasladosModal';
 import { DescargosModal } from './components/Movements/DescargosModal';
 import { GlobalProductCatalogModal } from './components/GlobalProductCatalogModal';
 import { FloatingChatWidget } from './components/FloatingChatWidget';
-import { pingUserPresence } from './services/chatService';
 
 import { Building2, Plus, ArrowRightLeft, ArrowUpRight, Shield, Layers, RefreshCw } from 'lucide-react';
 
@@ -109,9 +108,6 @@ export default function App() {
     setCurrentUser(user);
     setShowWelcomeModal(true); // Open personalized Welcome Announcement!
 
-    // Broadcast instant online status
-    pingUserPresence(user.username, 'Inicio', null, true);
-
     // Non-admin users ALWAYS land on the main menu ('INICIO')
     if (user.isAdmin && (window.location.hash === '#/admin' || window.location.pathname === '/admin')) {
       setActiveTab('ADMIN');
@@ -124,9 +120,6 @@ export default function App() {
   };
 
   const handleConfirmLogout = () => {
-    if (currentUser) {
-      pingUserPresence(currentUser.username, 'Desconectado', null, false);
-    }
     setShowLogoutConfirm(false);
     setShowWelcomeModal(false);
     setLocalUser(null);

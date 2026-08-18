@@ -63,9 +63,6 @@ let realtimeChannel: any = null;
 
 export function registerSupabaseRealtimeCallback(callback: RealtimeCallback) {
   realtimeCallbacks.push(callback);
-  if (!realtimeChannel && checkIsSupabaseConfigured()) {
-    setupRealtimeSubscription();
-  }
   return () => {
     const idx = realtimeCallbacks.indexOf(callback);
     if (idx !== -1) realtimeCallbacks.splice(idx, 1);
@@ -73,8 +70,7 @@ export function registerSupabaseRealtimeCallback(callback: RealtimeCallback) {
 }
 
 export function setupRealtimeSubscription() {
-  const isConfigured = checkIsSupabaseConfigured();
-  if (!isConfigured) {
+  if (!isSupabaseConfigured) {
     if (realtimeChannel) {
       realtimeChannel.unsubscribe();
       realtimeChannel = null;
@@ -111,11 +107,6 @@ export function setupRealtimeSubscription() {
     .subscribe((status, err) => {
       console.log('[Supabase Realtime] Channel subscription status:', status, err ? err : '');
     });
-}
-
-// Automatically initiate realtime subscription on startup if configured
-if (checkIsSupabaseConfigured()) {
-  setupRealtimeSubscription();
 }
 
 export function updateSupabaseClient(url: string, key: string) {

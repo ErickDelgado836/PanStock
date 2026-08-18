@@ -1,18 +1,28 @@
 import { ChatMessage, UserPresence, ChatAttachment } from '../types';
 import { checkIsSupabaseConfigured, getSupabaseCredentials, supabase } from '../lib/supabase';
 
-// 5 minutes tolerance for online presence (prevents clock skew issues)
-const PRESENCE_TIMEOUT_MS = 300000;
+// Flag to track whether chat tables exist in Supabase
+let supabaseChatTablesAvailable: boolean | null = null;
+const PRESENCE_TIMEOUT_MS = 60000; // 1 minute to consider online
 
-export function areSupabaseChatTablesConfigured(): boolean {
-  return checkIsSupabaseConfigured();
+// Helper to check if an error is PGRST205 (missing table in schema)
+function isMissingTableError(error: any): boolean {
+  return (
+    error?.code === 'PGRST205' ||
+    error?.message?.includes?.('Could not find the table') ||
+    error?.message?.includes?.('does not exist')
+  );
 }
 
-// ========================================================
-// SQL SCRIPT FOR SUPABASE REALTIME & CHAT SETUP
-// ========================================================
+export function areSupabaseChatTablesConfigured(): boolean {
+  return supabaseChatTablesAvailable !== false;
+}
+
+// ==========================================
+// SQL SCRIPT FOR CHAT SETUP IN SUPABASE
+// ==========================================
 export const SUPABASE_CHAT_SETUP_SQL = `-- ========================================================
--- SCRIPT DE TIEMPO REAL INSTANTÁNEO PARA CHAT Y PRESENCIA
+-- TABLAS Y REGLAS PARA EL MÓDULO DE CHAT INTERNO Y PRESENCIA
 -- PanStock Inventory System - Supabase / PostgreSQL
 -- Ejecuta este script en el "SQL Editor" de tu panel Supabase
 -- ========================================================
@@ -47,11 +57,7 @@ CREATE TABLE IF NOT EXISTS public.user_presence (
   is_typing_to TEXT DEFAULT NULL
 );
 
--- 3. HABILITAR IDENTIDAD DE RÉPLICA COMPLETA (CRUCIAL PARA REALTIME EN SUPABASE)
-ALTER TABLE public.chat_messages REPLICA IDENTITY FULL;
-ALTER TABLE public.user_presence REPLICA IDENTITY FULL;
-
--- 4. ÍNDICES DE VELOCIDAD PARA CHAT
+-- 3. ÍNDICES DE VELOCIDAD PARA CHAT
 CREATE INDEX IF NOT EXISTS idx_chat_messages_sender ON public.chat_messages(sender);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_recipient ON public.chat_messages(recipient);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp ON public.chat_messages(timestamp DESC);
@@ -59,7 +65,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_is_read ON public.chat_messages(is_
 CREATE INDEX IF NOT EXISTS idx_chat_messages_pair ON public.chat_messages(sender, recipient, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_user_presence_last_active ON public.user_presence(last_active DESC);
 
--- 5. SEGURIDAD Y PERMISOS RLS (Acceso público permitido con anon key)
+-- 4. SEGURIDAD Y PERMISOS (RLS Habilitado con acceso público para anon key)
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_presence ENABLE ROW LEVEL SECURITY;
 
@@ -69,24 +75,14 @@ CREATE POLICY "Anon Full Access Chat Messages" ON public.chat_messages FOR ALL U
 DROP POLICY IF EXISTS "Anon Full Access User Presence" ON public.user_presence;
 CREATE POLICY "Anon Full Access User Presence" ON public.user_presence FOR ALL USING (true) WITH CHECK (true);
 
--- 6. HABILITAR REPLICACIÓN EN TIEMPO REAL (WebSockets Realtime)
+-- 5. HABILITAR REPLICACIÓN EN TIEMPO REAL (WebSockets Realtime)
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
-    CREATE PUBLICATION supabase_realtime;
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages, public.user_presence;
   END IF;
-
-  BEGIN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
-  EXCEPTION WHEN duplicate_object THEN
-    NULL;
-  END;
-
-  BEGIN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.user_presence;
-  EXCEPTION WHEN duplicate_object THEN
-    NULL;
-  END;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
 END $$;
 `;
 
@@ -105,27 +101,9 @@ export function getLocalChatMessages(): ChatMessage[] {
 
 export function saveLocalChatMessages(messages: ChatMessage[]) {
   try {
-    // Keep only the most recent 50 messages for local fast caching
-    const recent = messages.slice(-50);
-    localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(recent));
+    localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(messages));
   } catch (e) {
-    console.warn('[LocalChat] LocalStorage quota limit detected, safely pruning local cache...', e);
-    try {
-      // Emergency recovery: strip attachments from older messages to save space without breaking URLs
-      const lightweight = messages.slice(-30).map((m, idx, arr) => {
-        // Keep full attachments for the last 5 messages, strip from older
-        if (idx >= arr.length - 5) return m;
-        return { ...m, attachments: [] };
-      });
-      localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(lightweight));
-    } catch {
-      try {
-        const minimal = messages.slice(-15).map((m) => ({ ...m, attachments: [] }));
-        localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(minimal));
-      } catch {
-        // ignore safely
-      }
-    }
+    console.error('[LocalChat] Failed to save messages to localStorage', e);
   }
 }
 
@@ -140,59 +118,19 @@ export function filterMessagesForConversation(
   }
   const u1 = currentUser.toLowerCase();
   const u2 = recipient.toLowerCase();
-
   return all.filter((m) => {
-    if (m.recipient === 'GLOBAL') return false;
-    const sender = m.sender.toLowerCase();
-    const recip = m.recipient.toLowerCase();
-    return (sender === u1 && recip === u2) || (sender === u2 && recip === u1);
+    const s = m.sender.toLowerCase();
+    const r = m.recipient.toLowerCase();
+    return (s === u1 && r === u2) || (s === u2 && r === u1);
   });
 }
 
-// Audio context singleton for mobile & desktop
-let sharedAudioContext: AudioContext | null = null;
-let isAudioUnlocked = false;
-
-// Unlock mobile audio upon first user gesture (touch, click, tap)
-export function unlockAudioOnUserInteraction() {
-  if (isAudioUnlocked) return;
-  try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
-    if (!sharedAudioContext) {
-      sharedAudioContext = new AudioContextClass();
-    }
-    if (sharedAudioContext.state === 'suspended') {
-      sharedAudioContext.resume().then(() => {
-        isAudioUnlocked = true;
-      });
-    } else {
-      isAudioUnlocked = true;
-    }
-  } catch {
-    // Ignore autoplay restriction failures until valid gesture
-  }
-}
-
-// Subtle notification sound + mobile vibration
+// Subtle notification sound using Web Audio API (no external file needed)
 export function playNotificationSound() {
   try {
-    // Mobile Vibration feedback
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate([60, 40, 80]);
-    }
-
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) return;
-
-    if (!sharedAudioContext) {
-      sharedAudioContext = new AudioContextClass();
-    }
-
-    const ctx = sharedAudioContext;
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
+    const ctx = new AudioContextClass();
 
     const now = ctx.currentTime;
     const osc1 = ctx.createOscillator();
@@ -207,7 +145,7 @@ export function playNotificationSound() {
     osc2.frequency.setValueAtTime(880, now);
     osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.15); // D6
 
-    gainNode.gain.setValueAtTime(0.12, now);
+    gainNode.gain.setValueAtTime(0.08, now);
     gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
 
     osc1.connect(gainNode);
@@ -219,34 +157,8 @@ export function playNotificationSound() {
     osc1.stop(now + 0.35);
     osc2.stop(now + 0.35);
   } catch {
-    // Audio autoplay might be blocked on some mobile browsers before interaction
+    // Audio autoplay might be blocked by browser policy until user interacts
   }
-}
-
-// Merge two message arrays deduplicating by ID and sorting by timestamp
-export function mergeChatMessages(
-  current: ChatMessage[],
-  incoming: ChatMessage[]
-): ChatMessage[] {
-  const map = new Map<string, ChatMessage>();
-  current.forEach((m) => map.set(m.id, m));
-  incoming.forEach((m) => {
-    const existing = map.get(m.id);
-    if (!existing) {
-      map.set(m.id, m);
-    } else {
-      map.set(m.id, {
-        ...existing,
-        ...m,
-        isRead: m.isRead || existing.isRead,
-        isDeleted: m.isDeleted || existing.isDeleted,
-      });
-    }
-  });
-
-  return Array.from(map.values()).sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
 }
 
 // Fetch messages between two users or global room
@@ -260,36 +172,49 @@ export async function fetchChatMessagesFromSupabase(
   }
 
   try {
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .order('timestamp', { ascending: true });
+    let query = supabase.from('chat_messages').select('*').order('timestamp', { ascending: true });
 
+    if (!user2 || user2 === 'GLOBAL') {
+      query = query.eq('recipient', 'GLOBAL');
+    } else {
+      query = query.or(
+        `and(sender.eq.${user1},recipient.eq.${user2}),and(sender.eq.${user2},recipient.eq.${user1})`
+      );
+    }
+
+    const { data, error } = await query;
     if (error) {
-      console.warn('[Supabase Chat] Fallback to local on error:', error.message);
+      if (isMissingTableError(error)) {
+        supabaseChatTablesAvailable = false;
+      } else {
+        console.warn('[Supabase Chat] Fallback to local on error:', error.message);
+      }
       return filterMessagesForConversation(getLocalChatMessages(), user1, user2);
     }
+    supabaseChatTablesAvailable = true;
 
     const formatted: ChatMessage[] = (data || []).map((row: any) => ({
       id: row.id,
       sender: row.sender,
       recipient: row.recipient,
-      content: row.content || '',
+      content: row.content,
       attachments: row.attachments || [],
-      timestamp: row.timestamp || new Date().toISOString(),
-      isRead: Boolean(row.is_read),
+      timestamp: row.timestamp,
+      isRead: row.is_read ?? false,
       readAt: row.read_at,
       replyTo: row.reply_to || undefined,
-      isDeleted: Boolean(row.is_deleted),
+      isDeleted: row.is_deleted ?? false,
       deletedAt: row.deleted_at || undefined,
     }));
 
     // Update local cache
     const existing = getLocalChatMessages();
-    const merged = mergeChatMessages(existing, formatted);
-    saveLocalChatMessages(merged);
+    const map = new Map<string, ChatMessage>();
+    existing.forEach((m) => map.set(m.id, m));
+    formatted.forEach((m) => map.set(m.id, m));
+    saveLocalChatMessages(Array.from(map.values()));
 
-    return filterMessagesForConversation(merged, user1, user2);
+    return formatted;
   } catch (err) {
     console.error('[Supabase Chat] fetchChatMessages Exception', err);
     return filterMessagesForConversation(getLocalChatMessages(), user1, user2);
@@ -297,7 +222,7 @@ export async function fetchChatMessagesFromSupabase(
 }
 
 // Fetch all messages (for calculating unread badge counters across all contacts)
-export async function fetchAllUserChatMessages(currentUser?: string): Promise<ChatMessage[]> {
+export async function fetchAllUserChatMessages(currentUser: string): Promise<ChatMessage[]> {
   if (!checkIsSupabaseConfigured()) {
     return getLocalChatMessages();
   }
@@ -306,32 +231,36 @@ export async function fetchAllUserChatMessages(currentUser?: string): Promise<Ch
     const { data, error } = await supabase
       .from('chat_messages')
       .select('*')
+      .or(`recipient.eq.GLOBAL,recipient.eq.${currentUser},sender.eq.${currentUser}`)
       .order('timestamp', { ascending: true });
 
     if (error) {
-      console.warn('[Supabase Chat] fetchAllUserChatMessages error:', error.message);
+      if (isMissingTableError(error)) {
+        supabaseChatTablesAvailable = false;
+      } else {
+        console.warn('[Supabase Chat] fetchAllUserChatMessages error:', error.message);
+      }
       return getLocalChatMessages();
     }
+    supabaseChatTablesAvailable = true;
 
     const formatted: ChatMessage[] = (data || []).map((row: any) => ({
       id: row.id,
       sender: row.sender,
       recipient: row.recipient,
-      content: row.content || '',
+      content: row.content,
       attachments: row.attachments || [],
-      timestamp: row.timestamp || new Date().toISOString(),
-      isRead: Boolean(row.is_read),
+      timestamp: row.timestamp,
+      isRead: row.is_read ?? false,
       readAt: row.read_at,
       replyTo: row.reply_to || undefined,
-      isDeleted: Boolean(row.is_deleted),
+      isDeleted: row.is_deleted ?? false,
       deletedAt: row.deleted_at || undefined,
     }));
 
-    // Merge and sync to local
-    const local = getLocalChatMessages();
-    const merged = mergeChatMessages(local, formatted);
-    saveLocalChatMessages(merged);
-    return merged;
+    // Sync to local
+    saveLocalChatMessages(formatted);
+    return formatted;
   } catch (err) {
     console.error('[Supabase Chat] fetchAllUserChatMessages exception', err);
     return getLocalChatMessages();
@@ -350,7 +279,7 @@ export async function sendChatMessage(msg: ChatMessage): Promise<boolean> {
   }
   saveLocalChatMessages(local);
 
-  if (!checkIsSupabaseConfigured()) {
+  if (!checkIsSupabaseConfigured() || supabaseChatTablesAvailable === false) {
     return true;
   }
 
@@ -363,18 +292,23 @@ export async function sendChatMessage(msg: ChatMessage): Promise<boolean> {
       content: msg.content,
       attachments: msg.attachments || [],
       timestamp: msg.timestamp,
-      is_read: Boolean(msg.isRead),
-      read_at: msg.readAt || null,
+      is_read: msg.isRead,
+      read_at: msg.readAt,
       reply_to: msg.replyTo || null,
-      is_deleted: Boolean(msg.isDeleted),
+      is_deleted: msg.isDeleted || false,
       deleted_at: msg.deletedAt || null,
     };
 
     const { error } = await supabase.from('chat_messages').upsert(payload, { onConflict: 'id' });
     if (error) {
-      console.error('[Supabase Chat] sendChatMessage Error:', error);
+      if (isMissingTableError(error)) {
+        supabaseChatTablesAvailable = false;
+      } else {
+        console.error('[Supabase Chat] sendChatMessage Error:', error);
+      }
       return false;
     }
+    supabaseChatTablesAvailable = true;
     return true;
   } catch (err) {
     console.error('[Supabase Chat] sendChatMessage Exception:', err);
@@ -397,7 +331,7 @@ export async function deleteChatMessage(messageId: string): Promise<boolean> {
     saveLocalChatMessages(local);
   }
 
-  if (!checkIsSupabaseConfigured()) {
+  if (!checkIsSupabaseConfigured() || supabaseChatTablesAvailable === false) {
     return true;
   }
 
@@ -414,7 +348,11 @@ export async function deleteChatMessage(messageId: string): Promise<boolean> {
       .eq('id', messageId);
 
     if (error) {
-      console.error('[Supabase Chat] deleteChatMessage Error:', error);
+      if (isMissingTableError(error)) {
+        supabaseChatTablesAvailable = false;
+      } else {
+        console.error('[Supabase Chat] deleteChatMessage Error:', error);
+      }
       return false;
     }
     return true;
@@ -444,20 +382,25 @@ export async function markMessagesAsRead(sender: string, recipient: string): Pro
   });
   if (modified) saveLocalChatMessages(local);
 
-  if (!checkIsSupabaseConfigured()) return true;
+  if (!checkIsSupabaseConfigured() || supabaseChatTablesAvailable === false) return true;
 
   try {
     const { error } = await supabase
       .from('chat_messages')
       .update({ is_read: true, read_at: now })
-      .ilike('sender', sender)
-      .ilike('recipient', recipient)
+      .eq('sender', sender)
+      .eq('recipient', recipient)
       .eq('is_read', false);
 
     if (error) {
-      console.error('[Supabase Chat] markMessagesAsRead Error:', error);
+      if (isMissingTableError(error)) {
+        supabaseChatTablesAvailable = false;
+      } else {
+        console.error('[Supabase Chat] markMessagesAsRead Error:', error);
+      }
       return false;
     }
+    supabaseChatTablesAvailable = true;
     return true;
   } catch (err) {
     console.error('[Supabase Chat] markMessagesAsRead Exception:', err);
@@ -472,8 +415,7 @@ export async function markMessagesAsRead(sender: string, recipient: string): Pro
 export async function pingUserPresence(
   username: string,
   currentScreen?: string,
-  isTypingTo?: string | null,
-  isOnline: boolean = true
+  isTypingTo?: string | null
 ): Promise<boolean> {
   if (!username) return false;
   const now = new Date().toISOString();
@@ -485,7 +427,7 @@ export async function pingUserPresence(
     presences[username.toLowerCase()] = {
       username,
       lastActive: now,
-      isOnline,
+      isOnline: true,
       currentScreen,
       isTypingTo: isTypingTo || undefined,
     };
@@ -500,14 +442,14 @@ export async function pingUserPresence(
     const payload = {
       username,
       last_active: now,
-      is_online: isOnline,
+      is_online: true,
       current_screen: currentScreen || 'Sistema',
       is_typing_to: isTypingTo || null,
     };
 
     const { error } = await supabase.from('user_presence').upsert(payload, { onConflict: 'username' });
     if (error) {
-      console.warn('[Supabase Presence] ping error:', error.message);
+      // Don't clutter console if table is not yet created
       return false;
     }
     return true;
@@ -517,35 +459,29 @@ export async function pingUserPresence(
 }
 
 export async function fetchAllUserPresences(): Promise<Record<string, UserPresence>> {
-  const localPresences = (() => {
+  if (!checkIsSupabaseConfigured()) {
     try {
       const raw = localStorage.getItem(LOCAL_PRESENCE_KEY);
       return raw ? JSON.parse(raw) : {};
     } catch {
       return {};
     }
-  })();
-
-  if (!checkIsSupabaseConfigured()) {
-    return localPresences;
   }
 
   try {
     const { data, error } = await supabase.from('user_presence').select('*');
     if (error) {
-      console.warn('[Supabase Presence] fetch error:', error.message);
-      return localPresences;
+      const raw = localStorage.getItem(LOCAL_PRESENCE_KEY);
+      return raw ? JSON.parse(raw) : {};
     }
 
-    const result: Record<string, UserPresence> = { ...localPresences };
+    const result: Record<string, UserPresence> = {};
     const nowTime = Date.now();
 
     (data || []).forEach((row: any) => {
       const lastActiveTime = new Date(row.last_active).getTime();
-      const diff = Math.abs(nowTime - lastActiveTime);
-      // Online if flagged online and pinged within last 15 minutes (accommodates slow networks & client clock variances)
-      const isRecent = !isNaN(lastActiveTime) ? diff < 900000 : true;
-      const isOnline = Boolean(row.is_online && isRecent);
+      // Considered online if active within the last 90 seconds
+      const isOnline = Boolean(row.is_online && nowTime - lastActiveTime < PRESENCE_TIMEOUT_MS);
 
       result[row.username.toLowerCase()] = {
         username: row.username,
@@ -559,54 +495,16 @@ export async function fetchAllUserPresences(): Promise<Record<string, UserPresen
     localStorage.setItem(LOCAL_PRESENCE_KEY, JSON.stringify(result));
     return result;
   } catch {
-    return localPresences;
+    return {};
   }
 }
 
-// Convert uploaded File to base64 DataURL (with automatic high-performance image compression)
+// Convert uploaded File to base64 DataURL
 export function readFileAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const maxDimension = 1200;
-          let { width, height } = img;
-          if (width > maxDimension || height > maxDimension) {
-            if (width > height) {
-              height = Math.round((height * maxDimension) / width);
-              width = maxDimension;
-            } else {
-              width = Math.round((width * maxDimension) / height);
-              height = maxDimension;
-            }
-          }
-
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            resolve(e.target?.result as string);
-            return;
-          }
-
-          ctx.drawImage(img, 0, 0, width, height);
-          // Compress into webp/jpeg to reduce payload from megabytes to ~120KB
-          const compressed = canvas.toDataURL('image/jpeg', 0.82);
-          resolve(compressed);
-        };
-        img.onerror = () => resolve(e.target?.result as string);
-        img.src = e.target?.result as string;
-      };
-      reader.onerror = (error) => reject(error);
-      reader.readAsDataURL(file);
-    } else {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
-      reader.readAsDataURL(file);
-    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
   });
 }

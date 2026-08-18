@@ -9,7 +9,6 @@ import {
 } from '../types';
 import {
   DEFAULT_ADMIN_USER,
-  DEFAULT_TEAM_USERS,
   DEFAULT_CATEGORIES,
   DEFAULT_WAREHOUSES,
   INITIAL_MOVEMENTS,
@@ -93,18 +92,12 @@ export async function syncFromSupabase(): Promise<boolean> {
     const remoteUsers = await fetchUsersFromSupabase();
     if (remoteUsers) {
       if (remoteUsers.length === 0) {
-        // Seed default team users if empty
-        console.log('[Supabase Sync] Seeding initial team users to Supabase...');
-        for (const u of DEFAULT_TEAM_USERS) {
-          await saveUserToSupabase(u);
-        }
-        localStorage.setItem(KEYS.USERS, JSON.stringify(DEFAULT_TEAM_USERS));
+        // Seed default admin if empty
+        console.log('[Supabase Sync] Seeding initial admin user to Supabase...');
+        await saveUserToSupabase(DEFAULT_ADMIN_USER);
+        localStorage.setItem(KEYS.USERS, JSON.stringify([DEFAULT_ADMIN_USER]));
       } else {
-        const userMap = new Map<string, UserProfile>();
-        DEFAULT_TEAM_USERS.forEach((u) => userMap.set(u.username.toLowerCase(), u));
-        remoteUsers.forEach((u) => userMap.set(u.username.toLowerCase(), u));
-        const mergedUsers = Array.from(userMap.values());
-        localStorage.setItem(KEYS.USERS, JSON.stringify(mergedUsers));
+        localStorage.setItem(KEYS.USERS, JSON.stringify(remoteUsers));
       }
     }
 
@@ -272,21 +265,18 @@ export function getWarehouses(): Warehouse[] {
 export function getUsers(): UserProfile[] {
   const data = localStorage.getItem(KEYS.USERS);
   if (!data) {
-    localStorage.setItem(KEYS.USERS, JSON.stringify(DEFAULT_TEAM_USERS));
-    return DEFAULT_TEAM_USERS;
+    const initial = [DEFAULT_ADMIN_USER];
+    localStorage.setItem(KEYS.USERS, JSON.stringify(initial));
+    return initial;
   }
   try {
     const parsed = JSON.parse(data);
-    const users: UserProfile[] = Array.isArray(parsed) ? parsed : DEFAULT_TEAM_USERS;
-    const userMap = new Map<string, UserProfile>();
-    DEFAULT_TEAM_USERS.forEach((u) => userMap.set(u.username.toLowerCase(), u));
-    users.forEach((u) => userMap.set(u.username.toLowerCase(), u));
-    const merged = Array.from(userMap.values());
-    return merged;
+    return Array.isArray(parsed) ? parsed : [DEFAULT_ADMIN_USER];
   } catch (e) {
     console.error('[Storage] Corrupt users data, resetting', e);
-    localStorage.setItem(KEYS.USERS, JSON.stringify(DEFAULT_TEAM_USERS));
-    return DEFAULT_TEAM_USERS;
+    const initial = [DEFAULT_ADMIN_USER];
+    localStorage.setItem(KEYS.USERS, JSON.stringify(initial));
+    return initial;
   }
 }
 
