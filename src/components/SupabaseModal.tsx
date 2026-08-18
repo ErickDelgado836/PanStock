@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Database, CheckCircle2, AlertTriangle, Copy, Check, RefreshCw, X, Code, Server, ShieldCheck, Key, Link, Lock, Zap, Network, Layers } from 'lucide-react';
-import { SUPABASE_SETUP_SQL, SUPABASE_OPTIMIZATION_INDEXES_SQL, getSupabaseCredentials, updateSupabaseClient, checkIsSupabaseConfigured } from '../lib/supabase';
+import { Database, CheckCircle2, AlertTriangle, Copy, Check, RefreshCw, X, Code, Server, ShieldCheck, Key, Link, Lock, Zap, Network, Layers, MessageSquare, Users } from 'lucide-react';
+import { SUPABASE_SETUP_SQL, SUPABASE_OPTIMIZATION_INDEXES_SQL, SUPABASE_CHAT_SETUP_SQL, getSupabaseCredentials, updateSupabaseClient, checkIsSupabaseConfigured } from '../lib/supabase';
 import { getSupabaseSyncStatus, syncFromSupabase } from '../services/storage';
 import { UserProfile } from '../types';
 
@@ -13,9 +13,10 @@ interface SupabaseModalProps {
 export const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose, currentUser }) => {
   const [copiedFull, setCopiedFull] = useState(false);
   const [copiedIndexes, setCopiedIndexes] = useState(false);
+  const [copiedChat, setCopiedChat] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState<'status' | 'sql' | 'indexes' | 'guide'>('status');
-  const [sqlViewMode, setSqlViewMode] = useState<'full' | 'indexes_only'>('indexes_only');
+  const [sqlViewMode, setSqlViewMode] = useState<'full' | 'chat_only' | 'indexes_only'>('chat_only');
 
   const isAdmin = currentUser?.isAdmin ?? false;
 
@@ -39,6 +40,12 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose, c
     navigator.clipboard.writeText(SUPABASE_OPTIMIZATION_INDEXES_SQL);
     setCopiedIndexes(true);
     setTimeout(() => setCopiedIndexes(false), 2500);
+  };
+
+  const handleCopyChatSQL = () => {
+    navigator.clipboard.writeText(SUPABASE_CHAT_SETUP_SQL);
+    setCopiedChat(true);
+    setTimeout(() => setCopiedChat(false), 2500);
   };
 
   const handleManualSync = async () => {
@@ -318,6 +325,8 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose, c
                     { title: 'productos', desc: 'Catálogo, existencias, alertas y lotes JSONB (FK: category_id)', badge: '8 Índices + GIN' },
                     { title: 'movimientos', desc: 'Kardex de transacciones y notas (FK: usuario, almacenes)', badge: '10 Índices + GIN' },
                     { title: 'auditorias', desc: 'Conteo físico e inventario periódico (FK: almacén, categoría)', badge: '6 Índices + GIN' },
+                    { title: 'chat_messages', desc: 'Mensajes globales y privados con adjuntos y respuestas (FK: sender, recipient)', badge: '5 Índices' },
+                    { title: 'user_presence', desc: 'Detección en tiempo real de usuarios conectados y pantalla activa (PK: username)', badge: '1 Índice + Realtime' },
                   ].map((table) => (
                     <div key={table.title} className="p-3 bg-white border border-slate-200 rounded-xl flex flex-col justify-between">
                       <div>
@@ -494,61 +503,95 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose, c
                 <div>
                   <h3 className="font-extrabold text-sm text-slate-900">Sentencias SQL para Supabase SQL Editor</h3>
                   <p className="text-xs text-slate-500 font-medium">
-                    Elige el modo según si vas a crear tu base de datos desde cero o si deseas agregar índices a tablas existentes.
+                    Elige el script que deseas ejecutar en Supabase para sincronizar tu base de datos o habilitar el chat.
                   </p>
                 </div>
 
                 {/* Switch view mode */}
-                <div className="flex items-center gap-2 bg-slate-200/70 p-1 rounded-xl shrink-0">
+                <div className="flex items-center gap-1.5 bg-slate-200/70 p-1 rounded-xl shrink-0">
                   <button
-                    onClick={() => setSqlViewMode('indexes_only')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
-                      sqlViewMode === 'indexes_only'
-                        ? 'bg-white text-emerald-700 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                    onClick={() => setSqlViewMode('chat_only')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      sqlViewMode === 'chat_only'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'text-slate-700 hover:text-slate-900'
                     }`}
                   >
-                    Solo Índices & Relaciones
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    Chat & Presencia
                   </button>
                   <button
                     onClick={() => setSqlViewMode('full')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
                       sqlViewMode === 'full'
                         ? 'bg-white text-emerald-700 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                        : 'text-slate-700 hover:text-slate-900'
                     }`}
                   >
-                    Script Completo (Tablas + Índices)
+                    <Database className="w-3.5 h-3.5" />
+                    Script Completo (8 Tablas)
+                  </button>
+                  <button
+                    onClick={() => setSqlViewMode('indexes_only')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      sqlViewMode === 'indexes_only'
+                        ? 'bg-white text-emerald-700 shadow-xs'
+                        : 'text-slate-700 hover:text-slate-900'
+                    }`}
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    Solo Índices
                   </button>
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
                 <div className="text-xs font-bold text-slate-700">
-                  {sqlViewMode === 'indexes_only' ? (
+                  {sqlViewMode === 'chat_only' && (
+                    <span className="flex items-center gap-1.5 text-emerald-700">
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      Tablas de Chat Interno + Monitoreo de Usuarios Conectados en Línea + Realtime
+                    </span>
+                  )}
+                  {sqlViewMode === 'indexes_only' && (
                     <span className="flex items-center gap-1.5 text-amber-700">
                       <Zap className="w-3.5 h-3.5" />
                       Script seguro de Índices y Foreign Keys (Idempotente con IF NOT EXISTS)
                     </span>
-                  ) : (
-                    <span className="flex items-center gap-1.5 text-emerald-700">
+                  )}
+                  {sqlViewMode === 'full' && (
+                    <span className="flex items-center gap-1.5 text-blue-700">
                       <Database className="w-3.5 h-3.5" />
-                      Script de Creación Total de Tablas + Políticas RLS + Índices + Datos Base
+                      Script de Creación Total (8 Tablas + Chat + Presencia + Índices + Realtime)
                     </span>
                   )}
                 </div>
 
                 <button
-                  onClick={sqlViewMode === 'indexes_only' ? handleCopyIndexesSQL : handleCopyFullSQL}
+                  onClick={
+                    sqlViewMode === 'chat_only'
+                      ? handleCopyChatSQL
+                      : sqlViewMode === 'indexes_only'
+                      ? handleCopyIndexesSQL
+                      : handleCopyFullSQL
+                  }
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl flex items-center gap-2 shadow-xs transition-all shrink-0 cursor-pointer"
                 >
-                  {(sqlViewMode === 'indexes_only' ? copiedIndexes : copiedFull) ? (
+                  {(sqlViewMode === 'chat_only'
+                    ? copiedChat
+                    : sqlViewMode === 'indexes_only'
+                    ? copiedIndexes
+                    : copiedFull) ? (
                     <Check className="w-4 h-4 text-white" />
                   ) : (
                     <Copy className="w-4 h-4" />
                   )}
                   <span>
-                    {(sqlViewMode === 'indexes_only' ? copiedIndexes : copiedFull)
+                    {(sqlViewMode === 'chat_only'
+                      ? copiedChat
+                      : sqlViewMode === 'indexes_only'
+                      ? copiedIndexes
+                      : copiedFull)
                       ? '¡Copiado al portapapeles!'
                       : 'Copiar este Código SQL'}
                   </span>
@@ -557,7 +600,11 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose, c
 
               <div className="relative">
                 <pre className="p-4 bg-slate-900 text-emerald-400 font-mono text-[11px] leading-relaxed rounded-2xl overflow-x-auto max-h-[380px] custom-scrollbar border border-slate-800 selection:bg-emerald-800 selection:text-white">
-                  {sqlViewMode === 'indexes_only' ? SUPABASE_OPTIMIZATION_INDEXES_SQL : SUPABASE_SETUP_SQL}
+                  {sqlViewMode === 'chat_only'
+                    ? SUPABASE_CHAT_SETUP_SQL
+                    : sqlViewMode === 'indexes_only'
+                    ? SUPABASE_OPTIMIZATION_INDEXES_SQL
+                    : SUPABASE_SETUP_SQL}
                 </pre>
               </div>
             </div>

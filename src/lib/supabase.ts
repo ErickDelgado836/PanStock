@@ -615,6 +615,71 @@ export async function saveAuditToSupabase(audit: PhysicalAuditRecord): Promise<b
 }
 
 // SQL Script generator for Supabase setup
+export const SUPABASE_CHAT_SETUP_SQL = `-- ========================================================
+-- TABLAS Y REGLAS PARA EL MÓDULO DE CHAT INTERNO Y PRESENCIA EN LÍNEA
+-- PanStock Inventory System - Supabase / PostgreSQL
+-- Ejecuta este script en el "SQL Editor" de Supabase
+-- ========================================================
+
+-- 1. TABLA DE MENSAJES DE CHAT (Directos y Grupo Global)
+CREATE TABLE IF NOT EXISTS public.chat_messages (
+    id TEXT PRIMARY KEY,
+    sender TEXT NOT NULL,
+    recipient TEXT NOT NULL, -- 'GLOBAL' o username específico
+    content TEXT NOT NULL DEFAULT '',
+    attachments JSONB DEFAULT '[]'::jsonb,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    read_at TIMESTAMPTZ,
+    reply_to JSONB DEFAULT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Asegurar columnas si la tabla ya existía
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS reply_to JSONB DEFAULT NULL;
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+
+-- 2. TABLA DE PRESENCIA / ESTADO EN LÍNEA (Detecta quién está conectado)
+CREATE TABLE IF NOT EXISTS public.user_presence (
+    username TEXT PRIMARY KEY,
+    last_active TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_online BOOLEAN NOT NULL DEFAULT TRUE,
+    current_screen TEXT DEFAULT 'Inicio',
+    is_typing_to TEXT DEFAULT NULL
+);
+
+-- 3. ÍNDICES DE VELOCIDAD PARA CHAT Y PRESENCIA
+CREATE INDEX IF NOT EXISTS idx_chat_messages_sender ON public.chat_messages(sender);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_recipient ON public.chat_messages(recipient);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp ON public.chat_messages(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_is_read ON public.chat_messages(is_read);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_pair ON public.chat_messages(sender, recipient, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_user_presence_last_active ON public.user_presence(last_active DESC);
+
+-- 4. SEGURIDAD Y PERMISOS RLS PARA CHAT Y PRESENCIA
+ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_presence ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anon Full Access Chat Messages" ON public.chat_messages;
+CREATE POLICY "Anon Full Access Chat Messages" ON public.chat_messages FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Anon Full Access User Presence" ON public.user_presence;
+CREATE POLICY "Anon Full Access User Presence" ON public.user_presence FOR ALL USING (true) WITH CHECK (true);
+
+-- 5. HABILITAR REPLICACIÓN EN TIEMPO REAL (Supabase Realtime WebSockets)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages, public.user_presence;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+`;
+
 export const SUPABASE_OPTIMIZATION_INDEXES_SQL = `-- ========================================================
 -- SENTENCIAS DE ÍNDICES Y RELACIONES DE OPTIMIZACIÓN
 -- PanStock Inventory System - Supabase / PostgreSQL
@@ -740,11 +805,19 @@ CREATE INDEX IF NOT EXISTS idx_usuarios_role ON public.usuarios(role_name);
 CREATE INDEX IF NOT EXISTS idx_usuarios_is_admin ON public.usuarios(is_admin);
 CREATE INDEX IF NOT EXISTS idx_usuarios_is_suspended ON public.usuarios(is_suspended);
 CREATE INDEX IF NOT EXISTS idx_usuarios_is_deleted ON public.usuarios(is_deleted);
+
+-- 6. ÍNDICES DE CHAT Y PRESENCIA
+CREATE INDEX IF NOT EXISTS idx_chat_messages_sender ON public.chat_messages(sender);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_recipient ON public.chat_messages(recipient);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp ON public.chat_messages(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_is_read ON public.chat_messages(is_read);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_pair ON public.chat_messages(sender, recipient, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_user_presence_last_active ON public.user_presence(last_active DESC);
 `;
 
 export const SUPABASE_SETUP_SQL = `-- ========================================================
 -- SENTENCIAS SQL PARA CONFIGURAR LA BASE DE DATOS SUPABASE
--- PanStock Inventory System
+-- PanStock Inventory System (8 Tablas + Chat + Presencia)
 -- Ejecutar estas consultas en el "SQL Editor" de Supabase
 -- ========================================================
 
@@ -826,7 +899,37 @@ CREATE TABLE IF NOT EXISTS public.auditorias (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 7. RELACIONES Y LLAVES FORÁNEAS (FOREIGN KEYS CON INTEGRIDAD REFERENCIAL)
+-- 7. TABLA DE MENSAJES DE CHAT (chat_messages)
+CREATE TABLE IF NOT EXISTS public.chat_messages (
+    id TEXT PRIMARY KEY,
+    sender TEXT NOT NULL,
+    recipient TEXT NOT NULL, -- 'GLOBAL' o username específico
+    content TEXT NOT NULL DEFAULT '',
+    attachments JSONB DEFAULT '[]'::jsonb,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    read_at TIMESTAMPTZ,
+    reply_to JSONB DEFAULT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Asegurar columnas si la tabla ya existía
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS reply_to JSONB DEFAULT NULL;
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.chat_messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+
+-- 8. TABLA DE PRESENCIA / ESTADO EN LÍNEA (user_presence)
+CREATE TABLE IF NOT EXISTS public.user_presence (
+    username TEXT PRIMARY KEY,
+    last_active TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_online BOOLEAN NOT NULL DEFAULT TRUE,
+    current_screen TEXT DEFAULT 'Inicio',
+    is_typing_to TEXT DEFAULT NULL
+);
+
+-- 9. RELACIONES Y LLAVES FORÁNEAS (FOREIGN KEYS CON INTEGRIDAD REFERENCIAL)
 DO $$
 BEGIN
   -- Foreign key: productos.category_id -> categorias.id
@@ -902,7 +1005,7 @@ EXCEPTION WHEN OTHERS THEN
   NULL;
 END $$;
 
--- 8. ÍNDICES DE OPTIMIZACIÓN (B-Tree, Multicolumn y GIN para JSONB)
+-- 10. ÍNDICES DE OPTIMIZACIÓN (B-Tree, Multicolumn y GIN para JSONB)
 
 -- Índices en Productos
 CREATE INDEX IF NOT EXISTS idx_productos_category_id ON public.productos(category_id);
@@ -947,13 +1050,23 @@ CREATE INDEX IF NOT EXISTS idx_usuarios_is_admin ON public.usuarios(is_admin);
 CREATE INDEX IF NOT EXISTS idx_usuarios_is_suspended ON public.usuarios(is_suspended);
 CREATE INDEX IF NOT EXISTS idx_usuarios_is_deleted ON public.usuarios(is_deleted);
 
--- 9. DESACTIVAR O HABILITAR RLS PERMISIVO PARA ACCESO CON ANON KEY
+-- Índices en Chat y Presencia
+CREATE INDEX IF NOT EXISTS idx_chat_messages_sender ON public.chat_messages(sender);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_recipient ON public.chat_messages(recipient);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp ON public.chat_messages(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_is_read ON public.chat_messages(is_read);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_pair ON public.chat_messages(sender, recipient, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_user_presence_last_active ON public.user_presence(last_active DESC);
+
+-- 11. DESACTIVAR O HABILITAR RLS PERMISIVO PARA ACCESO CON ANON KEY
 ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.almacenes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categorias ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.productos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.movimientos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.auditorias ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_presence ENABLE ROW LEVEL SECURITY;
 
 -- Políticas de lectura/escritura pública con Anon Key
 DROP POLICY IF EXISTS "Anon Full Access Usuarios" ON public.usuarios;
@@ -974,7 +1087,13 @@ CREATE POLICY "Anon Full Access Movimientos" ON public.movimientos FOR ALL USING
 DROP POLICY IF EXISTS "Anon Full Access Auditorias" ON public.auditorias;
 CREATE POLICY "Anon Full Access Auditorias" ON public.auditorias FOR ALL USING (true) WITH CHECK (true);
 
--- 10. INSERTAR DATOS INICIALES (Almacenes base y Usuario Administrador)
+DROP POLICY IF EXISTS "Anon Full Access Chat Messages" ON public.chat_messages;
+CREATE POLICY "Anon Full Access Chat Messages" ON public.chat_messages FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Anon Full Access User Presence" ON public.user_presence;
+CREATE POLICY "Anon Full Access User Presence" ON public.user_presence FOR ALL USING (true) WITH CHECK (true);
+
+-- 12. INSERTAR DATOS INICIALES (Almacenes base y Usuario Administrador)
 INSERT INTO public.usuarios (username, password, role_name, is_admin, permissions)
 VALUES (
   'admin',
@@ -1007,11 +1126,11 @@ INSERT INTO public.categorias (id, name, code_prefix, is_default) VALUES
 ('cat-pan', 'PANIFICACIÓN', 'PAN', true)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, code_prefix = EXCLUDED.code_prefix;
 
--- 11. HABILITAR REPLICACION EN TIEMPO REAL (Supabase Realtime WebSockets)
+-- 13. HABILITAR REPLICACION EN TIEMPO REAL (Supabase Realtime WebSockets)
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.usuarios, public.almacenes, public.categorias, public.productos, public.movimientos, public.auditorias;
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.usuarios, public.almacenes, public.categorias, public.productos, public.movimientos, public.auditorias, public.chat_messages, public.user_presence;
   END IF;
 EXCEPTION WHEN OTHERS THEN
   NULL;
