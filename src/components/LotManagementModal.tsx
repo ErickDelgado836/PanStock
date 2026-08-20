@@ -77,6 +77,7 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
     remainingUnassigned?: number;
     totalWarehouseStock?: number;
     warehouseName?: string;
+    unassignedBreakdown?: Array<{ whId: string; whCode: string; whName: string; qty: number }>;
   } | null>(null);
 
   const errorRef = useRef<HTMLDivElement>(null);
@@ -286,6 +287,17 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
     setSuccessMsg('');
     setRemainingNotice(null);
 
+    // If current warehouse has 0 available, select the first warehouse with available stock
+    if (currentProduct) {
+      const currentWhAvail = getWhMaxAvailable(selectedWarehouseId, currentProduct);
+      if (currentWhAvail === 0) {
+        const firstWhWithAvail = warehouses.find((w) => getWhMaxAvailable(w.id, currentProduct) > 0);
+        if (firstWhWithAvail) {
+          setSelectedWarehouseId(firstWhWithAvail.id);
+        }
+      }
+    }
+
     bodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     setTimeout(() => {
       dateInputRef.current?.focus();
@@ -427,11 +439,30 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
       const maxInWh = getWhMaxAvailable(w.id);
       if (val > maxInWh) {
         setErrorMsg(
-          `En el almacén "${w.code} - ${w.name}" solo hay ${maxInWh.toLocaleString('es-ES')} u. físicas disponibles. No puede asignar ${val.toLocaleString('es-ES')} u.`
+          `En el almacén "${w.code} - ${w.name}" solo hay ${maxInWh.toLocaleString('es-ES')} u. físicas disponibles para asignar. No puede asignar ${val.toLocaleString('es-ES')} u.`
         );
         return;
       }
     }
+
+    // Calculate unassigned breakdown per warehouse
+    const unassignedBreakdown = warehouses
+      .map((w) => {
+        const phys = Number(currentProduct?.stockByWarehouse[w.id] || 0);
+        const assignedInOtherLots = (currentProduct?.lots || []).reduce((sum, l) => {
+          if (editingLotId && l.id === editingLotId) return sum;
+          return sum + getLotStockInWarehouse(l, w.id);
+        }, 0);
+        const inThisLot = Number(whQuantities[w.id] || 0);
+        const remainingInWh = Math.max(0, phys - assignedInOtherLots - inThisLot);
+        return {
+          whId: w.id,
+          whCode: w.code,
+          whName: w.name,
+          qty: remainingInWh,
+        };
+      })
+      .filter((b) => b.qty > 0);
 
     const remainingUnassigned = Math.max(0, maxTotalAvail - numQty);
     const targetWhObj = warehouses.find((w) => w.id === selectedWarehouseId);
@@ -446,6 +477,7 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
       remainingUnassigned,
       totalWarehouseStock: maxTotalAvail,
       warehouseName: whName,
+      unassignedBreakdown,
     });
   };
 
@@ -562,17 +594,37 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
     setPartialSavePrompt(null);
 
     if (options?.assignRemaining && remainingUnassigned && remainingUnassigned > 0) {
-      // Refresh list context without pre-selecting the saved lot so we stay in NEW LOT mode for remaining items
-      selectProductAndWarehouse(selectedProductId, selectedWarehouseId, allProducts);
+      // Calculate exact unassigned stock per warehouse from targetProd (which was just updated)
+      const unassignedPerWh: Record<string, number | string> = {};
+      let firstWhWithStock = selectedWarehouseId;
+      let foundFirst = false;
+
+      warehouses.forEach((w) => {
+        const physical = Number(targetProd.stockByWarehouse[w.id] || 0);
+        const assigned = (targetProd.lots || []).reduce(
+          (acc, l) => acc + getLotStockInWarehouse(l, w.id),
+          0
+        );
+        const unassignedInWh = Math.max(0, physical - assigned);
+        unassignedPerWh[w.id] = unassignedInWh > 0 ? unassignedInWh : '';
+        if (unassignedInWh > 0 && !foundFirst) {
+          firstWhWithStock = w.id;
+          foundFirst = true;
+        }
+      });
+
+      setSelectedWarehouseId(firstWhWithStock);
       setEditingLotId(null);
       setLotNumber('');
       setQuantity(remainingUnassigned);
+      setWhQuantities(unassignedPerWh);
       setExpirationDate('');
       setNotes('');
       setRemainingNotice({
         savedQty: numQty,
         remainingQty: remainingUnassigned,
       });
+
       bodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => {
         dateInputRef.current?.focus();
@@ -582,9 +634,13 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
           } catch (_) {}
         }
       }, 150);
+
+      const targetWh = warehouses.find((w) => w.id === firstWhWithStock);
+      const whLabel = targetWh ? `${targetWh.code} - ${targetWh.name}` : firstWhWithStock;
+
       showToast(
         '¡Primer Lote Guardado!',
-        `Se guardó el lote de ${numQty} u. Ahora ingrese la fecha de vencimiento para las ${remainingUnassigned} u restantes.`,
+        `Se guardó el lote de ${numQty} u. Ingrese la fecha de vencimiento para las ${remainingUnassigned} u restantes (en ${whLabel}).`,
         'info'
       );
     } else {
@@ -954,45 +1010,73 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
                   })()}
                 </div>
 
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-0.5">
-                  {warehouses
-                    .filter((w) => getWhMaxAvailable(w.id) > 0 || (whQuantities[w.id] && Number(whQuantities[w.id]) > 0))
-                    .map((w) => {
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-0.5">
+                  {(() => {
+                    const visibleWarehouses = warehouses.filter((w) => {
+                      const physical = Number(currentProduct?.stockByWarehouse[w.id] || 0);
+                      const inThisLot = Number(whQuantities[w.id] || 0);
+                      const maxAvail = getWhMaxAvailable(w.id);
+                      return physical > 0 || inThisLot > 0 || maxAvail > 0;
+                    });
+                    const listToRender = visibleWarehouses.length > 0 ? visibleWarehouses : warehouses;
+
+                    return listToRender.map((w) => {
+                      const physical = Number(currentProduct?.stockByWarehouse[w.id] || 0);
                       const maxAvail = getWhMaxAvailable(w.id);
                       const currentVal = whQuantities[w.id] !== undefined ? whQuantities[w.id] : '';
                       const numVal = currentVal === '' ? 0 : Number(currentVal);
                       const isExceeded = numVal > maxAvail;
+                      const isZeroAvail = maxAvail === 0 && numVal === 0;
 
                       return (
                         <div
                           key={w.id}
-                          className={`p-2 rounded-xl border transition-all ${
+                          className={`p-2.5 rounded-xl border transition-all ${
                             isExceeded
                               ? 'bg-red-50 border-red-300'
                               : numVal > 0
                               ? 'bg-slate-50 border-slate-300'
+                              : isZeroAvail
+                              ? 'bg-slate-50/50 border-slate-200 opacity-75'
                               : 'bg-white border-slate-200'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="font-mono font-black text-slate-900 bg-white px-1.5 py-0.2 rounded border border-slate-200 text-[10px]">
                                   {w.code}
                                 </span>
                                 <span className="text-xs font-bold text-slate-900 truncate">
                                   {w.name}
                                 </span>
+                                {isZeroAvail && physical > 0 && (
+                                  <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-sm">
+                                    Totalmente asignado
+                                  </span>
+                                )}
                               </div>
-                              <span className="text-[10px] text-slate-500 font-medium">
-                                Máx. en almacén: <strong className="font-mono text-slate-800">{maxAvail} {currentProduct?.unit}</strong>
-                              </span>
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500">
+                                <span>
+                                  Físico: <strong className="font-mono text-slate-700">{physical} {currentProduct?.unit}</strong>
+                                </span>
+                                <span>•</span>
+                                <span className={maxAvail > 0 ? 'text-emerald-700 font-bold' : 'text-slate-500'}>
+                                  Disponible: <strong className="font-mono">{maxAvail} {currentProduct?.unit}</strong>
+                                </span>
+                              </div>
+                              {isExceeded && (
+                                <p className="text-[10px] font-black text-red-600 mt-1">
+                                  ⚠️ Excede el stock disponible ({maxAvail} {currentProduct?.unit})
+                                </p>
+                              )}
                             </div>
 
                             <div className="w-24 shrink-0">
                               <input
                                 type="text"
                                 inputMode="decimal"
+                                disabled={isZeroAvail}
                                 value={currentVal}
                                 onChange={(e) => {
                                   const val = e.target.value.replace(',', '.');
@@ -1006,7 +1090,9 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
                                 }}
                                 placeholder="0"
                                 className={`w-full px-2 py-1.5 rounded-lg font-mono font-black text-xs text-right transition-all ${
-                                  isExceeded
+                                  isZeroAvail
+                                    ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed'
+                                    : isExceeded
                                     ? 'bg-red-100 border-2 border-red-500 text-red-950 focus:ring-2 focus:ring-red-600'
                                     : 'bg-white border border-slate-300 text-slate-900 focus:ring-2 focus:ring-red-500'
                                 }`}
@@ -1015,7 +1101,8 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
                           </div>
                         </div>
                       );
-                    })}
+                    });
+                  })()}
                 </div>
 
                 {/* Live total comparison footer */}
@@ -1431,11 +1518,21 @@ export const LotManagementModal: React.FC<LotManagementModalProps> = ({
                 <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-left text-amber-950 text-xs space-y-2">
                   <div className="flex items-center gap-1.5 font-black text-amber-800 uppercase text-[10px] tracking-wider">
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Quedarán Unidades Sin Vencimiento</span>
+                    <span>Unidades Restantes Sin Vencimiento</span>
                   </div>
                   <p className="text-xs text-slate-700 leading-tight">
-                    Tiene <strong className="text-red-700 font-black font-mono">{saveConfirmPrompt.remainingUnassigned} unidades</strong> restantes en <strong className="text-slate-900">{saveConfirmPrompt.warehouseName}</strong> sin fecha de vencimiento asignada.
+                    Quedarán <strong className="text-red-700 font-black font-mono">{saveConfirmPrompt.remainingUnassigned} unidades</strong> sin fecha de vencimiento asignada:
                   </p>
+                  {saveConfirmPrompt.unassignedBreakdown && saveConfirmPrompt.unassignedBreakdown.length > 0 && (
+                    <div className="space-y-1 bg-white/80 p-2 rounded-xl border border-amber-200/60 font-mono text-[11px]">
+                      {saveConfirmPrompt.unassignedBreakdown.map((b) => (
+                        <div key={b.whId} className="flex justify-between items-center text-slate-700">
+                          <span className="font-sans font-medium text-slate-600">{b.whCode} - {b.whName}:</span>
+                          <strong className="text-amber-900 font-bold">{b.qty} u.</strong>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-xs font-extrabold text-slate-800 pt-0.5">
                     ¿Qué desea hacer con las {saveConfirmPrompt.remainingUnassigned} unidades restantes?
                   </p>

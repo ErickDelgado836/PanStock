@@ -184,7 +184,8 @@ export function deductLotStock(
 
 /**
  * Reconciles a single Product's lot stock with its stockByWarehouse object.
- * Ensures that the sum of lot quantities in any warehouse EXACTLY equals product.stockByWarehouse[whId].
+ * Ensures lot stock in any warehouse never exceeds physical stock in that warehouse (deducts excess via FIFO).
+ * Does NOT force unassigned stock into existing lots, allowing products to have unassigned units.
  */
 export function reconcileProductLots(product: Product): Product {
   if (!product.stockByWarehouse) {
@@ -220,49 +221,25 @@ export function reconcileProductLots(product: Product): Product {
         lot.stockByWarehouse = stockMap;
         lot.quantity = getLotTotalStock(lot);
       });
-    } else if (totalLotStockInWh !== whStock) {
-      if (totalLotStockInWh === 0) {
-        // No lots have stock in this warehouse yet
-        if (product.lots!.length > 0) {
-          // Put the stock into the first lot
-          const targetLot = product.lots![0];
-          const stockMap = getLotStockMap(targetLot);
-          stockMap[whId] = whStock;
-          targetLot.stockByWarehouse = stockMap;
-          targetLot.quantity = getLotTotalStock(targetLot);
-        } else {
-          // Create a new general lot
-          const stockMap: ProductStock = { [whId]: whStock };
-          const newLot: ProductLot = {
-            id: `lot-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-            lotNumber: 'S/N',
-            expirationDate: product.expirationDate || '',
-            quantity: whStock,
-            warehouseId: whId,
-            stockByWarehouse: stockMap,
-          };
-          product.lots!.push(newLot);
-        }
-      } else if (totalLotStockInWh > whStock) {
-        // Excess lot stock -> Deduct excess using FIFO
-        let excess = totalLotStockInWh - whStock;
-        const sortedLots = [...product.lots!].sort((a, b) =>
-          (a.expirationDate || '').localeCompare(b.expirationDate || '')
-        );
+    } else if (totalLotStockInWh > whStock) {
+      // Excess lot stock (e.g. after deduction/transfer) -> Deduct excess using FIFO
+      let excess = totalLotStockInWh - whStock;
+      const sortedLots = [...product.lots!].sort((a, b) =>
+        (a.expirationDate || '').localeCompare(b.expirationDate || '')
+      );
 
-        for (const lot of sortedLots) {
-          if (excess <= 0) break;
-          const currentInWh = getLotStockInWarehouse(lot, whId);
-          if (currentInWh <= 0) continue;
+      for (const lot of sortedLots) {
+        if (excess <= 0) break;
+        const currentInWh = getLotStockInWarehouse(lot, whId);
+        if (currentInWh <= 0) continue;
 
-          const deduct = Math.min(excess, currentInWh);
-          const stockMap = getLotStockMap(lot);
-          stockMap[whId] = currentInWh - deduct;
-          lot.stockByWarehouse = stockMap;
-          lot.quantity = getLotTotalStock(lot);
+        const deduct = Math.min(excess, currentInWh);
+        const stockMap = getLotStockMap(lot);
+        stockMap[whId] = currentInWh - deduct;
+        lot.stockByWarehouse = stockMap;
+        lot.quantity = getLotTotalStock(lot);
 
-          excess -= deduct;
-        }
+        excess -= deduct;
       }
     }
   });
@@ -272,7 +249,7 @@ export function reconcileProductLots(product: Product): Product {
     lot.quantity = getLotTotalStock(lot);
   });
 
-  // Keep lots that have total quantity > 0 or at least one non-zero warehouse
+  // Keep lots that have total quantity > 0
   product.lots = product.lots.filter((lot) => getLotTotalStock(lot) > 0);
 
   // Sync product.expirationDate with earliest active lot date
