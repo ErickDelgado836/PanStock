@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, Warehouse } from './types';
 import {
   getCurrentUser,
   setCurrentUser,
+  getUsers,
   getWarehouses,
   subscribeToStorage,
   syncFromSupabase,
@@ -12,6 +13,7 @@ import { Header } from './components/Header';
 import { LoginModal } from './components/LoginModal';
 import { WelcomeModal } from './components/WelcomeModal';
 import { LogoutConfirmModal } from './components/LogoutConfirmModal';
+import { AccountNoticeModal } from './components/AccountNoticeModal';
 import { ToastContainer } from './components/Common/ToastContainer';
 import { Dashboard } from './components/Dashboard';
 import { WarehouseView } from './components/WarehouseView';
@@ -21,6 +23,7 @@ import { ExpiryAlerts } from './components/ExpiryAlerts';
 import { MovementsHistory } from './components/MovementsHistory';
 import { AdminPanel } from './components/AdminPanel';
 import { PermissionGuard } from './components/PermissionGuard';
+import { showToast } from './utils/toast';
 
 // Modals
 import { EntradasModal } from './components/Movements/EntradasModal';
@@ -56,6 +59,120 @@ export default function App() {
   const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
 
+  // Account Status / Suspension Notice Modal State
+  const [accountNotice, setAccountNotice] = useState<{
+    isOpen: boolean;
+    type: 'SUSPENDED' | 'DELETED' | 'PERMISSIONS_CHANGED';
+    username: string;
+    reason?: string;
+  } | null>(null);
+
+  // Ref to keep track of current user synchronously inside intervals and callbacks
+  const currentUserRef = useRef<UserProfile | null>(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  // Synchronize and validate active user session in real-time
+  const validateAndSyncUserSession = () => {
+    setWarehouses(getWarehouses());
+
+    const active = currentUserRef.current;
+    if (!active) return;
+
+    const allUsers = getUsers();
+    const freshUser = allUsers.find(
+      (u) => u.username.toLowerCase() === active.username.toLowerCase()
+    );
+
+    // 1. User was deleted
+    if (!freshUser || freshUser.isDeleted) {
+      console.warn(`[Realtime Session] User '${active.username}' was deleted. Terminating active session.`);
+      setLocalUser(null);
+      setCurrentUser(null);
+      setEntradasOpen(false);
+      setTrasladosOpen(false);
+      setDescargosOpen(false);
+      setGlobalCatalogOpen(false);
+      setAccountNotice({
+        isOpen: true,
+        type: 'DELETED',
+        username: active.username,
+        reason: 'Tu cuenta ha sido eliminada por el Administrador del Sistema.',
+      });
+      showToast('Sesión Finalizada', 'Tu cuenta ha sido eliminada por un administrador.', 'error');
+      return;
+    }
+
+    // 2. User was suspended
+    if (freshUser.isSuspended) {
+      console.warn(`[Realtime Session] User '${freshUser.username}' was suspended. Terminating active session.`);
+      setLocalUser(null);
+      setCurrentUser(null);
+      setEntradasOpen(false);
+      setTrasladosOpen(false);
+      setDescargosOpen(false);
+      setGlobalCatalogOpen(false);
+      setAccountNotice({
+        isOpen: true,
+        type: 'SUSPENDED',
+        username: freshUser.username,
+        reason: 'Tu cuenta ha sido suspendida por el Administrador del Sistema. Tu sesión activa ha sido cerrada de forma inmediata.',
+      });
+      showToast('Acceso Suspendido', 'Tu cuenta ha sido suspendida por el administrador.', 'error');
+      return;
+    }
+
+    // 3. User details or permissions were modified
+    const hasChanged = JSON.stringify(freshUser) !== JSON.stringify(active);
+    if (hasChanged) {
+      console.log(`[Realtime Session] Instant update applied for active user '${freshUser.username}'`);
+      setLocalUser(freshUser);
+      setCurrentUser(freshUser);
+
+      // Check active tab permissions and redirect if necessary
+      if (activeTab === 'VENTAS' && !freshUser.permissions.canSales) {
+        setActiveTab('INICIO');
+        showToast('Permiso de Ventas Revocado', 'El administrador ha desactivado tu acceso al módulo de Ventas.', 'warning');
+      }
+
+      if (activeTab === 'VENCIMIENTO' && !freshUser.permissions.canExpiry) {
+        setActiveTab('INICIO');
+        showToast('Permiso de Vencimientos Revocado', 'El administrador ha desactivado tu acceso al módulo de Vencimientos.', 'warning');
+      }
+
+      if (activeTab === 'ADMIN' && !freshUser.isAdmin) {
+        setActiveTab('INICIO');
+        showToast('Acceso Revocado', 'Se han revocado tus permisos de Administrador.', 'warning');
+      }
+
+      if (activeTab === 'ALMACENES') {
+        const allowed = freshUser.permissions.allowedWarehouses || [];
+        if (allowed.length === 0) {
+          setActiveTab('INICIO');
+          showToast('Sin Almacenes', 'No tienes almacenes autorizados para visualizar.', 'warning');
+        } else if (!allowed.includes(selectedWarehouseId)) {
+          setSelectedWarehouseId(allowed[0]);
+          showToast('Almacén Reasignado', 'El almacén previamente seleccionado ya no está autorizado para tu usuario.', 'info');
+        }
+      }
+
+      // Check open modals
+      if (entradasOpen && !freshUser.permissions.canEntries) {
+        setEntradasOpen(false);
+        showToast('Permiso Revocado', 'Se ha desactivado tu permiso para realizar Entradas.', 'warning');
+      }
+      if (trasladosOpen && !freshUser.permissions.canTransfers) {
+        setTrasladosOpen(false);
+        showToast('Permiso Revocado', 'Se ha desactivado tu permiso para realizar Traslados.', 'warning');
+      }
+      if (descargosOpen && !freshUser.permissions.canExits) {
+        setDescargosOpen(false);
+        showToast('Permiso Revocado', 'Se ha desactivado tu permiso para realizar Descargos.', 'warning');
+      }
+    }
+  };
+
   useEffect(() => {
     // Check if path or hash includes 'admin'
     if (window.location.hash === '#/admin' || window.location.pathname === '/admin') {
@@ -63,10 +180,19 @@ export default function App() {
     }
 
     const unsub = subscribeToStorage(() => {
-      setWarehouses(getWarehouses());
+      validateAndSyncUserSession();
     });
-    return unsub;
-  }, []);
+
+    // Real-time interval safety monitor (runs every 1.5 seconds)
+    const interval = setInterval(() => {
+      validateAndSyncUserSession();
+    }, 1500);
+
+    return () => {
+      unsub();
+      clearInterval(interval);
+    };
+  }, [activeTab, selectedWarehouseId, entradasOpen, trasladosOpen, descargosOpen]);
 
   // Initial sync when currentUser logs in
   useEffect(() => {
@@ -121,22 +247,32 @@ export default function App() {
     setCurrentUser(null);
   };
 
-  // If user is not authenticated, show Login Modal
+  // If user is not authenticated, show Login Modal (plus any active AccountNoticeModal)
   if (!currentUser) {
     const isCurrentAdminRoute =
       window.location.hash === '#/admin' || window.location.pathname === '/admin';
 
     return (
-      <LoginModal
-        isAdminRoute={isCurrentAdminRoute}
-        onLoginSuccess={handleLoginSuccess}
-        onNavigateToAdmin={() => {
-          window.location.hash = '#/admin';
-        }}
-        onNavigateToApp={() => {
-          window.location.hash = '';
-        }}
-      />
+      <>
+        <LoginModal
+          isAdminRoute={isCurrentAdminRoute}
+          onLoginSuccess={handleLoginSuccess}
+          onNavigateToAdmin={() => {
+            window.location.hash = '#/admin';
+          }}
+          onNavigateToApp={() => {
+            window.location.hash = '';
+          }}
+        />
+        <AccountNoticeModal
+          isOpen={Boolean(accountNotice?.isOpen)}
+          type={accountNotice?.type || 'SUSPENDED'}
+          username={accountNotice?.username || ''}
+          reason={accountNotice?.reason}
+          onClose={() => setAccountNotice(null)}
+        />
+        <ToastContainer />
+      </>
     );
   }
 

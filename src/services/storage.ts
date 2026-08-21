@@ -52,12 +52,47 @@ const KEYS = {
 const STORAGE_EVENT = 'panstock_data_updated';
 
 export function notifyStorageChange() {
-  window.dispatchEvent(new Event(STORAGE_EVENT));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(STORAGE_EVENT));
+  }
 }
 
 export function subscribeToStorage(callback: () => void) {
+  if (typeof window === 'undefined') return () => {};
   window.addEventListener(STORAGE_EVENT, callback);
-  return () => window.removeEventListener(STORAGE_EVENT, callback);
+  window.addEventListener('storage', callback);
+  return () => {
+    window.removeEventListener(STORAGE_EVENT, callback);
+    window.removeEventListener('storage', callback);
+  };
+}
+
+/**
+ * Synchronizes the currently logged-in user session in localStorage with the provided users list.
+ * If the current user was suspended, deleted, or their permissions/roles were modified,
+ * this immediately updates or terminates the active session.
+ */
+function syncCurrentUserWithList(users: UserProfile[]) {
+  if (typeof window === 'undefined') return;
+  const current = getCurrentUser();
+  if (!current) return;
+
+  const match = users.find(
+    (u) => u.username.toLowerCase() === current.username.toLowerCase()
+  );
+
+  if (match) {
+    if (match.isSuspended || match.isDeleted) {
+      console.warn(`[Auth Sync] ⛔ User '${match.username}' is suspended or deleted. Terminating active session immediately.`);
+      localStorage.removeItem(KEYS.CURRENT_USER);
+    } else {
+      // Sync fresh permissions, allowed warehouses, role, etc.
+      localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(match));
+    }
+  } else if (current.username.toLowerCase() !== 'admin') {
+    console.warn(`[Auth Sync] ⚠️ User '${current.username}' no longer exists in users list. Terminating active session.`);
+    localStorage.removeItem(KEYS.CURRENT_USER);
+  }
 }
 
 // Global Supabase Sync status tracker
@@ -96,8 +131,10 @@ export async function syncFromSupabase(): Promise<boolean> {
         console.log('[Supabase Sync] Seeding initial admin user to Supabase...');
         await saveUserToSupabase(DEFAULT_ADMIN_USER);
         localStorage.setItem(KEYS.USERS, JSON.stringify([DEFAULT_ADMIN_USER]));
+        syncCurrentUserWithList([DEFAULT_ADMIN_USER]);
       } else {
         localStorage.setItem(KEYS.USERS, JSON.stringify(remoteUsers));
+        syncCurrentUserWithList(remoteUsers);
       }
     }
 
@@ -232,7 +269,7 @@ if (typeof window !== 'undefined') {
       syncFromSupabase();
     }, 100);
 
-    // Register realtime callback to trigger full sync when any changes are detected (debounced to avoid spam)
+    // Register realtime callback to trigger sync when changes are detected
     registerSupabaseRealtimeCallback((payload) => {
       const table = payload?.table;
       // Chat and presence are handled separately in chatService, ignore here to avoid redundant table queries
@@ -241,6 +278,14 @@ if (typeof window !== 'undefined') {
       }
 
       console.log('[Supabase Realtime] Change received in storage service for table:', table);
+      
+      // If the change is on 'usuarios', sync immediately for instant permission/suspension propagation!
+      if (table === 'usuarios') {
+        lastSyncTimestamp = Date.now();
+        syncFromSupabase().catch((err) => console.error('[Supabase Instant User Sync Error]', err));
+        return;
+      }
+
       if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
       realtimeDebounceTimer = setTimeout(() => {
         lastSyncTimestamp = Date.now();
@@ -300,6 +345,7 @@ export function getUsers(): UserProfile[] {
 
 export function saveUsers(users: UserProfile[]) {
   localStorage.setItem(KEYS.USERS, JSON.stringify(users));
+  syncCurrentUserWithList(users);
   notifyStorageChange();
 
   // Async push to Supabase
@@ -334,6 +380,7 @@ export function setCurrentUser(user: UserProfile | null) {
 export function deleteUser(username: string) {
   const users = getUsers().filter((u) => u.username.toLowerCase() !== username.toLowerCase());
   localStorage.setItem(KEYS.USERS, JSON.stringify(users));
+  syncCurrentUserWithList(users);
   notifyStorageChange();
 
   if (checkIsSupabaseConfigured()) {

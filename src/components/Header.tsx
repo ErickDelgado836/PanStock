@@ -34,11 +34,21 @@ export const Header: React.FC<HeaderProps> = ({
 
   const tabs = [
     { id: 'INICIO', label: 'Inicio', icon: LayoutGrid },
-    { id: 'ALMACENES', label: 'Almacenes', icon: Building2 },
-    { id: 'VENTAS', label: 'Ventas', icon: PackageSearch },
-    { id: 'VENCIMIENTO', label: 'Vencimientos', icon: Clock },
-    { id: 'NOTAS', label: 'Notas (Auditoría)', icon: ClipboardList },
   ];
+
+  if (currentUser.isAdmin || (currentUser.permissions.allowedWarehouses && currentUser.permissions.allowedWarehouses.length > 0)) {
+    tabs.push({ id: 'ALMACENES', label: 'Almacenes', icon: Building2 });
+  }
+
+  if (currentUser.isAdmin || currentUser.permissions.canSales) {
+    tabs.push({ id: 'VENTAS', label: 'Ventas', icon: PackageSearch });
+  }
+
+  if (currentUser.isAdmin || currentUser.permissions.canExpiry) {
+    tabs.push({ id: 'VENCIMIENTO', label: 'Vencimientos', icon: Clock });
+  }
+
+  tabs.push({ id: 'NOTAS', label: 'Notas (Auditoría)', icon: ClipboardList });
 
   if (currentUser.isAdmin) {
     tabs.push({ id: 'ADMIN', label: 'Panel Admin', icon: Settings });
