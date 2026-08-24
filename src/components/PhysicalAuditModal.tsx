@@ -182,11 +182,11 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
                 <table className="w-full min-w-[560px] text-left text-xs">
                   <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
                     <tr>
-                      <th className="p-3">Código</th>
-                      <th className="p-3">Producto</th>
-                      <th className="p-3 text-center">Existencia Sistema</th>
-                      <th className="p-3 text-center">Conteo Físico Real</th>
-                      <th className="p-3 text-center">Diferencia</th>
+                      <th className="p-3 whitespace-nowrap">Código</th>
+                      <th className="p-3 min-w-[150px]">Producto</th>
+                      <th className="p-3 text-center whitespace-nowrap">Existencia Sistema</th>
+                      <th className="p-3 text-center whitespace-nowrap">Conteo Físico Real</th>
+                      <th className="p-3 text-center whitespace-nowrap">Diferencia</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -199,7 +199,11 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
                     ) : (
                       filteredAuditItems.map((item) => (
                         <tr key={item.productId} className="hover:bg-slate-50">
-                          <td className="p-3 font-mono font-bold text-slate-800">{item.productCode}</td>
+                          <td className="p-3 font-mono font-bold text-slate-800 whitespace-nowrap">
+                            <span className="inline-block whitespace-nowrap px-2 py-0.5 bg-slate-100 border border-slate-200 rounded font-mono font-black text-xs">
+                              {item.productCode}
+                            </span>
+                          </td>
                           <td className="p-3 font-bold text-slate-900">{item.productName}</td>
                           <td className="p-3 text-center font-bold text-slate-600">
                             {item.systemStock} {item.unit}

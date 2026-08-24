@@ -573,38 +573,38 @@ export const PhysicalAuditReport: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+            <div className="overflow-x-auto touch-auto">
+              <table className="w-full min-w-[780px] text-left text-xs">
                 <thead className="bg-slate-900 text-white font-extrabold uppercase border-b border-slate-800">
                   <tr>
-                    <th className="p-3.5">Código</th>
-                    <th className="p-3.5">Producto</th>
-                    <th className="p-3.5">Almacén</th>
-                    <th className="p-3.5 text-right">Existencia Sistema</th>
-                    <th className="p-3.5 text-right">Conteo Físico Real</th>
-                    <th className="p-3.5 text-center">Diferencia</th>
-                    <th className="p-3.5 text-center">Estado Auditoría</th>
-                    <th className="p-3.5 text-right">Último Conteo</th>
+                    <th className="p-3.5 whitespace-nowrap">Código</th>
+                    <th className="p-3.5 min-w-[160px]">Producto</th>
+                    <th className="p-3.5 min-w-[140px]">Almacén</th>
+                    <th className="p-3.5 text-right whitespace-nowrap">Existencia Sistema</th>
+                    <th className="p-3.5 text-right whitespace-nowrap">Conteo Físico Real</th>
+                    <th className="p-3.5 text-center whitespace-nowrap">Diferencia</th>
+                    <th className="p-3.5 text-center whitespace-nowrap">Estado Auditoría</th>
+                    <th className="p-3.5 text-right whitespace-nowrap">Último Conteo</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {paginatedRows.map((r, idx) => {
                     return (
                       <tr key={`${r.product.id}_${r.warehouse.id}_${idx}`} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="p-3.5 font-mono font-bold text-slate-900">
-                          <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded font-black">
+                        <td className="p-3.5 font-mono font-bold text-slate-900 whitespace-nowrap">
+                          <span className="inline-block whitespace-nowrap px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-md font-mono font-black text-xs tracking-tight">
                             {r.product.code}
                           </span>
                         </td>
                         <td className="p-3.5 font-bold text-slate-900">
-                          <div>{r.product.name}</div>
+                          <div className="leading-snug">{r.product.name}</div>
                           <span className="text-[10px] text-slate-400 font-normal">
                             {r.category?.name || 'Subgrupo'}
                           </span>
                         </td>
                         <td className="p-3.5 font-bold text-slate-700 max-w-[200px]">
                           <div className="flex flex-col gap-0.5 items-start">
-                            <span className="font-mono text-[10px] bg-red-100 text-red-900 border border-red-200 px-1.5 py-0.5 rounded font-black">
+                            <span className="font-mono text-[10px] bg-red-100 text-red-900 border border-red-200 px-1.5 py-0.5 rounded font-black whitespace-nowrap">
                               {r.warehouse.code}
                             </span>
                             <span className="text-slate-800 font-bold text-[11px] leading-tight break-words">
@@ -612,10 +612,10 @@ export const PhysicalAuditReport: React.FC = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="p-3.5 text-right font-black text-slate-900">
+                        <td className="p-3.5 text-right font-black text-slate-900 whitespace-nowrap">
                           {r.systemStock} {r.product.unit}
                         </td>
-                        <td className="p-3.5 text-right font-black">
+                        <td className="p-3.5 text-right font-black whitespace-nowrap">
                           {r.auditInfo ? (
                             <span className="text-slate-900">
                               {r.auditInfo.physicalStock} {r.product.unit}
@@ -624,7 +624,7 @@ export const PhysicalAuditReport: React.FC = () => {
                             <span className="text-slate-400 font-normal italic">Sin conteo</span>
                           )}
                         </td>
-                        <td className="p-3.5 text-center">
+                        <td className="p-3.5 text-center whitespace-nowrap">
                           {r.status === 'PENDING' ? (
                             <span className="px-2.5 py-1 bg-slate-100 text-slate-400 rounded-md font-bold text-[11px]">
                               N/A
@@ -646,7 +646,7 @@ export const PhysicalAuditReport: React.FC = () => {
                             </span>
                           )}
                         </td>
-                        <td className="p-3.5 text-center">
+                        <td className="p-3.5 text-center whitespace-nowrap">
                           {r.status === 'PENDING' ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
                               <Clock className="w-3 h-3 text-amber-600" />
@@ -669,7 +669,7 @@ export const PhysicalAuditReport: React.FC = () => {
                             </span>
                           )}
                         </td>
-                        <td className="p-3.5 text-right text-slate-500 font-medium">
+                        <td className="p-3.5 text-right text-slate-500 font-medium whitespace-nowrap">
                           {r.auditInfo ? (
                             <div>
                               <div className="font-bold text-slate-800">{r.auditInfo.date}</div>
