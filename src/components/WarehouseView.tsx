@@ -347,29 +347,24 @@ const CategoryProductTable: React.FC<CategoryProductTableProps> = ({
                       </td>
                       <td className="p-3 text-center whitespace-nowrap">
                         {lastAuditItem ? (
-                          (() => {
-                            const diff = lastAuditItem.physicalStock - whStock;
-                            return (
-                              <div className="inline-flex flex-col items-center">
-                                <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">
-                                  {lastAuditItem.physicalStock} {prod.unit}
-                                </span>
-                                {diff === 0 ? (
-                                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 rounded border border-emerald-200 whitespace-nowrap">
-                                    Correcto
-                                  </span>
-                                ) : diff < 0 ? (
-                                  <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-1.5 rounded border border-rose-200 whitespace-nowrap">
-                                    Falta {Math.abs(diff)} {prod.unit}
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-1.5 rounded border border-teal-200 whitespace-nowrap">
-                                    Sobra +{diff} {prod.unit}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })()
+                          <div className="inline-flex flex-col items-center">
+                            <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">
+                              {lastAuditItem.physicalStock} {prod.unit}
+                            </span>
+                            {lastAuditItem.difference === 0 ? (
+                              <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 rounded border border-emerald-200 whitespace-nowrap">
+                                Correcto
+                              </span>
+                            ) : lastAuditItem.difference < 0 ? (
+                              <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-1.5 rounded border border-rose-200 whitespace-nowrap">
+                                Falta {Math.abs(lastAuditItem.difference)} {prod.unit}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-1.5 rounded border border-teal-200 whitespace-nowrap">
+                                Sobra +{lastAuditItem.difference} {prod.unit}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-[11px] text-slate-400 italic font-medium whitespace-nowrap">
                             Sin conteo
@@ -509,19 +504,17 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
       // 4. Local warehouse physical audit status filter
       if (selectedAuditStatus !== 'ALL') {
         const auditItem = warehouseAuditMap[p.id];
-        const localStock = p.stockByWarehouse[warehouse.id] || 0;
-        const diff = auditItem ? auditItem.physicalStock - localStock : 0;
 
         if (selectedAuditStatus === 'UNAUDITED') {
           if (auditItem) return false;
         } else if (selectedAuditStatus === 'AUDITED') {
           if (!auditItem) return false;
         } else if (selectedAuditStatus === 'EQUAL') {
-          if (!auditItem || diff !== 0) return false;
+          if (!auditItem || auditItem.difference !== 0) return false;
         } else if (selectedAuditStatus === 'DEFICIT') {
-          if (!auditItem || diff >= 0) return false;
+          if (!auditItem || auditItem.difference >= 0) return false;
         } else if (selectedAuditStatus === 'SURPLUS') {
-          if (!auditItem || diff <= 0) return false;
+          if (!auditItem || auditItem.difference <= 0) return false;
         }
       }
 

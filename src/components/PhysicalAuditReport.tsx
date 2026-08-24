@@ -277,13 +277,10 @@ export const PhysicalAuditReport: React.FC = () => {
         const key = `${prod.id}_${wh.id}`;
         const auditInfo = auditMap[key];
 
-        // Real-time calculation: Conteo Físico Real vs Existencia Sistema Actual
-        const realTimeDiff = auditInfo ? auditInfo.physicalStock - sysStock : null;
-
         let status: 'PENDING' | 'CORRECT' | 'MISSING' | 'SURPLUS' = 'PENDING';
-        if (auditInfo && realTimeDiff !== null) {
-          if (realTimeDiff < 0) status = 'MISSING';
-          else if (realTimeDiff > 0) status = 'SURPLUS';
+        if (auditInfo) {
+          if (auditInfo.difference < 0) status = 'MISSING';
+          else if (auditInfo.difference > 0) status = 'SURPLUS';
           else status = 'CORRECT';
         }
 
@@ -294,12 +291,7 @@ export const PhysicalAuditReport: React.FC = () => {
           warehouse: wh,
           category: cat,
           systemStock: sysStock,
-          auditInfo: auditInfo
-            ? {
-                ...auditInfo,
-                difference: realTimeDiff !== null ? realTimeDiff : auditInfo.difference,
-              }
-            : undefined,
+          auditInfo,
           status,
         });
       });
