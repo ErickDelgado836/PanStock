@@ -40,6 +40,15 @@ export const PhysicalAuditReport: React.FC = () => {
   const [audits, setAudits] = useState<PhysicalAuditRecord[]>([]);
   const [isSyncing, setSyncing] = useState(false);
 
+  // Horizontal Scroll States & Refs
+  const tableContainerRef = React.useRef<HTMLDivElement>(null);
+  const topScrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const isSyncingScrollRef = React.useRef(false);
+  const [hasOverflow, setHasOverflow] = useState(false);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [tableScrollWidth, setTableScrollWidth] = useState(860);
+
   // Filter States
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('ALL');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('ALL');
@@ -96,6 +105,72 @@ export const PhysicalAuditReport: React.FC = () => {
     setSearchQuery('');
     setStartDate('');
     setEndDate('');
+  };
+
+  // Check and sync horizontal scroll states
+  const checkScrollState = () => {
+    if (!tableContainerRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = tableContainerRef.current;
+    const overflow = scrollWidth > clientWidth + 2;
+    setHasOverflow(overflow);
+    setCanScrollLeft(scrollLeft > 4);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 4);
+    setTableScrollWidth(scrollWidth);
+  };
+
+  useEffect(() => {
+    checkScrollState();
+    const handleResize = () => checkScrollState();
+    window.addEventListener('resize', handleResize);
+
+    const observer = new ResizeObserver(() => {
+      checkScrollState();
+    });
+
+    if (tableContainerRef.current) {
+      observer.observe(tableContainerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      observer.disconnect();
+    };
+  }, [products, audits, currentPage, itemsPerPage]);
+
+  const handleTableScroll = () => {
+    if (!tableContainerRef.current) return;
+    if (isSyncingScrollRef.current) return;
+    isSyncingScrollRef.current = true;
+    if (topScrollContainerRef.current) {
+      topScrollContainerRef.current.scrollLeft = tableContainerRef.current.scrollLeft;
+    }
+    checkScrollState();
+    requestAnimationFrame(() => {
+      isSyncingScrollRef.current = false;
+    });
+  };
+
+  const handleTopScroll = () => {
+    if (!topScrollContainerRef.current) return;
+    if (isSyncingScrollRef.current) return;
+    isSyncingScrollRef.current = true;
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollLeft = topScrollContainerRef.current.scrollLeft;
+    }
+    checkScrollState();
+    requestAnimationFrame(() => {
+      isSyncingScrollRef.current = false;
+    });
+  };
+
+  const handleHorizontalScroll = (direction: 'left' | 'right') => {
+    if (!tableContainerRef.current) return;
+    const step = 320;
+    const target =
+      direction === 'left'
+        ? tableContainerRef.current.scrollLeft - step
+        : tableContainerRef.current.scrollLeft + step;
+    tableContainerRef.current.scrollTo({ left: target, behavior: 'smooth' });
   };
 
   // Map latest physical audit per (productId, warehouseId) within optional date range
@@ -202,10 +277,13 @@ export const PhysicalAuditReport: React.FC = () => {
         const key = `${prod.id}_${wh.id}`;
         const auditInfo = auditMap[key];
 
+        // Real-time calculation: Conteo Físico Real vs Existencia Sistema Actual
+        const realTimeDiff = auditInfo ? auditInfo.physicalStock - sysStock : null;
+
         let status: 'PENDING' | 'CORRECT' | 'MISSING' | 'SURPLUS' = 'PENDING';
-        if (auditInfo) {
-          if (auditInfo.difference < 0) status = 'MISSING';
-          else if (auditInfo.difference > 0) status = 'SURPLUS';
+        if (auditInfo && realTimeDiff !== null) {
+          if (realTimeDiff < 0) status = 'MISSING';
+          else if (realTimeDiff > 0) status = 'SURPLUS';
           else status = 'CORRECT';
         }
 
@@ -216,7 +294,12 @@ export const PhysicalAuditReport: React.FC = () => {
           warehouse: wh,
           category: cat,
           systemStock: sysStock,
-          auditInfo,
+          auditInfo: auditInfo
+            ? {
+                ...auditInfo,
+                difference: realTimeDiff !== null ? realTimeDiff : auditInfo.difference,
+              }
+            : undefined,
           status,
         });
       });
@@ -266,20 +349,28 @@ export const PhysicalAuditReport: React.FC = () => {
       surplusItems: surplusCount,
     };
 
-    const pdfItems = rows.map((r) => ({
-      productCode: r.product.code,
-      productName: r.product.name,
-      categoryName: r.category?.name || 'General',
-      warehouseCode: r.warehouse.code,
-      warehouseName: r.warehouse.name,
-      unit: r.product.unit,
-      systemStock: r.systemStock,
-      physicalStock: r.auditInfo ? r.auditInfo.physicalStock : null,
-      difference: r.auditInfo ? r.auditInfo.difference : null,
-      status: r.status,
-      lastAuditDate: r.auditInfo?.date,
-      responsibleUser: r.auditInfo?.responsibleUser,
-    }));
+    const pdfItems = rows.map((r) => {
+      const movementsSinceAudit = r.auditInfo ? r.systemStock - r.auditInfo.systemStock : 0;
+      const estimatedCurrentPhysical = r.auditInfo ? r.systemStock + r.auditInfo.difference : undefined;
+
+      return {
+        productCode: r.product.code,
+        productName: r.product.name,
+        categoryName: r.category?.name || 'General',
+        warehouseCode: r.warehouse.code,
+        warehouseName: r.warehouse.name,
+        unit: r.product.unit,
+        systemStock: r.systemStock,
+        auditSystemStock: r.auditInfo ? r.auditInfo.systemStock : null,
+        physicalStock: r.auditInfo ? r.auditInfo.physicalStock : null,
+        difference: r.auditInfo ? r.auditInfo.difference : null,
+        status: r.status,
+        lastAuditDate: r.auditInfo?.date,
+        responsibleUser: r.auditInfo?.responsibleUser,
+        movementsSinceAudit,
+        estimatedCurrentPhysical,
+      };
+    });
 
     generateAuditReportPDF(pdfSummary, pdfItems);
   };
@@ -573,22 +664,82 @@ export const PhysicalAuditReport: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto custom-scrollbar pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <table className="w-full min-w-[780px] text-left text-xs">
+            {/* Top Horizontal Scrollbar & Quick Navigation Bar */}
+            {hasOverflow && (
+              <div className="bg-slate-50/90 border-b border-slate-200 px-4 py-2 flex items-center justify-between gap-3 text-xs flex-wrap sm:flex-nowrap">
+                <div className="flex items-center gap-2 text-slate-600 font-bold text-xs shrink-0">
+                  <span className="flex items-center gap-1 text-[11px] text-slate-500 font-semibold">
+                    Desplazamiento horizontal:
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleHorizontalScroll('left')}
+                      disabled={!canScrollLeft}
+                      className={`p-1.5 rounded-lg border transition-all ${
+                        canScrollLeft
+                          ? 'bg-white hover:bg-red-50 text-slate-700 hover:text-red-600 border-slate-300 hover:border-red-300 cursor-pointer shadow-xs active:scale-95'
+                          : 'opacity-30 border-transparent cursor-not-allowed text-slate-400'
+                      }`}
+                      title="Desplazar tabla a la izquierda"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleHorizontalScroll('right')}
+                      disabled={!canScrollRight}
+                      className={`p-1.5 rounded-lg border transition-all ${
+                        canScrollRight
+                          ? 'bg-white hover:bg-red-50 text-slate-700 hover:text-red-600 border-slate-300 hover:border-red-300 cursor-pointer shadow-xs active:scale-95'
+                          : 'opacity-30 border-transparent cursor-not-allowed text-slate-400'
+                      }`}
+                      title="Desplazar tabla a la derecha"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Top Scrollbar Track */}
+                <div className="flex-1 w-full sm:w-auto flex items-center gap-2">
+                  <div
+                    ref={topScrollContainerRef}
+                    onScroll={handleTopScroll}
+                    className="flex-1 overflow-x-auto custom-scrollbar h-4 py-0.5 bg-slate-200/50 rounded"
+                    style={{ WebkitOverflowScrolling: 'touch' }}
+                  >
+                    <div style={{ width: `${tableScrollWidth}px`, height: '1px' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div
+              ref={tableContainerRef}
+              onScroll={handleTableScroll}
+              className="overflow-x-auto custom-scrollbar pb-1"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
+              <table className="w-full min-w-[860px] text-left text-xs">
                 <thead className="bg-slate-900 text-white font-extrabold uppercase border-b border-slate-800">
                   <tr>
                     <th className="p-3.5 whitespace-nowrap">Código</th>
                     <th className="p-3.5 min-w-[160px]">Producto</th>
                     <th className="p-3.5 min-w-[140px]">Almacén</th>
-                    <th className="p-3.5 text-right whitespace-nowrap">Existencia Sistema</th>
-                    <th className="p-3.5 text-right whitespace-nowrap">Conteo Físico Real</th>
-                    <th className="p-3.5 text-center whitespace-nowrap">Diferencia</th>
+                    <th className="p-3.5 text-right whitespace-nowrap">Existencia Sistema Actual</th>
+                    <th className="p-3.5 text-right whitespace-nowrap">Conteo en Auditoría</th>
+                    <th className="p-3.5 text-center whitespace-nowrap min-w-[200px]">Diferencia / Diagnóstico</th>
                     <th className="p-3.5 text-center whitespace-nowrap">Estado Auditoría</th>
-                    <th className="p-3.5 text-right whitespace-nowrap">Último Conteo</th>
+                    <th className="p-3.5 text-right whitespace-nowrap">Fecha Auditoría</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {paginatedRows.map((r, idx) => {
+                    const movementsSinceAudit = r.auditInfo ? r.systemStock - r.auditInfo.systemStock : 0;
+                    const hasSubsequentMovements = r.auditInfo && movementsSinceAudit !== 0;
+                    const estimatedCurrentPhysical = r.auditInfo ? r.systemStock + r.auditInfo.difference : r.systemStock;
+
                     return (
                       <tr key={`${r.product.id}_${r.warehouse.id}_${idx}`} className="hover:bg-slate-50/80 transition-colors">
                         <td className="p-3.5 font-mono font-bold text-slate-900 whitespace-nowrap">
@@ -612,37 +763,51 @@ export const PhysicalAuditReport: React.FC = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="p-3.5 text-right font-black text-slate-900 whitespace-nowrap">
-                          {r.systemStock} {r.product.unit}
+                        <td className="p-3.5 text-right whitespace-nowrap">
+                          <span className="font-black text-slate-900 text-sm">
+                            {r.systemStock} {r.product.unit}
+                          </span>
+                          {hasSubsequentMovements && (
+                            <div className="text-[10px] text-slate-500 font-medium">
+                              {movementsSinceAudit > 0 ? `+${movementsSinceAudit}` : movementsSinceAudit} {r.product.unit} desde auditoría
+                            </div>
+                          )}
                         </td>
-                        <td className="p-3.5 text-right font-black whitespace-nowrap">
+                        <td className="p-3.5 text-right whitespace-nowrap">
                           {r.auditInfo ? (
-                            <span className="text-slate-900">
-                              {r.auditInfo.physicalStock} {r.product.unit}
-                            </span>
+                            <div>
+                              <span className="font-black text-slate-900 text-sm">
+                                {r.auditInfo.physicalStock} {r.product.unit}
+                              </span>
+                              {hasSubsequentMovements && (
+                                <div className="text-[10px] text-slate-500 font-medium">
+                                  Sistema al auditar: <strong className="text-slate-700">{r.auditInfo.systemStock} {r.product.unit}</strong>
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-slate-400 font-normal italic">Sin conteo</span>
                           )}
                         </td>
-                        <td className="p-3.5 text-center whitespace-nowrap">
+                        <td className="p-3.5 text-center">
                           {r.status === 'PENDING' ? (
-                            <span className="px-2.5 py-1 bg-slate-100 text-slate-400 rounded-md font-bold text-[11px]">
-                              N/A
+                            <span className="px-2.5 py-1 bg-slate-100 text-slate-400 rounded-md font-bold text-[11px] inline-block">
+                              N/A (Sin conteo)
                             </span>
                           ) : r.status === 'CORRECT' ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md font-black text-[11px] border border-slate-200">
                               <Equal className="w-3 h-3 text-slate-500" />
-                              <span>0.00 (Correcto)</span>
+                              <span>0.00 (Cuadrado)</span>
                             </span>
                           ) : r.status === 'MISSING' ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-800 rounded-md font-black text-[11px] border border-rose-200">
                               <Minus className="w-3 h-3 text-rose-600" />
-                              <span>{r.auditInfo?.difference.toFixed(2)} {r.product.unit}</span>
+                              <span>{r.auditInfo?.difference.toFixed(2)} {r.product.unit} (Faltante)</span>
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-teal-50 text-teal-800 rounded-md font-black text-[11px] border border-teal-200">
                               <Plus className="w-3 h-3 text-teal-600" />
-                              <span>+{r.auditInfo?.difference.toFixed(2)} {r.product.unit}</span>
+                              <span>+{r.auditInfo?.difference.toFixed(2)} {r.product.unit} (Sobrante)</span>
                             </span>
                           )}
                         </td>

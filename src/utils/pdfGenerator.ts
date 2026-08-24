@@ -288,11 +288,14 @@ export interface AuditReportExportItem {
   warehouseName: string;
   unit: string;
   systemStock: number;
+  auditSystemStock?: number | null;
   physicalStock: number | null;
   difference: number | null;
   status: 'PENDING' | 'CORRECT' | 'MISSING' | 'SURPLUS';
   lastAuditDate?: string;
   responsibleUser?: string;
+  movementsSinceAudit?: number;
+  estimatedCurrentPhysical?: number;
 }
 
 export interface AuditReportExportSummary {
@@ -340,7 +343,7 @@ export async function generateAuditReportPDF(
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text('RIF: J-070054034  •  Reporte de Auditoría e Inventario Físico', 14, 18);
+  doc.text('RIF: J-070054034  -  Reporte de Auditoría e Inventario Físico', 14, 18);
 
   // Document Badge
   doc.setTextColor(20, 30, 60);
@@ -353,118 +356,185 @@ export async function generateAuditReportPDF(
   doc.setFillColor(248, 249, 250);
   doc.roundedRect(14, 38, 182, 28, 2, 2, 'FD');
 
-  doc.setFontSize(8.5);
+  doc.setFontSize(8.2);
   doc.setFont('helvetica', 'bold');
+  doc.setTextColor(40, 40, 40);
   doc.text('Almacén:', 18, 44);
   doc.setFont('helvetica', 'normal');
-  doc.text(summary.warehouseName, 54, 44);
+  doc.text(truncateString(summary.warehouseName, 32), 48, 44);
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Categoría / Subgrupo:', 18, 50);
+  doc.text('Categoría:', 18, 50);
   doc.setFont('helvetica', 'normal');
-  doc.text(summary.categoryName, 54, 50);
+  doc.text(truncateString(summary.categoryName, 32), 48, 50);
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Rango de Fechas:', 18, 56);
+  doc.text('Rango Fechas:', 18, 56);
   doc.setFont('helvetica', 'normal');
-  doc.text(summary.dateRangeText, 54, 56);
+  doc.text(truncateString(summary.dateRangeText, 32), 48, 56);
 
   // Summary Metrics Right Side
   doc.setFont('helvetica', 'bold');
-  doc.text('Total Productos:', 115, 44);
+  doc.text('Total Productos:', 106, 44);
   doc.setFont('helvetica', 'normal');
-  doc.text(`${summary.totalItems} (${summary.auditedItems} Con Auditoría / ${summary.pendingItems} Sin Conteo)`, 145, 44);
+  doc.text(`${summary.totalItems} (${summary.auditedItems} Auditados / ${summary.pendingItems} Sin Conteo)`, 134, 44);
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Resultados:', 115, 50);
+  doc.text('Resultados:', 106, 50);
   doc.setFont('helvetica', 'normal');
-  doc.text(`${summary.correctItems} Correctos | ${summary.missingItems} Faltantes | ${summary.surplusItems} Sobrantes`, 145, 50);
+  doc.text(`${summary.correctItems} Correctos | ${summary.missingItems} Faltantes | ${summary.surplusItems} Sobrantes`, 134, 50);
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Fecha Emisión:', 115, 56);
+  doc.text('Fecha Emisión:', 106, 56);
   doc.setFont('helvetica', 'normal');
-  doc.text(formatVE(new Date()), 145, 56);
+  doc.text(formatVE(new Date()), 134, 56);
 
   // Items Table Header
   const startY = 72;
-  doc.setFillColor(20, 30, 60);
-  doc.rect(14, startY, 182, 7, 'F');
+  const drawTableHeader = (y: number) => {
+    doc.setFillColor(20, 30, 60);
+    doc.rect(14, y, 182, 7.5, 'F');
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text('Código', 16, startY + 5);
-  doc.text('Producto', 34, startY + 5);
-  doc.text('Almacén', 84, startY + 5);
-  doc.text('Exist. Sistema', 106, startY + 5);
-  doc.text('Conteo Físico', 130, startY + 5);
-  doc.text('Diferencia / Estado', 154, startY + 5);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('Código', 16, y + 5);
+    doc.text('Producto / Subgrupo', 35, y + 5);
+    doc.text('Alm.', 82, y + 5);
+    doc.text('Exist. Actual', 94, y + 5);
+    doc.text('Conteo Físico', 120, y + 5);
+    doc.text('Diferencia / Diagnóstico', 146, y + 5);
+  };
 
-  let currentY = startY + 7;
+  drawTableHeader(startY);
+
+  const formatShortUnit = (u: string) => {
+    if (!u) return 'und';
+    const lower = u.trim().toLowerCase();
+    if (lower.startsWith('unidad') || lower.startsWith('unid') || lower === 'un' || lower === 'u') {
+      return 'und';
+    }
+    if (lower === 'kilogramos' || lower === 'kilogramo' || lower === 'kilos' || lower === 'kilo') {
+      return 'kg';
+    }
+    if (lower === 'litros' || lower === 'litro') {
+      return 'L';
+    }
+    if (lower === 'gramos' || lower === 'gramo') {
+      return 'g';
+    }
+    return u;
+  };
+
+  let currentY = startY + 7.5;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
 
   items.forEach((item, index) => {
+    const hasMovements =
+      item.movementsSinceAudit !== undefined &&
+      item.movementsSinceAudit !== 0 &&
+      item.auditSystemStock !== undefined &&
+      item.auditSystemStock !== null;
+
+    const rowHeight = hasMovements ? 9.5 : 7;
+
     // Check page overflow
-    if (currentY > 270) {
+    if (currentY + rowHeight > 275) {
       doc.addPage();
       currentY = 20;
-      // Header on new page
-      doc.setFillColor(20, 30, 60);
-      doc.rect(14, currentY, 182, 7, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Código', 16, currentY + 5);
-      doc.text('Producto', 34, currentY + 5);
-      doc.text('Almacén', 84, currentY + 5);
-      doc.text('Exist. Sistema', 106, currentY + 5);
-      doc.text('Conteo Físico', 130, currentY + 5);
-      doc.text('Diferencia / Estado', 154, currentY + 5);
-      currentY += 7;
+      drawTableHeader(currentY);
+      currentY += 7.5;
       doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
     }
 
     if (index % 2 === 0) {
       doc.setFillColor(245, 247, 250);
-      doc.rect(14, currentY, 182, 6.5, 'F');
+      doc.rect(14, currentY, 182, rowHeight, 'F');
     }
 
+    // Border bottom
+    doc.setDrawColor(230, 230, 230);
+    doc.line(14, currentY + rowHeight, 196, currentY + rowHeight);
+
     doc.setTextColor(40, 40, 40);
-    doc.text(item.productCode, 16, currentY + 4.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.8);
+
+    const unitShort = formatShortUnit(item.unit);
+
+    // 1. Code
+    doc.text(truncateString(item.productCode, 9), 16, currentY + 4.8);
     
-    // Truncate name if too long to fit in 48mm
-    const shortName = item.productName.length > 25 ? item.productName.substring(0, 23) + '...' : item.productName;
-    doc.text(shortName, 34, currentY + 4.5);
-    doc.text(item.warehouseCode, 84, currentY + 4.5);
-    doc.text(`${item.systemStock} ${item.unit}`, 106, currentY + 4.5);
+    // 2. Product Name
+    doc.text(truncateString(item.productName, 22), 35, currentY + 4.8);
+    
+    // 3. Warehouse Code
+    doc.text(truncateString(item.warehouseCode, 4), 82, currentY + 4.8);
+    
+    // 4. Current System Stock
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${item.systemStock} ${unitShort}`, 94, currentY + 4.8);
+    doc.setFont('helvetica', 'normal');
 
     if (item.status === 'PENDING') {
       doc.setTextColor(120, 120, 120);
-      doc.text('Sin Conteo', 130, currentY + 4.5);
-      doc.text('PENDIENTE', 154, currentY + 4.5);
+      doc.text('Sin Conteo', 120, currentY + 4.8);
+      doc.setFont('helvetica', 'bold');
+      doc.text('PENDIENTE', 146, currentY + 4.8);
+      doc.setFont('helvetica', 'normal');
     } else {
-      doc.text(`${item.physicalStock} ${item.unit}`, 130, currentY + 4.5);
+      // 5. Physical count with system at audit info
+      const physText = `${item.physicalStock} ${unitShort}`;
+      doc.setTextColor(30, 40, 60);
+      doc.setFont('helvetica', 'bold');
+      doc.text(physText, 120, currentY + 4.8);
+      doc.setFont('helvetica', 'normal');
 
+      if (hasMovements) {
+        doc.setFontSize(6.4);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`(Sist: ${item.auditSystemStock} ${unitShort})`, 120, currentY + 8.2);
+        doc.setFontSize(7.8);
+      }
+
+      // 6. Difference and diagnostic (Formatted compactly so it NEVER overflows x=196)
       if (item.status === 'MISSING') {
         doc.setTextColor(180, 20, 20);
-        const diffText = `${item.difference?.toFixed(2)} FALTANTE`;
-        doc.text(diffText, 154, currentY + 4.5);
+        doc.setFont('helvetica', 'bold');
+        const diffVal = Math.abs(item.difference || 0).toFixed(2);
+        const diffText = `-${diffVal} ${unitShort} FALTANTE`;
+        doc.text(truncateString(diffText, 25), 146, currentY + 4.8);
       } else if (item.status === 'SURPLUS') {
-        doc.setTextColor(20, 140, 60);
-        const diffText = `+${item.difference?.toFixed(2)} SOBRANTE`;
-        doc.text(diffText, 154, currentY + 4.5);
+        doc.setTextColor(20, 130, 60);
+        doc.setFont('helvetica', 'bold');
+        const diffVal = Math.abs(item.difference || 0).toFixed(2);
+        const diffText = `+${diffVal} ${unitShort} SOBRANTE`;
+        doc.text(truncateString(diffText, 25), 146, currentY + 4.8);
       } else {
-        doc.setTextColor(50, 50, 50);
-        doc.text('0.00 (CORRECTO)', 154, currentY + 4.5);
+        doc.setTextColor(60, 60, 60);
+        doc.setFont('helvetica', 'bold');
+        doc.text('0.00 (CORRECTO)', 146, currentY + 4.8);
+      }
+
+      if (hasMovements) {
+        doc.setFontSize(6.4);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(90, 90, 90);
+        const movSign = (item.movementsSinceAudit || 0) > 0 ? '+' : '';
+        const diagText = `Movs: ${movSign}${item.movementsSinceAudit} ${unitShort} | Est: ${item.estimatedCurrentPhysical} ${unitShort}`;
+        doc.text(truncateString(diagText, 30), 146, currentY + 8.2);
+        doc.setFontSize(7.8);
       }
     }
 
-    currentY += 6.5;
+    currentY += rowHeight;
   });
 
   // Border around table
   doc.setDrawColor(200, 200, 200);
-  doc.rect(14, startY, 182, Math.min(currentY - startY, 255));
+  doc.rect(14, startY, 182, Math.min(currentY - startY, 200));
 
   // Multi-page Footers with Page Numbers
   const totalAuditPages = doc.getNumberOfPages();

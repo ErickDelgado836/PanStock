@@ -25,33 +25,47 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
   currentUser,
 }) => {
   const [physicalCounts, setPhysicalCounts] = useState<{ [productId: string]: number | string }>({});
+  const [previousAudits, setPreviousAudits] = useState<{
+    [productId: string]: { physicalStock: number; systemStock: number; difference: number; date: string } | null;
+  }>({});
   const [searchFilter, setSearchFilter] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       const allAudits = getPhysicalAudits();
-      const initial: { [key: string]: number | string } = {};
+      const initialCounts: { [key: string]: number | string } = {};
+      const prevMap: {
+        [productId: string]: { physicalStock: number; systemStock: number; difference: number; date: string } | null;
+      } = {};
 
       products.forEach((p) => {
         const sysStock = p.stockByWarehouse[warehouse.id] || 0;
-        let lastPhysStock: number | string = sysStock;
+        let lastAuditData: { physicalStock: number; systemStock: number; difference: number; date: string } | null = null;
 
         // Find latest audit record for this warehouse containing this product
         for (const a of allAudits) {
           if (a.warehouseId === warehouse.id) {
             const found = a.items?.find((i) => i.productId === p.id);
             if (found !== undefined) {
-              lastPhysStock = found.physicalStock;
+              lastAuditData = {
+                physicalStock: found.physicalStock,
+                systemStock: found.systemStock,
+                difference: found.difference,
+                date: a.date,
+              };
               break;
             }
           }
         }
 
-        initial[p.id] = lastPhysStock;
+        prevMap[p.id] = lastAuditData;
+        // Default to current system stock for convenient adjustments, or last physical count if exists
+        initialCounts[p.id] = lastAuditData ? lastAuditData.physicalStock : sysStock;
       });
 
-      setPhysicalCounts(initial);
+      setPreviousAudits(prevMap);
+      setPhysicalCounts(initialCounts);
       setSearchFilter('');
     }
   }, [isOpen, warehouse.id, category.id]);
@@ -64,6 +78,21 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
         [productId]: val,
       }));
     }
+  };
+
+  const handleFillAllWithSystemStock = () => {
+    const updated: { [key: string]: number | string } = {};
+    products.forEach((p) => {
+      updated[p.id] = p.stockByWarehouse[warehouse.id] || 0;
+    });
+    setPhysicalCounts(updated);
+  };
+
+  const handleSetProductToSystemStock = (productId: string, sysStock: number) => {
+    setPhysicalCounts((prev) => ({
+      ...prev,
+      [productId]: sysStock,
+    }));
   };
 
   const auditItems: PhysicalAuditItem[] = products.map((p) => {
@@ -131,7 +160,7 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="w-full max-w-3xl max-h-[88vh] sm:max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200"
+            className="w-full max-w-4xl max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200"
           >
             {/* Header */}
             <div className="shrink-0 bg-gradient-to-r from-slate-900 via-slate-800 to-red-950 text-white p-5 sm:p-6 relative">
@@ -160,9 +189,18 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
 
             {/* Content Table */}
             <div className="flex-1 overflow-y-auto p-5 sm:p-6 min-h-0">
-              <p className="text-xs text-slate-600 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                Ingrese la cifra real observada en el conteo físico. El sistema calculará automáticamente las diferencias (Faltantes en rojo, Sobrantes en verde).
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
+                <p className="text-slate-600 max-w-xl">
+                  Ingrese la cantidad física real presente en el almacén hoy. El sistema calcula la diferencia automáticamente contra la existencia actual ({warehouse.code}) y registrará este nuevo corte.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleFillAllWithSystemStock}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-300 rounded-lg shadow-2xs text-[11px] transition-all shrink-0"
+                >
+                  Copiar Todo de Existencia Actual
+                </button>
+              </div>
 
               {/* Internal Search Filter */}
               {products.length > 1 && (
@@ -179,13 +217,13 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
               )}
 
               <div className="border border-slate-200 rounded-xl overflow-x-auto touch-auto mb-6">
-                <table className="w-full min-w-[560px] text-left text-xs">
+                <table className="w-full min-w-[620px] text-left text-xs">
                   <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
                     <tr>
                       <th className="p-3 whitespace-nowrap">Código</th>
                       <th className="p-3 min-w-[150px]">Producto</th>
-                      <th className="p-3 text-center whitespace-nowrap">Existencia Sistema</th>
-                      <th className="p-3 text-center whitespace-nowrap">Conteo Físico Real</th>
+                      <th className="p-3 text-center whitespace-nowrap">Existencia Sistema Hoy</th>
+                      <th className="p-3 text-center whitespace-nowrap">Nuevo Conteo Físico</th>
                       <th className="p-3 text-center whitespace-nowrap">Diferencia</th>
                     </tr>
                   </thead>
@@ -197,44 +235,67 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
                         </td>
                       </tr>
                     ) : (
-                      filteredAuditItems.map((item) => (
-                        <tr key={item.productId} className="hover:bg-slate-50">
-                          <td className="p-3 font-mono font-bold text-slate-800 whitespace-nowrap">
-                            <span className="inline-block whitespace-nowrap px-2 py-0.5 bg-slate-100 border border-slate-200 rounded font-mono font-black text-xs">
-                              {item.productCode}
-                            </span>
-                          </td>
-                          <td className="p-3 font-bold text-slate-900">{item.productName}</td>
-                          <td className="p-3 text-center font-bold text-slate-600">
-                            {item.systemStock} {item.unit}
-                          </td>
-                          <td className="p-3 text-center">
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              placeholder="0"
-                              value={physicalCounts[item.productId] ?? ''}
-                              onChange={(e) => handlePhysicalChange(item.productId, e.target.value)}
-                              className="w-24 px-2 py-1 bg-white border border-slate-300 rounded-lg text-center font-black text-xs text-slate-900 focus:ring-2 focus:ring-red-500 font-mono"
-                            />
-                          </td>
-                          <td className="p-3 text-center">
-                            {item.difference > 0 ? (
-                              <span className="inline-flex items-center gap-1 font-black text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
-                                <Plus className="w-3 h-3" />+{item.difference.toFixed(2)} (Sobra)
+                      filteredAuditItems.map((item) => {
+                        const prev = previousAudits[item.productId];
+
+                        return (
+                          <tr key={item.productId} className="hover:bg-slate-50">
+                            <td className="p-3 font-mono font-bold text-slate-800 whitespace-nowrap">
+                              <span className="inline-block whitespace-nowrap px-2 py-0.5 bg-slate-100 border border-slate-200 rounded font-mono font-black text-xs">
+                                {item.productCode}
                               </span>
-                            ) : item.difference < 0 ? (
-                              <span className="inline-flex items-center gap-1 font-black text-red-700 bg-red-50 px-2 py-1 rounded-md border border-red-200">
-                                <Minus className="w-3 h-3" />{item.difference.toFixed(2)} (Falta)
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
-                                <Equal className="w-3 h-3" />0.00 (Correcto)
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))
+                            </td>
+                            <td className="p-3 font-bold text-slate-900">
+                              <div>{item.productName}</div>
+                              {prev && (
+                                <div className="text-[10px] text-slate-400 font-medium">
+                                  Último conteo: {prev.physicalStock} {item.unit} ({prev.date.split(',')[0]})
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-3 text-center font-bold text-slate-700">
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="font-black text-slate-900">
+                                  {item.systemStock} {item.unit}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetProductToSystemStock(item.productId, item.systemStock)}
+                                  className="text-[10px] text-red-600 hover:text-red-800 font-bold underline"
+                                  title="Copiar existencia del sistema al campo de conteo"
+                                >
+                                  Usar {item.systemStock}
+                                </button>
+                              </div>
+                            </td>
+                            <td className="p-3 text-center">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                placeholder="0"
+                                value={physicalCounts[item.productId] ?? ''}
+                                onChange={(e) => handlePhysicalChange(item.productId, e.target.value)}
+                                className="w-24 px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-center font-black text-xs text-slate-900 focus:ring-2 focus:ring-red-500 font-mono shadow-2xs"
+                              />
+                            </td>
+                            <td className="p-3 text-center">
+                              {item.difference > 0 ? (
+                                <span className="inline-flex items-center gap-1 font-black text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
+                                  <Plus className="w-3 h-3" />+{item.difference.toFixed(2)} (Sobra)
+                                </span>
+                              ) : item.difference < 0 ? (
+                                <span className="inline-flex items-center gap-1 font-black text-red-700 bg-red-50 px-2 py-1 rounded-md border border-red-200">
+                                  <Minus className="w-3 h-3" />{item.difference.toFixed(2)} (Falta)
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                                  <Equal className="w-3 h-3" />0.00 (Correcto)
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -251,7 +312,7 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setConfirmOpen(true)}
-                  className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs shadow-md transition-all active:scale-[0.98] flex items-center gap-1.5"
+                  className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs shadow-md transition-all active:scale-[0.98] flex items-center gap-1.5 cursor-pointer"
                 >
                   <Check className="w-4 h-4 text-emerald-400" />
                   <span>Guardar Conteo e Inventario Físico</span>

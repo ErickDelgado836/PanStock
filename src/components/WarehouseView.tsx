@@ -88,7 +88,7 @@ const CategoryProductTable: React.FC<CategoryProductTableProps> = ({
   const checkScrollState = () => {
     if (!tableContainerRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = tableContainerRef.current;
-    const overflow = scrollWidth > clientWidth + 4;
+    const overflow = scrollWidth > clientWidth + 2;
     setHasOverflow(overflow);
     setCanScrollLeft(scrollLeft > 6);
     setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 6);
@@ -96,8 +96,20 @@ const CategoryProductTable: React.FC<CategoryProductTableProps> = ({
 
   useEffect(() => {
     checkScrollState();
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (tableContainerRef.current && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        checkScrollState();
+      });
+      resizeObserver.observe(tableContainerRef.current);
+    }
+
     window.addEventListener('resize', checkScrollState);
-    return () => window.removeEventListener('resize', checkScrollState);
+    return () => {
+      window.removeEventListener('resize', checkScrollState);
+      if (resizeObserver) resizeObserver.disconnect();
+    };
   }, [catProducts]);
 
   const handleScroll = (direction: 'left' | 'right') => {
@@ -335,24 +347,29 @@ const CategoryProductTable: React.FC<CategoryProductTableProps> = ({
                       </td>
                       <td className="p-3 text-center whitespace-nowrap">
                         {lastAuditItem ? (
-                          <div className="inline-flex flex-col items-center">
-                            <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">
-                              {lastAuditItem.physicalStock} {prod.unit}
-                            </span>
-                            {lastAuditItem.difference === 0 ? (
-                              <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 rounded border border-emerald-200 whitespace-nowrap">
-                                Correcto
-                              </span>
-                            ) : lastAuditItem.difference < 0 ? (
-                              <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-1.5 rounded border border-rose-200 whitespace-nowrap">
-                                Falta {Math.abs(lastAuditItem.difference)} {prod.unit}
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-1.5 rounded border border-teal-200 whitespace-nowrap">
-                                Sobra +{lastAuditItem.difference} {prod.unit}
-                              </span>
-                            )}
-                          </div>
+                          (() => {
+                            const diff = lastAuditItem.physicalStock - whStock;
+                            return (
+                              <div className="inline-flex flex-col items-center">
+                                <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">
+                                  {lastAuditItem.physicalStock} {prod.unit}
+                                </span>
+                                {diff === 0 ? (
+                                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 rounded border border-emerald-200 whitespace-nowrap">
+                                    Correcto
+                                  </span>
+                                ) : diff < 0 ? (
+                                  <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-1.5 rounded border border-rose-200 whitespace-nowrap">
+                                    Falta {Math.abs(diff)} {prod.unit}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-1.5 rounded border border-teal-200 whitespace-nowrap">
+                                    Sobra +{diff} {prod.unit}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()
                         ) : (
                           <span className="text-[11px] text-slate-400 italic font-medium whitespace-nowrap">
                             Sin conteo
@@ -492,16 +509,19 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
       // 4. Local warehouse physical audit status filter
       if (selectedAuditStatus !== 'ALL') {
         const auditItem = warehouseAuditMap[p.id];
+        const localStock = p.stockByWarehouse[warehouse.id] || 0;
+        const diff = auditItem ? auditItem.physicalStock - localStock : 0;
+
         if (selectedAuditStatus === 'UNAUDITED') {
           if (auditItem) return false;
         } else if (selectedAuditStatus === 'AUDITED') {
           if (!auditItem) return false;
         } else if (selectedAuditStatus === 'EQUAL') {
-          if (!auditItem || auditItem.difference !== 0) return false;
+          if (!auditItem || diff !== 0) return false;
         } else if (selectedAuditStatus === 'DEFICIT') {
-          if (!auditItem || auditItem.difference >= 0) return false;
+          if (!auditItem || diff >= 0) return false;
         } else if (selectedAuditStatus === 'SURPLUS') {
-          if (!auditItem || auditItem.difference <= 0) return false;
+          if (!auditItem || diff <= 0) return false;
         }
       }
 
