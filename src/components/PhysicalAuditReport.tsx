@@ -573,7 +573,7 @@ export const PhysicalAuditReport: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto touch-auto">
+            <div className="overflow-x-auto custom-scrollbar touch-pan-x pb-1">
               <table className="w-full min-w-[780px] text-left text-xs">
                 <thead className="bg-slate-900 text-white font-extrabold uppercase border-b border-slate-800">
                   <tr>

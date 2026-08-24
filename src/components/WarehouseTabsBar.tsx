@@ -132,7 +132,7 @@ export const WarehouseTabsBar: React.FC<WarehouseTabsBarProps> = ({
           onMouseUp={handleMouseLeaveOrUp}
           onMouseMove={handleMouseMove}
           onScroll={checkScroll}
-          className={`flex-1 overflow-x-auto flex gap-2 py-1 px-0.5 select-none touch-pan-x scrollbar-thin scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 scrollbar-track-slate-100 rounded-lg ${
+          className={`flex-1 overflow-x-auto flex gap-2 py-1 px-0.5 select-none touch-pan-x custom-scrollbar rounded-lg ${
             isMouseDown ? 'cursor-grabbing' : 'cursor-grab'
           }`}
           style={{ scrollBehavior: 'smooth' }}
