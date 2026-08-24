@@ -102,20 +102,12 @@ const CategoryProductTable: React.FC<CategoryProductTableProps> = ({
 
   const handleScroll = (direction: 'left' | 'right') => {
     if (!tableContainerRef.current) return;
-    const distance = 300;
+    const distance = 280;
     tableContainerRef.current.scrollBy({
       left: direction === 'left' ? -distance : distance,
       behavior: 'smooth',
     });
     setTimeout(checkScrollState, 350);
-  };
-
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (!tableContainerRef.current || !hasOverflow) return;
-    if (e.deltaY !== 0 && !e.shiftKey) {
-      tableContainerRef.current.scrollLeft += e.deltaY;
-      checkScrollState();
-    }
   };
 
   return (
@@ -207,31 +199,25 @@ const CategoryProductTable: React.FC<CategoryProductTableProps> = ({
           No hay productos registrados bajo la categoría "{cat.name}" para este almacén.
         </div>
       ) : (
-        <div className="relative">
-          {/* Subtle overflow indicator for right edge */}
-          {hasOverflow && canScrollRight && (
-            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-slate-200/50 to-transparent pointer-events-none z-10" />
-          )}
-
-          <div
-            ref={tableContainerRef}
-            onScroll={checkScrollState}
-            onWheel={handleWheel}
-            className="overflow-x-auto touch-pan-x custom-scrollbar pb-1"
-          >
-            <table className="w-full text-left text-xs min-w-[920px]">
-              <thead className="bg-slate-100/80 text-slate-600 font-extrabold uppercase border-b border-slate-200 whitespace-nowrap">
-                <tr>
-                  <th className="p-3 w-[90px]">Código</th>
-                  <th className="p-3 min-w-[170px] max-w-[280px]">Descripción del Producto</th>
-                  <th className="p-3 min-w-[180px]">Última Actividad / Movimiento</th>
-                  <th className="p-3 text-center min-w-[140px]">Fecha Vencimiento</th>
-                  <th className="p-3 text-center min-w-[140px]">Último Conteo Físico Real</th>
-                  <th className="p-3 text-right min-w-[140px]">Existencia Almacén</th>
-                  <th className="p-3 text-right min-w-[130px]">Total Sistema</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 whitespace-nowrap">
+        <div
+          ref={tableContainerRef}
+          onScroll={checkScrollState}
+          className="overflow-x-auto custom-scrollbar pb-1"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <table className="w-full text-left text-xs min-w-[920px]">
+            <thead className="bg-slate-100/80 text-slate-600 font-extrabold uppercase border-b border-slate-200 whitespace-nowrap">
+              <tr>
+                <th className="p-3 w-[90px]">Código</th>
+                <th className="p-3 min-w-[170px] max-w-[280px]">Descripción del Producto</th>
+                <th className="p-3 min-w-[180px]">Última Actividad / Movimiento</th>
+                <th className="p-3 text-center min-w-[140px]">Fecha Vencimiento</th>
+                <th className="p-3 text-center min-w-[140px]">Último Conteo Físico Real</th>
+                <th className="p-3 text-right min-w-[140px]">Existencia Almacén</th>
+                <th className="p-3 text-right min-w-[130px]">Total Sistema</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 whitespace-nowrap">
                 {catProducts.map((prod) => {
                   const whStock = prod.stockByWarehouse[warehouse.id] || 0;
                   const totalStock = calculateTotalStock(prod.stockByWarehouse);
@@ -393,7 +379,6 @@ const CategoryProductTable: React.FC<CategoryProductTableProps> = ({
               </tbody>
             </table>
           </div>
-        </div>
       )}
     </div>
   );

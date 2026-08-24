@@ -431,7 +431,7 @@ export const GlobalProductCatalogModal: React.FC<GlobalProductCatalogModalProps>
           </div>
 
           {/* KPI Summary Bar / Interactive Filter Buttons */}
-          <div className="bg-white px-3 py-2 sm:py-3 sm:px-6 border-b border-slate-200/80 shrink-0 flex overflow-x-auto sm:grid sm:grid-cols-4 gap-2 sm:gap-3.5 pb-2.5 sm:pb-3 scrollbar-none snap-x touch-pan-x">
+          <div className="bg-white px-3 py-2 sm:py-3 sm:px-6 border-b border-slate-200/80 shrink-0 flex overflow-x-auto sm:grid sm:grid-cols-4 gap-2 sm:gap-3.5 pb-2.5 sm:pb-3 scrollbar-none snap-x" style={{ WebkitOverflowScrolling: 'touch' }}>
             {/* KPI 1: Total Productos */}
             <button
               type="button"

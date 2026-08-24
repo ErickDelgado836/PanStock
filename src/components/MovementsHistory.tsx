@@ -474,7 +474,7 @@ export const MovementsHistory: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto custom-scrollbar touch-pan-x pb-1">
+            <div className="overflow-x-auto custom-scrollbar pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-900 text-white font-extrabold uppercase border-b border-slate-800">
                   <tr>

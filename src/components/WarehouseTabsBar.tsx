@@ -66,16 +66,16 @@ export const WarehouseTabsBar: React.FC<WarehouseTabsBarProps> = ({
     setTimeout(checkScroll, 350);
   };
 
-  // Convert mouse wheel vertical scroll to horizontal scroll
+  // Convert mouse wheel vertical scroll to horizontal scroll on desktop if overflowing
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (!scrollRef.current) return;
-    if (e.deltaY !== 0) {
+    if (e.deltaY !== 0 && (canScrollLeft || canScrollRight) && e.shiftKey) {
       scrollRef.current.scrollLeft += e.deltaY;
       checkScroll();
     }
   };
 
-  // Mouse Drag to Scroll handlers
+  // Mouse Drag to Scroll handlers (for desktop mouse only)
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!scrollRef.current) return;
     setIsMouseDown(true);
@@ -89,9 +89,8 @@ export const WarehouseTabsBar: React.FC<WarehouseTabsBarProps> = ({
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isMouseDown || !scrollRef.current) return;
-    e.preventDefault();
     const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startX) * 1.8; // Scroll speed multiplier
+    const walk = (x - startX) * 1.5;
     scrollRef.current.scrollLeft = scrollLeftPos - walk;
     checkScroll();
   };
@@ -132,10 +131,10 @@ export const WarehouseTabsBar: React.FC<WarehouseTabsBarProps> = ({
           onMouseUp={handleMouseLeaveOrUp}
           onMouseMove={handleMouseMove}
           onScroll={checkScroll}
-          className={`flex-1 overflow-x-auto flex gap-2 py-1 px-0.5 select-none touch-pan-x custom-scrollbar rounded-lg ${
-            isMouseDown ? 'cursor-grabbing' : 'cursor-grab'
+          className={`flex-1 overflow-x-auto flex gap-2 py-1 px-0.5 custom-scrollbar rounded-lg ${
+            isMouseDown ? 'cursor-grabbing' : ''
           }`}
-          style={{ scrollBehavior: 'smooth' }}
+          style={{ WebkitOverflowScrolling: 'touch' }}
         >
           {allowedWarehouses.map((w) => {
             const isSelected = selectedWarehouseId === w.id;
