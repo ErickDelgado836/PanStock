@@ -24,6 +24,7 @@ import {
   Sparkles,
   PieChart as LucidePieChart,
   Activity,
+  BookOpen,
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -498,6 +499,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Interactive User Manual Callout Banner */}
+      <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 rounded-3xl p-6 sm:p-7 text-white shadow-md border border-blue-900/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-3.5 bg-white/10 rounded-2xl border border-white/10 text-amber-400 shrink-0">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="font-black text-sm sm:text-base text-white">
+              ¿Tienes dudas de cómo usar alguna opción del programa?
+            </h4>
+            <p className="text-xs text-slate-300 font-medium mt-0.5 max-w-xl leading-relaxed">
+              Consulta nuestro <strong>Manual de Uso</strong> interactivo con explicaciones paso a paso de ventas, descarga de PDFs, auditoría física y control de vencimientos.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => onNavigateToTab('MANUAL')}
+          className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 shrink-0 flex items-center gap-2 cursor-pointer"
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>Abrir Manual de Uso</span>
+        </button>
       </div>
     </div>
   );

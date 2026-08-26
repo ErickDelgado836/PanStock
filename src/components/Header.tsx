@@ -15,6 +15,7 @@ import {
   Settings,
   Wheat,
   Database,
+  BookOpen,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -49,6 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
   }
 
   tabs.push({ id: 'NOTAS', label: 'Notas (Auditoría)', icon: ClipboardList });
+  tabs.push({ id: 'MANUAL', label: 'Manual de Uso', icon: BookOpen });
 
   if (currentUser.isAdmin) {
     tabs.push({ id: 'ADMIN', label: 'Panel Admin', icon: Settings });

@@ -21,6 +21,7 @@ import { WarehouseTabsBar } from './components/WarehouseTabsBar';
 import { SalesModule } from './components/Movements/SalesModule';
 import { ExpiryAlerts } from './components/ExpiryAlerts';
 import { MovementsHistory } from './components/MovementsHistory';
+import { UserManual } from './components/UserManual';
 import { AdminPanel } from './components/AdminPanel';
 import { PermissionGuard } from './components/PermissionGuard';
 import { showToast } from './utils/toast';
@@ -468,6 +469,23 @@ export default function App() {
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
               <MovementsHistory />
+            </motion.div>
+          )}
+
+          {activeTab === 'MANUAL' && (
+            <motion.div
+              key="MANUAL"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+            >
+              <UserManual
+                onNavigateToTab={(tab) => setActiveTab(tab)}
+                onOpenEntradas={() => setEntradasOpen(true)}
+                onOpenTraslados={() => setTrasladosOpen(true)}
+                onOpenDescargos={() => setDescargosOpen(true)}
+              />
             </motion.div>
           )}
 
