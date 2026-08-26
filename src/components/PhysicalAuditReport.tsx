@@ -44,10 +44,10 @@ export const PhysicalAuditReport: React.FC = () => {
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
   const topScrollContainerRef = React.useRef<HTMLDivElement>(null);
   const isSyncingScrollRef = React.useRef(false);
-  const [hasOverflow, setHasOverflow] = useState(false);
+  const [hasOverflow, setHasOverflow] = useState(true);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-  const [tableScrollWidth, setTableScrollWidth] = useState(860);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+  const [tableScrollWidth, setTableScrollWidth] = useState(1050);
 
   // Filter States
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('ALL');
@@ -657,55 +657,53 @@ export const PhysicalAuditReport: React.FC = () => {
         ) : (
           <>
             {/* Top Horizontal Scrollbar & Quick Navigation Bar */}
-            {hasOverflow && (
-              <div className="bg-slate-50/90 border-b border-slate-200 px-4 py-2 flex items-center justify-between gap-3 text-xs flex-wrap sm:flex-nowrap">
-                <div className="flex items-center gap-2 text-slate-600 font-bold text-xs shrink-0">
-                  <span className="flex items-center gap-1 text-[11px] text-slate-500 font-semibold">
-                    Desplazamiento horizontal:
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleHorizontalScroll('left')}
-                      disabled={!canScrollLeft}
-                      className={`p-1.5 rounded-lg border transition-all ${
-                        canScrollLeft
-                          ? 'bg-white hover:bg-red-50 text-slate-700 hover:text-red-600 border-slate-300 hover:border-red-300 cursor-pointer shadow-xs active:scale-95'
-                          : 'opacity-30 border-transparent cursor-not-allowed text-slate-400'
-                      }`}
-                      title="Desplazar tabla a la izquierda"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleHorizontalScroll('right')}
-                      disabled={!canScrollRight}
-                      className={`p-1.5 rounded-lg border transition-all ${
-                        canScrollRight
-                          ? 'bg-white hover:bg-red-50 text-slate-700 hover:text-red-600 border-slate-300 hover:border-red-300 cursor-pointer shadow-xs active:scale-95'
-                          : 'opacity-30 border-transparent cursor-not-allowed text-slate-400'
-                      }`}
-                      title="Desplazar tabla a la derecha"
-                    >
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Top Scrollbar Track */}
-                <div className="flex-1 w-full sm:w-auto flex items-center gap-2">
-                  <div
-                    ref={topScrollContainerRef}
-                    onScroll={handleTopScroll}
-                    className="flex-1 overflow-x-auto custom-scrollbar h-4 py-0.5 bg-slate-200/50 rounded"
-                    style={{ WebkitOverflowScrolling: 'touch' }}
+            <div className="bg-slate-50/90 border-b border-slate-200 px-4 py-2 flex items-center justify-between gap-3 text-xs flex-wrap sm:flex-nowrap min-h-[44px]">
+              <div className="flex items-center gap-2 text-slate-600 font-bold text-xs shrink-0">
+                <span className="flex items-center gap-1 text-[11px] text-slate-500 font-semibold select-none">
+                  Desplazamiento horizontal:
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleHorizontalScroll('left')}
+                    disabled={!canScrollLeft}
+                    className={`p-1.5 rounded-lg border transition-all ${
+                      canScrollLeft
+                        ? 'bg-white hover:bg-red-50 text-slate-700 hover:text-red-600 border-slate-300 hover:border-red-300 cursor-pointer shadow-xs active:scale-95'
+                        : 'opacity-30 border-transparent cursor-not-allowed text-slate-400'
+                    }`}
+                    title="Desplazar tabla a la izquierda"
                   >
-                    <div style={{ width: `${tableScrollWidth}px`, height: '1px' }} />
-                  </div>
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleHorizontalScroll('right')}
+                    disabled={!canScrollRight}
+                    className={`p-1.5 rounded-lg border transition-all ${
+                      canScrollRight
+                        ? 'bg-white hover:bg-red-50 text-slate-700 hover:text-red-600 border-slate-300 hover:border-red-300 cursor-pointer shadow-xs active:scale-95'
+                        : 'opacity-30 border-transparent cursor-not-allowed text-slate-400'
+                    }`}
+                    title="Desplazar tabla a la derecha"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
-            )}
+
+              {/* Top Scrollbar Track */}
+              <div className={`flex-1 w-full sm:w-auto flex items-center gap-2 transition-opacity duration-200 ${hasOverflow ? 'opacity-100' : 'opacity-20 pointer-events-none'}`}>
+                <div
+                  ref={topScrollContainerRef}
+                  onScroll={handleTopScroll}
+                  className="flex-1 overflow-x-auto custom-scrollbar h-4 py-0.5 bg-slate-200/50 rounded"
+                  style={{ WebkitOverflowScrolling: 'touch' }}
+                >
+                  <div style={{ width: `${Math.max(tableScrollWidth, 900)}px`, height: '1px' }} />
+                </div>
+              </div>
+            </div>
 
             <div
               ref={tableContainerRef}
