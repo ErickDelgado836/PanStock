@@ -14,7 +14,7 @@ import { ConfirmationModal } from '../ConfirmationModal';
 import { showToast } from '../../utils/toast';
 import { CustomSelect } from '../Common/CustomSelect';
 import { deductLotStock, getLotStockInWarehouse } from '../../utils/lotUtils';
-import { formatVE } from '../../utils/movementSearch';
+import { formatVE, parseAnyDate } from '../../utils/movementSearch';
 import {
   ShoppingCart,
   Building2,
@@ -324,23 +324,66 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Top Selling Products Calculation
-  const salesMovements = movements.filter((m) => m.type === 'VENTA');
-  const topSellingMap: { [code: string]: { name: string; totalQty: number; unit: string } } = {};
+  // Top Selling Products Calculation - strictly filtered by the active sales warehouse
+  const salesMovementsForWarehouse = movements.filter((m) => {
+    if (m.type !== 'VENTA') return false;
+    if (m.sourceWarehouseId !== selectedWarehouseId) return false;
 
-  salesMovements.forEach((m) => {
-    m.items.forEach((it) => {
-      if (!topSellingMap[it.productCode]) {
-        topSellingMap[it.productCode] = { name: it.productName, totalQty: 0, unit: it.unit };
+    if (topSalesTimeframe !== 'ALL') {
+      const mDate = parseAnyDate(m.date);
+      if (!mDate) return true;
+      const now = new Date();
+      if (topSalesTimeframe === 'TODAY') {
+        return (
+          mDate.getFullYear() === now.getFullYear() &&
+          mDate.getMonth() === now.getMonth() &&
+          mDate.getDate() === now.getDate()
+        );
       }
-      topSellingMap[it.productCode].totalQty += it.quantity;
+      if (topSalesTimeframe === 'MONTH') {
+        return (
+          mDate.getFullYear() === now.getFullYear() &&
+          mDate.getMonth() === now.getMonth()
+        );
+      }
+      if (topSalesTimeframe === 'YEAR') {
+        return mDate.getFullYear() === now.getFullYear();
+      }
+    }
+    return true;
+  });
+
+  const topSellingMap: {
+    [code: string]: {
+      name: string;
+      totalQty: number;
+      unit: string;
+      salesCount: number;
+      code: string;
+    };
+  } = {};
+
+  salesMovementsForWarehouse.forEach((m) => {
+    m.items.forEach((it) => {
+      if (!it || it.quantity <= 0) return;
+      const code = it.productCode || it.productId || 'UNKNOWN';
+      if (!topSellingMap[code]) {
+        topSellingMap[code] = {
+          code,
+          name: it.productName,
+          totalQty: 0,
+          unit: it.unit || 'unidades',
+          salesCount: 0,
+        };
+      }
+      topSellingMap[code].totalQty += Number(it.quantity) || 0;
+      topSellingMap[code].salesCount += 1;
     });
   });
 
-  const topSellingList = Object.entries(topSellingMap)
-    .map(([code, val]) => ({ code, ...val }))
+  const topSellingList = Object.values(topSellingMap)
     .sort((a, b) => b.totalQty - a.totalQty)
-    .slice(0, 5);
+    .slice(0, 6);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -585,31 +628,108 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
             )}
           </div>
 
-          {/* Top Selling Analytics Panel */}
+          {/* Top Selling Analytics Panel - Filtered by active sales warehouse */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
-                <h3 className="text-base font-bold text-slate-900">Productos Más Vendidos (Ranking en Tiempo Real)</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4 mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-base font-black text-slate-900">
+                    Productos Más Vendidos en {selectedWarehouseId === '01' ? '01 DESPACHO' : '002 VENTAS AL MAYOR'}
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Ranking calculado exclusivamente según las ventas procesadas desde este almacén.
+                </p>
               </div>
-              <span className="text-xs text-slate-500 font-semibold">Basado en salidas registradas</span>
+
+              {/* Timeframe Filter Buttons */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setTopSalesTimeframe('ALL')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    topSalesTimeframe === 'ALL'
+                      ? 'bg-white text-blue-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Histórico
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTopSalesTimeframe('MONTH')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    topSalesTimeframe === 'MONTH'
+                      ? 'bg-white text-blue-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Este Mes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTopSalesTimeframe('TODAY')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    topSalesTimeframe === 'TODAY'
+                      ? 'bg-white text-blue-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Hoy
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {topSellingList.length === 0 ? (
-                <p className="text-xs text-slate-400 italic col-span-full text-center py-4">
-                  Aún no se han registrado ventas en el sistema.
-                </p>
+                <div className="col-span-full py-6 text-center bg-slate-50/80 rounded-xl border border-dashed border-slate-200 p-4">
+                  <p className="text-xs font-bold text-slate-600">
+                    Aún no se han registrado ventas desde el almacén [{selectedWarehouseId === '01' ? '01 DESPACHO' : '002 VENTAS AL MAYOR'}].
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Al procesar ventas con el botón 'Ejecutar Venta y Restar Inventario', los productos más vendidos aparecerán aquí automáticamente.
+                  </p>
+                </div>
               ) : (
                 topSellingList.map((item, index) => (
-                  <div key={item.code} className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
-                    <span className="w-7 h-7 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+                  <div
+                    key={item.code}
+                    className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${
+                      index === 0
+                        ? 'bg-gradient-to-r from-amber-50/80 to-blue-50/50 border-amber-300 shadow-xs'
+                        : 'bg-slate-50/90 border-slate-200'
+                    }`}
+                  >
+                    <span
+                      className={`w-7 h-7 rounded-lg font-black text-xs flex items-center justify-center shrink-0 shadow-xs ${
+                        index === 0
+                          ? 'bg-amber-500 text-slate-900'
+                          : index === 1
+                          ? 'bg-slate-700 text-white'
+                          : index === 2
+                          ? 'bg-amber-700 text-white'
+                          : 'bg-blue-600 text-white'
+                      }`}
+                    >
                       #{index + 1}
                     </span>
-                    <div className="truncate">
-                      <span className="font-extrabold text-slate-900 text-xs block truncate">{item.name}</span>
-                      <span className="text-[10px] text-blue-700 font-bold">
-                        Vendidos: {item.totalQty} {item.unit}
+                    <div className="truncate flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[10px] font-mono font-bold bg-white px-1.5 py-0.2 rounded border border-slate-200 text-slate-700">
+                          {item.code}
+                        </span>
+                        {item.salesCount > 1 && (
+                          <span className="text-[9px] font-semibold text-slate-400">
+                            ({item.salesCount} ops)
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-extrabold text-slate-900 text-xs block truncate" title={item.name}>
+                        {item.name}
+                      </span>
+                      <span className="text-[11px] text-blue-700 font-extrabold block">
+                        Vendidos: {item.totalQty.toLocaleString('es-ES')} {item.unit}
                       </span>
                     </div>
                   </div>
