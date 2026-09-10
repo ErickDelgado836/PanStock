@@ -7,6 +7,7 @@ import { showToast } from '../utils/toast';
 import { CustomSelect } from './Common/CustomSelect';
 import { getLotStockMap, getLotTotalStock, getLotStockInWarehouse } from '../utils/lotUtils';
 import { generateExpiryReportPDF } from '../utils/pdfGenerator';
+import { exportExpiryAlertsToExcel } from '../utils/excelGenerator';
 import {
   AlertTriangle,
   ShieldCheck,
@@ -18,6 +19,7 @@ import {
   Trash2,
   FileText,
   Download,
+  FileSpreadsheet,
   Loader2,
   ChevronDown,
   ChevronUp,
@@ -252,6 +254,58 @@ export const ExpiryAlerts: React.FC<{ currentUser?: UserProfile }> = ({ currentU
 
   const [isExportingPDF, setIsExportingPDF] = useState<boolean>(false);
 
+  const getExpiryReportData = () => {
+    const selectedWhObj = warehouses.find((w) => w.id === filterWarehouseId);
+    const whLabel =
+      filterWarehouseId === 'ALL'
+        ? `Todos los Almacenes (${warehouses.length})`
+        : selectedWhObj
+        ? `${selectedWhObj.code} - ${selectedWhObj.name}`
+        : filterWarehouseId;
+
+    let filterStatusLabel = 'Todos los Lotes';
+    if (filterStatus === 'EXPIRED') filterStatusLabel = 'Solo Vencidos';
+    if (filterStatus === 'NEAR') filterStatusLabel = 'Próximos a Vencer (<= 30 días)';
+
+    const pdfItems = filteredLots.map((item) => {
+      const breakdown = Object.entries(item.stockByWarehouse)
+        .filter(([, qty]) => Number(qty) > 0)
+        .map(([whId, qty]) => {
+          const whObj = warehouses.find((w) => w.id === whId);
+          return {
+            whCode: whObj ? whObj.code : whId,
+            whName: whObj ? whObj.name : `Almacén ${whId}`,
+            qty: Number(qty),
+          };
+        });
+
+      return {
+        productCode: item.product.code,
+        productName: item.product.name,
+        lotNumber: item.lotNumber,
+        expirationDate: item.expirationDate,
+        daysLeft: item.daysLeft,
+        status: item.status,
+        totalQuantity: item.totalQuantity,
+        unit: item.product.unit,
+        warehouseBreakdown: breakdown,
+      };
+    });
+
+    const pdfSummary = {
+      warehouseName: whLabel,
+      filterStatusLabel,
+      searchQuery: searchQuery.trim() || undefined,
+      totalLotsCount: filteredLots.length,
+      expiredCount: filteredLots.filter((i) => i.status === 'EXPIRED').length,
+      nearCount: filteredLots.filter((i) => i.status === 'NEAR').length,
+      safeCount: filteredLots.filter((i) => i.status === 'SAFE').length,
+      generatedBy: user?.username ? `${user.username}${user.roleName ? ` (${user.roleName})` : ''}` : 'Usuario del Sistema',
+    };
+
+    return { pdfSummary, pdfItems };
+  };
+
   const handleExportPDF = async () => {
     if (filteredLots.length === 0) {
       showToast('Sin Resultados', 'No hay lotes en la lista actual para generar el reporte PDF.', 'warning');
@@ -260,54 +314,7 @@ export const ExpiryAlerts: React.FC<{ currentUser?: UserProfile }> = ({ currentU
 
     setIsExportingPDF(true);
     try {
-      const selectedWhObj = warehouses.find((w) => w.id === filterWarehouseId);
-      const whLabel =
-        filterWarehouseId === 'ALL'
-          ? `Todos los Almacenes (${warehouses.length})`
-          : selectedWhObj
-          ? `${selectedWhObj.code} - ${selectedWhObj.name}`
-          : filterWarehouseId;
-
-      let filterStatusLabel = 'Todos los Lotes';
-      if (filterStatus === 'EXPIRED') filterStatusLabel = 'Solo Vencidos';
-      if (filterStatus === 'NEAR') filterStatusLabel = 'Próximos a Vencer (<= 30 días)';
-
-      const pdfItems = filteredLots.map((item) => {
-        const breakdown = Object.entries(item.stockByWarehouse)
-          .filter(([, qty]) => Number(qty) > 0)
-          .map(([whId, qty]) => {
-            const whObj = warehouses.find((w) => w.id === whId);
-            return {
-              whCode: whObj ? whObj.code : whId,
-              whName: whObj ? whObj.name : `Almacén ${whId}`,
-              qty: Number(qty),
-            };
-          });
-
-        return {
-          productCode: item.product.code,
-          productName: item.product.name,
-          lotNumber: item.lotNumber,
-          expirationDate: item.expirationDate,
-          daysLeft: item.daysLeft,
-          status: item.status,
-          totalQuantity: item.totalQuantity,
-          unit: item.product.unit,
-          warehouseBreakdown: breakdown,
-        };
-      });
-
-      const pdfSummary = {
-        warehouseName: whLabel,
-        filterStatusLabel,
-        searchQuery: searchQuery.trim() || undefined,
-        totalLotsCount: filteredLots.length,
-        expiredCount: filteredLots.filter((i) => i.status === 'EXPIRED').length,
-        nearCount: filteredLots.filter((i) => i.status === 'NEAR').length,
-        safeCount: filteredLots.filter((i) => i.status === 'SAFE').length,
-        generatedBy: user?.username ? `${user.username}${user.roleName ? ` (${user.roleName})` : ''}` : 'Usuario del Sistema',
-      };
-
+      const { pdfSummary, pdfItems } = getExpiryReportData();
       await generateExpiryReportPDF(pdfSummary, pdfItems);
 
       showToast(
@@ -320,6 +327,27 @@ export const ExpiryAlerts: React.FC<{ currentUser?: UserProfile }> = ({ currentU
       showToast('Error de Exportación', 'Ocurrió un inconveniente al generar el reporte en PDF.', 'error');
     } finally {
       setIsExportingPDF(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (filteredLots.length === 0) {
+      showToast('Sin Resultados', 'No hay lotes en la lista actual para generar el archivo Excel.', 'warning');
+      return;
+    }
+
+    try {
+      const { pdfSummary, pdfItems } = getExpiryReportData();
+      exportExpiryAlertsToExcel(pdfSummary, pdfItems);
+
+      showToast(
+        '¡Excel Generado con Éxito!',
+        `Se descargó el archivo Excel con ${filteredLots.length} lote(s) registrados.`,
+        'success'
+      );
+    } catch (err) {
+      console.error('Error exporting Excel report:', err);
+      showToast('Error de Exportación', 'Ocurrió un inconveniente al generar el archivo Excel.', 'error');
     }
   };
 
@@ -338,20 +366,33 @@ export const ExpiryAlerts: React.FC<{ currentUser?: UserProfile }> = ({ currentU
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
-          <button
-            onClick={handleExportPDF}
-            disabled={isExportingPDF || filteredLots.length === 0}
-            className="px-4 py-3 bg-slate-800/90 hover:bg-slate-800 text-white font-extrabold rounded-2xl border border-slate-700/80 shadow-lg transition-all flex items-center justify-center gap-2 text-xs md:text-sm cursor-pointer hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Descargar reporte PDF con los lotes filtrados actualmente"
-          >
-            {isExportingPDF ? (
-              <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-            ) : (
-              <FileText className="w-4 h-4 text-red-400" />
-            )}
-            <span>{isExportingPDF ? 'Generando PDF...' : 'Descargar PDF'}</span>
-          </button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0 flex-wrap">
+          {/* Dual Export Options: PDF & Excel */}
+          <div className="inline-flex items-center p-1 bg-slate-800/90 rounded-2xl border border-slate-700/80 gap-1 shadow-lg">
+            <button
+              onClick={handleExportPDF}
+              disabled={isExportingPDF || filteredLots.length === 0}
+              className="px-3.5 py-2.5 bg-red-600/90 hover:bg-red-600 active:bg-red-700 text-white font-extrabold rounded-xl transition-all flex items-center justify-center gap-2 text-xs md:text-sm cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Descargar reporte oficial en formato PDF para imprimir"
+            >
+              {isExportingPDF ? (
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+              ) : (
+                <Download className="w-4 h-4 text-white" />
+              )}
+              <span>{isExportingPDF ? 'Generando PDF...' : 'Descargar PDF'}</span>
+            </button>
+
+            <button
+              onClick={handleExportExcel}
+              disabled={filteredLots.length === 0}
+              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold rounded-xl transition-all flex items-center justify-center gap-2 text-xs md:text-sm cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+              title="Descargar reporte completo estructurado en archivo Excel (.xlsx)"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
+              <span>Descargar Excel</span>
+            </button>
+          </div>
 
           <button
             onClick={() => openModalForNewLot(filterWarehouseId !== 'ALL' ? filterWarehouseId : undefined)}
@@ -435,15 +476,15 @@ export const ExpiryAlerts: React.FC<{ currentUser?: UserProfile }> = ({ currentU
             </button>
           </div>
 
-          <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
-            <span className="text-xs text-slate-500 font-semibold shrink-0">
+          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto flex-wrap">
+            <span className="text-xs text-slate-500 font-semibold shrink-0 mr-1">
               Mostrando <strong className="text-slate-900">{filteredLots.length}</strong> resultado(s)
             </span>
 
             <button
               onClick={handleExportPDF}
               disabled={isExportingPDF || filteredLots.length === 0}
-              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer disabled:cursor-not-allowed"
+              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer disabled:cursor-not-allowed active:scale-95"
               title="Descargar reporte PDF con los lotes filtrados actualmente"
             >
               {isExportingPDF ? (
@@ -452,6 +493,16 @@ export const ExpiryAlerts: React.FC<{ currentUser?: UserProfile }> = ({ currentU
                 <Download className="w-3.5 h-3.5 text-red-400" />
               )}
               <span>Exportar PDF</span>
+            </button>
+
+            <button
+              onClick={handleExportExcel}
+              disabled={filteredLots.length === 0}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer disabled:cursor-not-allowed active:scale-95"
+              title="Descargar reporte en Excel (.xlsx) con los lotes filtrados actualmente"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-100" />
+              <span>Exportar Excel</span>
             </button>
           </div>
         </div>

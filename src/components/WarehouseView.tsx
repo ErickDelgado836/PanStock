@@ -12,6 +12,7 @@ import {
 } from '../services/storage';
 import { PhysicalAuditModal } from './PhysicalAuditModal';
 import { CustomSelect } from './Common/CustomSelect';
+import { exportWarehouseInventoryToExcel } from '../utils/excelGenerator';
 import {
   Search,
   Filter,
@@ -25,6 +26,7 @@ import {
   Clock,
   Tag,
   FileText,
+  FileSpreadsheet,
   Equal,
   Minus,
   Plus,
@@ -667,17 +669,29 @@ export const WarehouseView: React.FC<WarehouseViewProps> = ({
           <p className="text-xs text-slate-300 max-w-2xl">{warehouse.description}</p>
         </div>
 
-        <div
-          onClick={() => onOpenGlobalCatalog && onOpenGlobalCatalog(warehouse.id)}
-          className="bg-slate-800/90 hover:bg-slate-800 p-4 rounded-xl border border-slate-700/80 hover:border-amber-400 text-right cursor-pointer transition-all group"
-          title="Ver en el Listado de Artículos y Servicios"
-        >
-          <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block group-hover:text-amber-300 transition-colors">
-            Artículos Registrados (Ver Listado)
-          </span>
-          <span className="text-2xl font-black text-amber-400">
-            {products.length}
-          </span>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={() => exportWarehouseInventoryToExcel(warehouse, categories, warehouseProducts, lastAudits)}
+            className="px-4 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-2 text-xs md:text-sm cursor-pointer active:scale-95"
+            title="Descargar inventario filtrado de este almacén en archivo Excel (.xlsx)"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
+            <span>Descargar Excel</span>
+          </button>
+
+          <div
+            onClick={() => onOpenGlobalCatalog && onOpenGlobalCatalog(warehouse.id)}
+            className="bg-slate-800/90 hover:bg-slate-800 p-3.5 rounded-xl border border-slate-700/80 hover:border-amber-400 text-right cursor-pointer transition-all group"
+            title="Ver en el Listado de Artículos y Servicios"
+          >
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block group-hover:text-amber-300 transition-colors">
+              Artículos Registrados (Ver Listado)
+            </span>
+            <span className="text-2xl font-black text-amber-400">
+              {products.length}
+            </span>
+          </div>
         </div>
       </div>
 

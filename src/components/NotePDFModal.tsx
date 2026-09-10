@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MovementRecord } from '../types';
 import { DEFAULT_WAREHOUSES } from '../data/seedData';
 import { generateMovementPDF } from '../utils/pdfGenerator';
+import { exportMovementToExcel } from '../utils/excelGenerator';
 import { EspañolaFullLogo } from './Logos';
-import { X, FileText, Download, Printer, ArrowRight, Calendar } from 'lucide-react';
+import { X, FileText, Download, FileSpreadsheet, Printer, ArrowRight, Calendar } from 'lucide-react';
 
 interface NotePDFModalProps {
   isOpen: boolean;
@@ -207,23 +208,33 @@ export const NotePDFModal: React.FC<NotePDFModalProps> = ({ isOpen, onClose, mov
           </div>
 
           {/* Bottom Control Bar */}
-          <div className="p-3 bg-slate-100 border-t border-slate-200 flex items-center justify-between shrink-0">
+          <div className="p-3 bg-slate-100 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
             <span className="text-xs text-slate-500 font-semibold hidden sm:inline">
               Comprobante listo para imprimir o descargar
             </span>
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-2 ml-auto flex-wrap">
               <button
                 type="button"
                 onClick={() => generateMovementPDF(movement)}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all"
+                className="px-3.5 py-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                title="Descargar documento oficial en formato PDF para impresión"
               >
                 <Download className="w-4 h-4" />
                 <span>Descargar PDF</span>
               </button>
               <button
                 type="button"
+                onClick={() => exportMovementToExcel(movement)}
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                title="Descargar comprobante en formato Excel (.xlsx)"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
+                <span>Descargar Excel</span>
+              </button>
+              <button
+                type="button"
                 onClick={onClose}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-colors"
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-colors cursor-pointer"
               >
                 Cerrar
               </button>

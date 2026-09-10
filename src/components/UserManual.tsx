@@ -12,6 +12,7 @@ import {
   ArrowRightLeft,
   ArrowUpRight,
   Download,
+  FileSpreadsheet,
   Printer,
   CheckCircle2,
   AlertTriangle,
@@ -213,8 +214,8 @@ export const UserManual: React.FC<UserManualProps> = ({
             desc: 'Haz clic en el botón morado "Ejecutar Venta y Restar Inventario". El sistema actualizará el stock inmediatamente.',
           },
           {
-            title: 'Paso 5: Descargar / Imprimir el Comprobante de Venta',
-            desc: 'Al confirmar la venta, se abrirá la ventana con el Comprobante Oficial en PDF con membrete de Panadería Española C.A listo para descargar o imprimir.',
+            title: 'Paso 5: Descargar / Imprimir el Comprobante en PDF o Excel',
+            desc: 'Al confirmar la venta, dispones de opciones para descargar tanto el Comprobante Oficial en PDF con membrete institucional como el archivo Excel (.xlsx) para fines contables.',
           },
         ],
         keyFeatures: [
@@ -227,17 +228,17 @@ export const UserManual: React.FC<UserManualProps> = ({
             desc: 'Descuenta automáticamente los lotes más próximos a vencer garantizando frescura y rotación adecuada.',
           },
         ],
-        pdfInfo: 'Cada venta genera una Nota de Venta oficial en PDF con número de documento, cliente, detalle de productos, lotes y firmas de entrega.',
+        pdfInfo: 'Cada venta genera comprobantes en PDF y Excel con número de documento, cliente, detalle de productos, lotes y firmas de entrega.',
       },
     },
     {
       id: 'NOTAS_HISTORIAL',
       title: 'Historial de Notas y Movimientos',
-      subtitle: 'Consulta de todas las operaciones realizadas, filtros de fechas y reimpresión de PDF',
+      subtitle: 'Consulta de todas las operaciones realizadas, filtros de fechas y descarga en PDF o Excel',
       badge: 'Historial',
       badgeColor: 'bg-purple-100 text-purple-800 border-purple-200',
       icon: ClipboardList,
-      keywords: ['historial', 'notas', 'movimientos', 'entradas', 'traslados', 'descargos', 'reimprimir', 'pdf', 'buscar'],
+      keywords: ['historial', 'notas', 'movimientos', 'entradas', 'traslados', 'descargos', 'reimprimir', 'pdf', 'excel', 'buscar'],
       content: {
         summary:
           'En la pestaña "Notas (Auditoría)" $\\rightarrow$ "Notas de Movimientos" se almacena el registro cronológico inmutable de todas las Entradas, Traslados, Descargos y Ventas procesadas en el sistema.',
@@ -252,18 +253,18 @@ export const UserManual: React.FC<UserManualProps> = ({
           },
           {
             title: '3. Ver el detalle de cualquier nota',
-            desc: 'Haz clic en el botón "Ver Nota" de cualquier fila para inspeccionar los productos, cantidades, motivos y lotes asignados.',
+            desc: 'Haz clic en cualquier fila para inspeccionar los productos, cantidades, motivos y lotes asignados.',
           },
           {
-            title: '4. Descargar o Reimprimir el PDF',
-            desc: 'Dentro de la ventana de la nota, haz clic en "Descargar PDF Oficial" o "Imprimir" para obtener el documento legal con firmas.',
-            tip: 'Puedes reimprimir cualquier comprobante de días, meses o años anteriores en cualquier momento.',
+            title: '4. Descargar Comprobante Individual o Historial Completo en PDF y Excel',
+            desc: 'Cada fila cuenta con botones directos "PDF" y "Excel". Además, en la parte superior puedes hacer clic en "Descargar Historial Excel" para exportar todas las notas filtradas a una sola hoja de cálculo.',
+            tip: 'Puedes reimprimir o exportar a Excel cualquier comprobante de días, meses o años anteriores en cualquier momento.',
           },
         ],
         keyFeatures: [
           {
-            title: 'Exportación Consolidada a Excel y PDF',
-            desc: 'Descarga un reporte consolidado con todas las notas que coincidan con tus filtros aplicados.',
+            title: 'Exportación Dual: PDF y Excel',
+            desc: 'Descargue notas individuales o el listado consolidado filtrado en formato PDF para impresión o en Excel (.xlsx) estructurado.',
           },
           {
             title: 'Trazabilidad Total',
@@ -275,11 +276,11 @@ export const UserManual: React.FC<UserManualProps> = ({
     {
       id: 'AUDITORIA_FISICA',
       title: 'Estado Real de Conteos (Auditoría Física)',
-      subtitle: 'Comparativa de conteo físico vs sistema, faltantes, sobrantes y reporte PDF',
+      subtitle: 'Comparativa de conteo físico vs sistema, faltantes, sobrantes y reportes en PDF y Excel',
       badge: 'Auditoría',
       badgeColor: 'bg-rose-100 text-rose-800 border-rose-200',
       icon: FileCheck,
-      keywords: ['auditoria', 'conteo fisico', 'faltante', 'sobrante', 'cuadrado', 'diferencia', 'reporte consolidado', 'pdf'],
+      keywords: ['auditoria', 'conteo fisico', 'faltante', 'sobrante', 'cuadrado', 'diferencia', 'reporte consolidado', 'pdf', 'excel'],
       content: {
         summary:
           'En la sub-pestaña "Estado Real de Conteos en Almacén" puedes auditar la mercancía física contra lo registrado en el sistema, detectando discrepancias y faltantes de forma preventiva.',
@@ -293,8 +294,8 @@ export const UserManual: React.FC<UserManualProps> = ({
             desc: 'Cuenta con barras de desplazamiento horizontal tanto en la parte superior como en la inferior, además de botones (< y >) para navegar cómodamente sin tener que bajar en tablas largas.',
           },
           {
-            title: 'Descarga del Reporte Gerencial en PDF',
-            desc: 'Genera un documento profesional con el resumen de productos auditados, porcentaje de exactitud y detalle por almacén.',
+            title: 'Descarga del Reporte Gerencial en PDF y Excel',
+            desc: 'Genera un documento oficial en PDF con membrete institucional o una hoja de cálculo completa en Excel (.xlsx) con el resumen estadístico y detalle de cada producto.',
           },
         ],
         steps: [
@@ -307,8 +308,8 @@ export const UserManual: React.FC<UserManualProps> = ({
             desc: 'Selecciona un almacén específico o filtra solo los "Faltantes" para tomar acciones inmediatas.',
           },
           {
-            title: '3. Descargar el Informe PDF',
-            desc: 'Haz clic en el botón rojo "Descargar Reporte PDF" para generar el informe con membrete institucional.',
+            title: '3. Descargar el Informe en PDF o Excel',
+            desc: 'Haz clic en el botón rojo "Descargar Reporte PDF" o en el botón verde "Descargar Excel" para obtener los datos tabulados según tu necesidad.',
           },
         ],
       },
@@ -316,11 +317,11 @@ export const UserManual: React.FC<UserManualProps> = ({
     {
       id: 'VENCIMIENTOS',
       title: 'Control de Vencimientos y Lotes',
-      subtitle: 'Semáforo de caducidad, días restantes, alertas y prevención de pérdidas',
+      subtitle: 'Semáforo de caducidad, días restantes, alertas y exportación en PDF y Excel',
       badge: 'Vencimientos',
       badgeColor: 'bg-red-100 text-red-800 border-red-200',
       icon: Clock,
-      keywords: ['vencimiento', 'vencimientos', 'lote', 'caducidad', 'alertas', 'semaforo', 'dias', 'merma'],
+      keywords: ['vencimiento', 'vencimientos', 'lote', 'caducidad', 'alertas', 'semaforo', 'dias', 'merma', 'excel'],
       content: {
         summary:
           'El módulo de Vencimientos clasifica todos los lotes de productos según su fecha de caducidad para prevenir mermas y garantizar que siempre se roten primero los productos más antiguos.',
@@ -348,8 +349,8 @@ export const UserManual: React.FC<UserManualProps> = ({
             desc: 'Usa los filtros de "Estado" para ver únicamente los productos en riesgo de caducidad.',
           },
           {
-            title: '3. Exportar el reporte de vencimiento en PDF',
-            desc: 'Haz clic en "Exportar Reporte PDF" para entregar la lista al equipo de piso de venta o producción.',
+            title: '3. Exportar el reporte en PDF o Excel',
+            desc: 'Haz clic en "Descargar PDF" para el formato impreso o en "Descargar Excel" para analizar los lotes y existencias en hojas de cálculo.',
           },
         ],
       },

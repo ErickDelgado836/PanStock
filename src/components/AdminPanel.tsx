@@ -47,6 +47,7 @@ import {
   Eye,
   FileText,
   Download,
+  FileSpreadsheet,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -67,6 +68,7 @@ import { ConfirmationModal } from './ConfirmationModal';
 import { showToast } from '../utils/toast';
 import { AdminProducts } from './AdminProducts';
 import { generateMovementPDF } from '../utils/pdfGenerator';
+import { exportMovementToExcel } from '../utils/excelGenerator';
 import { CustomSelect } from './Common/CustomSelect';
 
 interface AdminPanelProps {
@@ -2235,19 +2237,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
                   <span>Eliminar este Registro</span>
                 </button>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
                     onClick={() => generateMovementPDF(selectedMovementForDetail)}
-                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-colors"
+                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer active:scale-95"
+                    title="Descargar comprobante oficial en formato PDF"
                   >
                     <Download className="w-4 h-4" />
                     <span>Descargar PDF</span>
                   </button>
                   <button
                     type="button"
+                    onClick={() => exportMovementToExcel(selectedMovementForDetail)}
+                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer active:scale-95"
+                    title="Descargar comprobante estructurado en archivo Excel (.xlsx)"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
+                    <span>Descargar Excel</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setDetailModalOpen(false)}
-                    className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl text-xs transition-colors"
+                    className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl text-xs transition-colors cursor-pointer"
                   >
                     Cerrar
                   </button>

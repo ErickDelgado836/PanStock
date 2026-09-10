@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MovementRecord, Warehouse } from '../types';
 import { getMovements, getWarehouses, subscribeToStorage, syncFromSupabase } from '../services/storage';
 import { matchesMovementSearch, parseAnyDate } from '../utils/movementSearch';
 import { NotePDFModal } from './NotePDFModal';
 import { generateMovementPDF } from '../utils/pdfGenerator';
+import { exportMovementToExcel, exportMovementsHistoryToExcel } from '../utils/excelGenerator';
 import { PhysicalAuditReport } from './PhysicalAuditReport';
 import { CustomSelect } from './Common/CustomSelect';
 
@@ -18,6 +19,7 @@ import {
   Search,
   Filter,
   Download,
+  FileSpreadsheet,
   ArrowDownLeft,
   ArrowRightLeft,
   ArrowUpRight,
@@ -71,13 +73,6 @@ export const MovementsHistory: React.FC = () => {
     return subscribeToStorage(loadData);
   }, []);
 
-  useEffect(() => {
-    if (subTab === 'MOVEMENTS_LOG') {
-      loadData();
-      syncFromSupabase().then(() => loadData());
-    }
-  }, [subTab]);
-
   // Handle Preset Date Quick Switch
   const handlePresetChange = (preset: 'ALL' | 'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM') => {
     setDatePreset(preset);
@@ -106,47 +101,51 @@ export const MovementsHistory: React.FC = () => {
     setCurrentPage(1);
   }, [searchQuery, filterType, filterWarehouse, filterUser, dateFrom, dateTo, itemsPerPage]);
 
-  const distinctUsers = Array.from(
-    new Set(movements.map((m) => m.responsibleUser).filter((u): u is string => Boolean(u)))
-  ).sort();
+  const distinctUsers = useMemo(() => {
+    return Array.from(
+      new Set(movements.map((m) => m.responsibleUser).filter((u): u is string => Boolean(u)))
+    ).sort();
+  }, [movements]);
 
-  const filteredMovements = movements.filter((m) => {
-    // 1. Filter by Operation Type
-    if (filterType !== 'ALL' && m.type !== filterType) return false;
+  const filteredMovements = useMemo(() => {
+    return movements.filter((m) => {
+      // 1. Filter by Operation Type
+      if (filterType !== 'ALL' && m.type !== filterType) return false;
 
-    // 2. Filter by Warehouse
-    if (filterWarehouse !== 'ALL') {
-      const matchWh =
-        m.sourceWarehouseId === filterWarehouse || m.targetWarehouseId === filterWarehouse;
-      if (!matchWh) return false;
-    }
-
-    // 3. Filter by Responsible User
-    if (filterUser !== 'ALL') {
-      if (m.responsibleUser !== filterUser) return false;
-    }
-
-    // 4. Filter by Date Range (Using robust parseAnyDate)
-    if (dateFrom || dateTo) {
-      const mDate = parseAnyDate(m.date);
-      if (mDate) {
-        if (dateFrom) {
-          const fromDate = new Date(dateFrom + 'T00:00:00');
-          if (mDate < fromDate) return false;
-        }
-        if (dateTo) {
-          const toDate = new Date(dateTo + 'T23:59:59');
-          if (mDate > toDate) return false;
-        }
-      } else {
-        // If date string cannot be parsed, exclude it when date filter is applied
-        return false;
+      // 2. Filter by Warehouse
+      if (filterWarehouse !== 'ALL') {
+        const matchWh =
+          m.sourceWarehouseId === filterWarehouse || m.targetWarehouseId === filterWarehouse;
+        if (!matchWh) return false;
       }
-    }
 
-    // 5. Advanced free text search (multi-token date, operation, codes, user, etc.)
-    return matchesMovementSearch(m, searchQuery, warehouses);
-  });
+      // 3. Filter by Responsible User
+      if (filterUser !== 'ALL') {
+        if (m.responsibleUser !== filterUser) return false;
+      }
+
+      // 4. Filter by Date Range (Using robust parseAnyDate)
+      if (dateFrom || dateTo) {
+        const mDate = parseAnyDate(m.date);
+        if (mDate) {
+          if (dateFrom) {
+            const fromDate = new Date(dateFrom + 'T00:00:00');
+            if (mDate < fromDate) return false;
+          }
+          if (dateTo) {
+            const toDate = new Date(dateTo + 'T23:59:59');
+            if (mDate > toDate) return false;
+          }
+        } else {
+          // If date string cannot be parsed, exclude it when date filter is applied
+          return false;
+        }
+      }
+
+      // 5. Advanced free text search (multi-token date, operation, codes, user, etc.)
+      return matchesMovementSearch(m, searchQuery, warehouses);
+    });
+  }, [movements, filterType, filterWarehouse, filterUser, dateFrom, dateTo, searchQuery, warehouses]);
 
   const activeFilterCount =
     (searchQuery.trim() ? 1 : 0) +
@@ -223,8 +222,9 @@ export const MovementsHistory: React.FC = () => {
       {/* Sub-tab Navigation Switcher */}
       <div className="bg-white p-2 rounded-2xl shadow-xs border border-slate-200 flex flex-wrap gap-2">
         <button
+          type="button"
           onClick={() => setSubTab('AUDIT_REPORT')}
-          className={`flex-1 sm:flex-initial px-5 py-3 rounded-xl font-extrabold text-xs transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 sm:flex-initial px-5 py-3 rounded-xl font-extrabold text-xs transition-colors duration-100 flex items-center justify-center gap-2 cursor-pointer active:scale-98 select-none ${
             subTab === 'AUDIT_REPORT'
               ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
               : 'bg-slate-50 hover:bg-slate-100 text-slate-700'
@@ -235,8 +235,9 @@ export const MovementsHistory: React.FC = () => {
         </button>
 
         <button
+          type="button"
           onClick={() => setSubTab('MOVEMENTS_LOG')}
-          className={`flex-1 sm:flex-initial px-5 py-3 rounded-xl font-extrabold text-xs transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 sm:flex-initial px-5 py-3 rounded-xl font-extrabold text-xs transition-colors duration-100 flex items-center justify-center gap-2 cursor-pointer active:scale-98 select-none ${
             subTab === 'MOVEMENTS_LOG'
               ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
               : 'bg-slate-50 hover:bg-slate-100 text-slate-700'
@@ -247,11 +248,12 @@ export const MovementsHistory: React.FC = () => {
         </button>
       </div>
 
-      {subTab === 'AUDIT_REPORT' ? (
+      <div className={subTab === 'AUDIT_REPORT' ? 'block' : 'hidden'}>
         <PhysicalAuditReport />
-      ) : (
-        <>
-          {/* Top Banner */}
+      </div>
+
+      <div className={subTab === 'MOVEMENTS_LOG' ? 'block space-y-6' : 'hidden'}>
+        {/* Top Banner */}
           <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-red-950 text-white rounded-2xl p-6 shadow-xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="inline-flex items-center gap-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-2">
@@ -260,28 +262,47 @@ export const MovementsHistory: React.FC = () => {
               </div>
               <h1 className="text-2xl font-black tracking-tight">Registro General de Movimientos</h1>
               <p className="text-xs text-slate-300 mt-1">
-                Consulte, visualice o descargue en PDF las Notas de Entrega, Ingresos, Descargos y Ventas de la empresa.
+                Consulte, visualice o descargue en PDF o Excel las Notas de Entrega, Ingresos, Descargos y Ventas de la empresa.
               </p>
             </div>
 
-            <button
-              onClick={async () => {
-                if (isSyncing) return;
-                setSyncing(true);
-                try {
-                  await syncFromSupabase();
-                } catch (e) {
-                  console.error('Manual sync failed:', e);
-                } finally {
-                  setSyncing(false);
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <button
+                onClick={async () => {
+                  if (isSyncing) return;
+                  setSyncing(true);
+                  try {
+                    await syncFromSupabase();
+                  } catch (e) {
+                    console.error('Manual sync failed:', e);
+                  } finally {
+                    setSyncing(false);
+                  }
+                }}
+                disabled={isSyncing}
+                className="px-4 py-2.5 bg-white/10 hover:bg-white/15 active:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 select-none cursor-pointer"
+              >
+                <RefreshCw className={`w-4 h-4 text-red-400 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSyncing ? 'Sincronizando...' : 'Actualizar Historial'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  exportMovementsHistoryToExcel(filteredMovements, {
+                    searchQuery,
+                    selectedType: filterType,
+                    totalCount: filteredMovements.length,
+                  })
                 }
-              }}
-              disabled={isSyncing}
-              className="px-4 py-2.5 bg-white/10 hover:bg-white/15 active:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 select-none"
-            >
-              <RefreshCw className={`w-4 h-4 text-red-400 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>{isSyncing ? 'Sincronizando...' : 'Actualizar Historial'}</span>
-            </button>
+                disabled={filteredMovements.length === 0}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer active:scale-95"
+                title="Descargar listado completo de movimientos filtrados en archivo Excel (.xlsx)"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
+                <span>Descargar Historial Excel</span>
+              </button>
+            </div>
           </div>
 
       {/* Professional Advanced Toolbar & Filters for Movements */}
@@ -514,13 +535,26 @@ export const MovementsHistory: React.FC = () => {
                           {mov.items.length} item(s)
                         </td>
                         <td className="p-3.5 text-right" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => generateMovementPDF(mov)}
-                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] rounded-lg shadow-xs flex items-center gap-1 ml-auto transition-all"
-                          >
-                            <Download className="w-3 h-3" />
-                            <span>PDF</span>
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => generateMovementPDF(mov)}
+                              className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-[11px] rounded-lg shadow-xs flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                              title="Descargar Nota en formato PDF"
+                            >
+                              <Download className="w-3 h-3" />
+                              <span>PDF</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => exportMovementToExcel(mov)}
+                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-[11px] rounded-lg shadow-xs flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                              title="Descargar Comprobante en formato Excel (.xlsx)"
+                            >
+                              <FileSpreadsheet className="w-3 h-3 text-emerald-100" />
+                              <span>Excel</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -613,8 +647,7 @@ export const MovementsHistory: React.FC = () => {
         }}
         movement={selectedMovement}
       />
-        </>
-      )}
+      </div>
     </div>
   );
 };

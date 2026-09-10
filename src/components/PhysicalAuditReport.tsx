@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Product, Warehouse, Category, PhysicalAuditRecord } from '../types';
 import {
   getProducts,
@@ -9,12 +9,14 @@ import {
   syncFromSupabase,
 } from '../services/storage';
 import { generateAuditReportPDF } from '../utils/pdfGenerator';
+import { exportAuditReportToExcel } from '../utils/excelGenerator';
 import { CustomSelect } from './Common/CustomSelect';
 import {
   ClipboardCheck,
   Search,
   Filter,
   Download,
+  FileSpreadsheet,
   Calendar,
   Building2,
   CheckCircle2,
@@ -34,10 +36,10 @@ import {
 } from 'lucide-react';
 
 export const PhysicalAuditReport: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [audits, setAudits] = useState<PhysicalAuditRecord[]>([]);
+  const [products, setProducts] = useState<Product[]>(getProducts);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>(getWarehouses);
+  const [categories, setCategories] = useState<Category[]>(getCategories);
+  const [audits, setAudits] = useState<PhysicalAuditRecord[]>(getPhysicalAudits);
   const [isSyncing, setSyncing] = useState(false);
 
   // Horizontal Scroll States & Refs
@@ -111,6 +113,7 @@ export const PhysicalAuditReport: React.FC = () => {
   const checkScrollState = () => {
     if (!tableContainerRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = tableContainerRef.current;
+    if (clientWidth === 0) return;
     const overflow = scrollWidth > clientWidth + 2;
     setHasOverflow(overflow);
     setCanScrollLeft(scrollLeft > 4);
@@ -174,7 +177,7 @@ export const PhysicalAuditReport: React.FC = () => {
   };
 
   // Map latest physical audit per (productId, warehouseId) within optional date range
-  const getLatestAuditMap = () => {
+  const auditMap = useMemo(() => {
     const map: {
       [key: string]: {
         physicalStock: number;
@@ -229,13 +232,11 @@ export const PhysicalAuditReport: React.FC = () => {
     });
 
     return map;
-  };
-
-  const auditMap = getLatestAuditMap();
+  }, [audits, startDate, endDate]);
 
   // Build full inventory audit matrix: Product + Warehouse combinations
-  const buildAuditRows = () => {
-    const rows: {
+  const rows = useMemo(() => {
+    const r: {
       product: Product;
       warehouse: Warehouse;
       category: Category | undefined;
@@ -286,7 +287,7 @@ export const PhysicalAuditReport: React.FC = () => {
 
         if (selectedStatus !== 'ALL' && status !== selectedStatus) return;
 
-        rows.push({
+        r.push({
           product: prod,
           warehouse: wh,
           category: cat,
@@ -297,30 +298,38 @@ export const PhysicalAuditReport: React.FC = () => {
       });
     });
 
-    return rows;
-  };
-
-  const rows = buildAuditRows();
+    return r;
+  }, [
+    products,
+    warehouses,
+    categories,
+    selectedWarehouseId,
+    selectedCategoryId,
+    searchQuery,
+    selectedStock,
+    auditMap,
+    selectedStatus,
+  ]);
 
   // Pagination calculations
   const totalItems = rows.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-  const paginatedRows = rows.slice(startIndex, endIndex);
+  const paginatedRows = useMemo(() => rows.slice(startIndex, endIndex), [rows, startIndex, endIndex]);
 
   // Calculate Metrics
   const totalCount = rows.length;
-  const auditedCount = rows.filter((r) => r.status !== 'PENDING').length;
-  const pendingCount = rows.filter((r) => r.status === 'PENDING').length;
-  const correctCount = rows.filter((r) => r.status === 'CORRECT').length;
-  const missingRows = rows.filter((r) => r.status === 'MISSING');
-  const surplusRows = rows.filter((r) => r.status === 'SURPLUS');
+  const auditedCount = useMemo(() => rows.filter((r) => r.status !== 'PENDING').length, [rows]);
+  const pendingCount = useMemo(() => rows.filter((r) => r.status === 'PENDING').length, [rows]);
+  const correctCount = useMemo(() => rows.filter((r) => r.status === 'CORRECT').length, [rows]);
+  const missingRows = useMemo(() => rows.filter((r) => r.status === 'MISSING'), [rows]);
+  const surplusRows = useMemo(() => rows.filter((r) => r.status === 'SURPLUS'), [rows]);
 
   const missingCount = missingRows.length;
   const surplusCount = surplusRows.length;
 
-  const handleExportPDF = () => {
+  const getExportData = () => {
     const targetWh = warehouses.find((w) => w.id === selectedWarehouseId);
     const targetCat = categories.find((c) => c.id === selectedCategoryId);
 
@@ -329,7 +338,7 @@ export const PhysicalAuditReport: React.FC = () => {
     else if (startDate) dateRangeText = `Desde ${startDate}`;
     else if (endDate) dateRangeText = `Hasta ${endDate}`;
 
-    const pdfSummary = {
+    const summary = {
       warehouseName: targetWh ? `${targetWh.code} - ${targetWh.name}` : 'Todos los Almacenes',
       categoryName: targetCat ? targetCat.name : 'Todas las Categorías',
       dateRangeText,
@@ -341,7 +350,7 @@ export const PhysicalAuditReport: React.FC = () => {
       surplusItems: surplusCount,
     };
 
-    const pdfItems = rows.map((r) => {
+    const exportItems = rows.map((r) => {
       const movementsSinceAudit = r.auditInfo ? r.systemStock - r.auditInfo.systemStock : 0;
       const estimatedCurrentPhysical = r.auditInfo ? r.systemStock + r.auditInfo.difference : undefined;
 
@@ -364,7 +373,17 @@ export const PhysicalAuditReport: React.FC = () => {
       };
     });
 
-    generateAuditReportPDF(pdfSummary, pdfItems);
+    return { summary, exportItems };
+  };
+
+  const handleExportPDF = () => {
+    const { summary, exportItems } = getExportData();
+    generateAuditReportPDF(summary, exportItems);
+  };
+
+  const handleExportExcel = () => {
+    const { summary, exportItems } = getExportData();
+    exportAuditReportToExcel(summary, exportItems);
   };
 
   return (
@@ -396,19 +415,34 @@ export const PhysicalAuditReport: React.FC = () => {
               }
             }}
             disabled={isSyncing}
-            className="px-4 py-2.5 bg-white/10 hover:bg-white/15 active:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 select-none"
+            className="px-4 py-2.5 bg-white/10 hover:bg-white/15 active:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 select-none cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
             <span>{isSyncing ? 'Sincronizando...' : 'Actualizar Datos'}</span>
           </button>
 
-          <button
-            onClick={handleExportPDF}
-            className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all shrink-0 active:scale-95"
-          >
-            <Download className="w-4 h-4" />
-            <span>Descargar Reporte PDF</span>
-          </button>
+          {/* Dual Export Options: PDF & Excel */}
+          <div className="inline-flex items-center p-1 bg-white/10 rounded-xl border border-white/20 gap-1 shadow-sm">
+            <button
+              type="button"
+              onClick={handleExportPDF}
+              className="px-3.5 py-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-extrabold text-xs rounded-lg shadow-xs flex items-center gap-1.5 transition-all shrink-0 active:scale-95 cursor-pointer"
+              title="Descargar reporte oficial en formato PDF para impresión o archivo"
+            >
+              <Download className="w-4 h-4" />
+              <span>Descargar Reporte PDF</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs rounded-lg shadow-xs flex items-center gap-1.5 transition-all shrink-0 active:scale-95 cursor-pointer"
+              title="Descargar reporte completo estructurado en archivo Excel (.xlsx)"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
+              <span>Descargar Excel</span>
+            </button>
+          </div>
         </div>
       </div>
 
