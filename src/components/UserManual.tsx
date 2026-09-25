@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { UserProfile } from '../types';
+import { AdminManual } from './AdminManual';
 import {
   BookOpen,
   Search,
@@ -33,6 +35,7 @@ import {
 } from 'lucide-react';
 
 interface UserManualProps {
+  currentUser?: UserProfile | null;
   onNavigateToTab?: (tab: string) => void;
   onOpenEntradas?: () => void;
   onOpenTraslados?: () => void;
@@ -57,11 +60,13 @@ interface ManualSection {
 }
 
 export const UserManual: React.FC<UserManualProps> = ({
+  currentUser,
   onNavigateToTab,
   onOpenEntradas,
   onOpenTraslados,
   onOpenDescargos,
 }) => {
+  const [manualMode, setManualMode] = useState<'OPERATOR' | 'ADMIN'>('OPERATOR');
   const [selectedSectionId, setSelectedSectionId] = useState<string>('VENTAS');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -443,61 +448,102 @@ export const UserManual: React.FC<UserManualProps> = ({
     sections.find((s) => s.id === selectedSectionId) || filteredSections[0] || sections[0];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 animate-fadeIn">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-slate-800 relative overflow-hidden">
-        {/* Background decorative elements */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-red-600/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-black uppercase tracking-wider">
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>Guía y Manual de Usuario Oficial</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-              Manual del Sistema PanStock
-            </h1>
-            <p className="text-sm text-slate-300 font-medium leading-relaxed">
-              Aprende paso a paso cómo utilizar todas las opciones del programa: ventas, descarga de PDFs, auditoría física, control de lotes e historial de movimientos.
-            </p>
-          </div>
-
-          {/* Quick Stats or Direct Tips */}
-          <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 shrink-0 text-xs space-y-2.5 max-w-xs">
-            <div className="flex items-center gap-2 text-amber-300 font-extrabold">
-              <Lightbulb className="w-4 h-4 text-amber-400" />
-              <span>Consejo Rápido</span>
-            </div>
-            <p className="text-slate-200 text-[11px] leading-relaxed">
-              Todos los reportes y notas disponen de botón de <strong>Descarga en PDF</strong> oficial con membrete y RIF institucional.
-            </p>
-          </div>
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6 sm:space-y-8 animate-fadeIn">
+      {/* Admin Mode Switcher: ONLY visible to users with isAdmin === true */}
+      {currentUser?.isAdmin && (
+        <div className="bg-slate-900/90 border border-slate-700/80 p-1 sm:p-1.5 rounded-2xl flex flex-wrap sm:flex-nowrap items-center gap-1.5 shadow-lg max-w-lg">
+          <button
+            type="button"
+            onClick={() => setManualMode('OPERATOR')}
+            className={`flex-1 py-2 px-3 sm:px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+              manualMode === 'OPERATOR'
+                ? 'bg-white text-slate-900 shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <BookOpen className="w-4 h-4 text-blue-600 shrink-0" />
+            <span>Manual de Operador</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setManualMode('ADMIN')}
+            className={`flex-1 py-2 px-3 sm:px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+              manualMode === 'ADMIN'
+                ? 'bg-gradient-to-r from-red-600 to-amber-600 text-white shadow-md'
+                : 'text-amber-400 hover:text-amber-300'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>Manual Admin</span>
+            <span className="text-[9px] bg-red-700 text-white px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+              Exclusivo
+            </span>
+          </button>
         </div>
+      )}
 
-        {/* Interactive Search Bar inside Manual */}
-        <div className="mt-6 relative z-10">
-          <div className="relative max-w-2xl">
-            <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="¿Qué deseas aprender? (Ej: cómo hacer una venta, descargar pdf, auditoría, traslados...)"
-              className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white text-slate-900 placeholder-slate-400 text-sm font-semibold shadow-lg border-2 border-transparent focus:border-red-500 focus:outline-none transition-all"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-lg"
-              >
-                Limpiar
-              </button>
-            )}
+      {/* When in Admin Mode (only accessible if currentUser?.isAdmin), render AdminManual */}
+      {currentUser?.isAdmin && manualMode === 'ADMIN' ? (
+        <AdminManual
+          onNavigateToAdminTab={(tab) => onNavigateToTab?.('ADMIN')}
+          onNavigateToAppTab={onNavigateToTab}
+        />
+      ) : (
+        <>
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-slate-800 relative overflow-hidden">
+            {/* Background decorative elements */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-red-600/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
+
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2 max-w-2xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-black uppercase tracking-wider">
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Guía y Manual de Usuario Oficial</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                  Manual del Sistema PanStock
+                </h1>
+                <p className="text-sm text-slate-300 font-medium leading-relaxed">
+                  Aprende paso a paso cómo utilizar todas las opciones del programa: ventas, descarga de PDFs, auditoría física, control de lotes e historial de movimientos.
+                </p>
+              </div>
+
+              {/* Quick Stats or Direct Tips */}
+              <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 shrink-0 text-xs space-y-2.5 max-w-xs">
+                <div className="flex items-center gap-2 text-amber-300 font-extrabold">
+                  <Lightbulb className="w-4 h-4 text-amber-400" />
+                  <span>Consejo Rápido</span>
+                </div>
+                <p className="text-slate-200 text-[11px] leading-relaxed">
+                  Todos los reportes y notas disponen de botón de <strong>Descarga en PDF</strong> oficial con membrete y RIF institucional.
+                </p>
+              </div>
+            </div>
+
+            {/* Interactive Search Bar inside Manual */}
+            <div className="mt-6 relative z-10">
+              <div className="relative max-w-2xl">
+                <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="¿Qué deseas aprender? (Ej: cómo hacer una venta, descargar pdf, auditoría, traslados...)"
+                  className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white text-slate-900 placeholder-slate-400 text-sm font-semibold shadow-lg border-2 border-transparent focus:border-red-500 focus:outline-none transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-lg"
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
       {/* Main Interactive Manual Layout: Sidebar Topics + Active Content Card */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -759,6 +805,8 @@ export const UserManual: React.FC<UserManualProps> = ({
           </AnimatePresence>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };

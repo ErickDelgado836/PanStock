@@ -63,6 +63,7 @@ import {
   Calendar,
   Ban,
   ShieldAlert,
+  BookOpen,
 } from 'lucide-react';
 import { ConfirmationModal } from './ConfirmationModal';
 import { showToast } from '../utils/toast';
@@ -70,6 +71,7 @@ import { AdminProducts } from './AdminProducts';
 import { generateMovementPDF } from '../utils/pdfGenerator';
 import { exportMovementToExcel } from '../utils/excelGenerator';
 import { CustomSelect } from './Common/CustomSelect';
+import { AdminManual } from './AdminManual';
 
 interface AdminPanelProps {
   currentUser?: UserProfile;
@@ -82,7 +84,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
   const [movements, setMovements] = useState<MovementRecord[]>(getMovements);
 
   // Active Tab in Admin
-  const [activeTab, setActiveTab] = useState<'USERS' | 'CATEGORIES' | 'PRODUCTS' | 'HISTORY_PURGE'>('USERS');
+  const [activeTab, setActiveTab] = useState<'USERS' | 'CATEGORIES' | 'PRODUCTS' | 'HISTORY_PURGE' | 'MANUAL'>('USERS');
 
   // User Form State
   const [newUsername, setNewUsername] = useState('');
@@ -897,7 +899,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
         </div>
 
         {/* Tab Switchers */}
-        <div className="w-full md:w-auto grid grid-cols-2 sm:grid-cols-2 lg:flex lg:flex-wrap bg-slate-800/80 p-1 sm:p-1.5 rounded-xl border border-slate-700/80 gap-1.5 shrink-0">
+        <div className="w-full md:w-auto grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap bg-slate-800/80 p-1 sm:p-1.5 rounded-xl border border-slate-700/80 gap-1.5 shrink-0">
           <button
             onClick={() => setActiveTab('USERS')}
             className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
@@ -941,6 +943,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
           >
             <Trash2 className="w-4 h-4 shrink-0" />
             <span>Limpiar Historiales</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('MANUAL')}
+            className={`col-span-2 sm:col-span-1 px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'MANUAL'
+                ? 'bg-gradient-to-r from-red-600 to-amber-600 text-white shadow-md'
+                : 'text-amber-400 hover:text-white hover:bg-slate-700/60'
+            }`}
+            title="Consultar el Manual de Uso Oficial para Administradores"
+          >
+            <BookOpen className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>Manual Admin</span>
           </button>
         </div>
       </div>
@@ -2104,6 +2118,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* Manual de Uso Exclusivo del Administrador */}
+      {activeTab === 'MANUAL' && (
+        <motion.div
+          key="MANUAL"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+        >
+          <AdminManual
+            onNavigateToAdminTab={(tab) => setActiveTab(tab)}
+          />
+        </motion.div>
       )}
 
       {/* Modal para ver Detalle Completo de Movimiento en Administrador */}

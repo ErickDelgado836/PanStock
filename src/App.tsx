@@ -513,6 +513,7 @@ export default function App() {
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
               <UserManual
+                currentUser={currentUser}
                 onNavigateToTab={(tab) => handleSelectTab(tab)}
                 onOpenEntradas={() => setEntradasOpen(true)}
                 onOpenTraslados={() => setTrasladosOpen(true)}
