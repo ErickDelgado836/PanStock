@@ -16,7 +16,7 @@ import { UserProfile } from '../types';
 
 interface LoginModalProps {
   isAdminRoute?: boolean;
-  onLoginSuccess: (user: UserProfile) => void;
+  onLoginSuccess: (user: UserProfile, fromAdminMode?: boolean) => void;
   onNavigateToAdmin?: () => void;
   onNavigateToApp?: () => void;
 }
@@ -166,7 +166,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
     // Set logged in user in storage and notify parent component
     setCurrentUser(foundUser);
-    onLoginSuccess(foundUser);
+    onLoginSuccess(foundUser, isAdminMode);
   };
 
   return (

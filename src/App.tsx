@@ -74,6 +74,28 @@ export default function App() {
     currentUserRef.current = currentUser;
   }, [currentUser]);
 
+  const activeTabRef = useRef<string>(activeTab);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  const selectedWarehouseIdRef = useRef<string>(selectedWarehouseId);
+  useEffect(() => {
+    selectedWarehouseIdRef.current = selectedWarehouseId;
+  }, [selectedWarehouseId]);
+
+  // Central tab navigation handler that cleans any sticky browser hash to prevent freezing
+  const handleSelectTab = (tab: string) => {
+    setActiveTab(tab);
+    if (window.location.hash) {
+      try {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      } catch (e) {
+        window.location.hash = '';
+      }
+    }
+  };
+
   // Synchronize and validate active user session in real-time
   const validateAndSyncUserSession = () => {
     setWarehouses(getWarehouses());
@@ -132,27 +154,28 @@ export default function App() {
       setCurrentUser(freshUser);
 
       // Check active tab permissions and redirect if necessary
-      if (activeTab === 'VENTAS' && !freshUser.permissions.canSales) {
-        setActiveTab('INICIO');
+      const currentTab = activeTabRef.current;
+      if (currentTab === 'VENTAS' && !freshUser.permissions.canSales) {
+        handleSelectTab('INICIO');
         showToast('Permiso de Ventas Revocado', 'El administrador ha desactivado tu acceso al módulo de Ventas.', 'warning');
       }
 
-      if (activeTab === 'VENCIMIENTO' && !freshUser.permissions.canExpiry) {
-        setActiveTab('INICIO');
+      if (currentTab === 'VENCIMIENTO' && !freshUser.permissions.canExpiry) {
+        handleSelectTab('INICIO');
         showToast('Permiso de Vencimientos Revocado', 'El administrador ha desactivado tu acceso al módulo de Vencimientos.', 'warning');
       }
 
-      if (activeTab === 'ADMIN' && !freshUser.isAdmin) {
-        setActiveTab('INICIO');
+      if (currentTab === 'ADMIN' && !freshUser.isAdmin) {
+        handleSelectTab('INICIO');
         showToast('Acceso Revocado', 'Se han revocado tus permisos de Administrador.', 'warning');
       }
 
-      if (activeTab === 'ALMACENES') {
+      if (currentTab === 'ALMACENES') {
         const allowed = freshUser.permissions.allowedWarehouses || [];
         if (allowed.length === 0) {
-          setActiveTab('INICIO');
+          handleSelectTab('INICIO');
           showToast('Sin Almacenes', 'No tienes almacenes autorizados para visualizar.', 'warning');
-        } else if (!allowed.includes(selectedWarehouseId)) {
+        } else if (!allowed.includes(selectedWarehouseIdRef.current)) {
           setSelectedWarehouseId(allowed[0]);
           showToast('Almacén Reasignado', 'El almacén previamente seleccionado ya no está autorizado para tu usuario.', 'info');
         }
@@ -175,8 +198,8 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Check if path or hash includes 'admin'
-    if (window.location.hash === '#/admin' || window.location.pathname === '/admin') {
+    // Initial mount check for /admin path or hash
+    if ((window.location.hash === '#/admin' || window.location.pathname === '/admin') && currentUserRef.current?.isAdmin) {
       setActiveTab('ADMIN');
     }
 
@@ -193,7 +216,7 @@ export default function App() {
       unsub();
       clearInterval(interval);
     };
-  }, [activeTab, selectedWarehouseId, entradasOpen, trasladosOpen, descargosOpen]);
+  }, []);
 
   // Initial sync when currentUser logs in
   useEffect(() => {
@@ -205,10 +228,7 @@ export default function App() {
   // Ensure non-admin users are automatically redirected to INICIO if they land on ADMIN tab
   useEffect(() => {
     if (currentUser && !currentUser.isAdmin && activeTab === 'ADMIN') {
-      setActiveTab('INICIO');
-      if (window.location.hash === '#/admin') {
-        window.location.hash = '';
-      }
+      handleSelectTab('INICIO');
     }
   }, [currentUser, activeTab]);
 
@@ -225,17 +245,23 @@ export default function App() {
     }
   }, [selectedWarehouse, selectedWarehouseId]);
 
-  const handleLoginSuccess = (user: UserProfile) => {
+  const handleLoginSuccess = (user: UserProfile, fromAdminMode?: boolean) => {
     setLocalUser(user);
     setCurrentUser(user);
     setShowWelcomeModal(true); // Open personalized Welcome Announcement!
 
-    // Non-admin users ALWAYS land on the main menu ('INICIO')
-    if (user.isAdmin && (window.location.hash === '#/admin' || window.location.pathname === '/admin')) {
+    // If user clicked "Administrador" in login modal or entered via /admin, take them to ADMIN panel
+    if (user.isAdmin && (fromAdminMode || window.location.hash === '#/admin' || window.location.pathname === '/admin')) {
       setActiveTab('ADMIN');
     } else {
       setActiveTab('INICIO');
-      if (window.location.hash === '#/admin') {
+    }
+
+    // Always clear the hash on login so it doesn't freeze or lock navigation
+    if (window.location.hash) {
+      try {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      } catch (e) {
         window.location.hash = '';
       }
     }
@@ -259,10 +285,16 @@ export default function App() {
           isAdminRoute={isCurrentAdminRoute}
           onLoginSuccess={handleLoginSuccess}
           onNavigateToAdmin={() => {
-            window.location.hash = '#/admin';
+            // Do not force sticky hash that locks navigation
           }}
           onNavigateToApp={() => {
-            window.location.hash = '';
+            if (window.location.hash) {
+              try {
+                history.replaceState(null, '', window.location.pathname + window.location.search);
+              } catch (e) {
+                window.location.hash = '';
+              }
+            }
           }}
         />
         <AccountNoticeModal
@@ -287,7 +319,7 @@ export default function App() {
           currentUser={currentUser}
           onLogout={() => setShowLogoutConfirm(true)}
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={handleSelectTab}
         />
 
       {/* Secondary Quick Access Bar */}
@@ -382,7 +414,7 @@ export default function App() {
                 onOpenEntradas={() => setEntradasOpen(true)}
                 onOpenTraslados={() => setTrasladosOpen(true)}
                 onOpenDescargos={() => setDescargosOpen(true)}
-                onNavigateToTab={(tab) => setActiveTab(tab)}
+                onNavigateToTab={(tab) => handleSelectTab(tab)}
                 onOpenGlobalCatalog={() => handleOpenGlobalCatalog('ALL')}
               />
             </motion.div>
@@ -418,7 +450,7 @@ export default function App() {
                     <WarehouseView
                       warehouse={selectedWarehouse}
                       currentUser={currentUser}
-                      onNavigateToAuditReport={() => setActiveTab('NOTAS')}
+                      onNavigateToAuditReport={() => handleSelectTab('NOTAS')}
                       onOpenGlobalCatalog={(whId) => handleOpenGlobalCatalog(whId || selectedWarehouse.id)}
                     />
                   ) : (
@@ -481,7 +513,7 @@ export default function App() {
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
               <UserManual
-                onNavigateToTab={(tab) => setActiveTab(tab)}
+                onNavigateToTab={(tab) => handleSelectTab(tab)}
                 onOpenEntradas={() => setEntradasOpen(true)}
                 onOpenTraslados={() => setTrasladosOpen(true)}
                 onOpenDescargos={() => setDescargosOpen(true)}
