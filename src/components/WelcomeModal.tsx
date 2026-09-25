@@ -39,14 +39,14 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-4 flex min-h-full items-center justify-center">
+        <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden p-3 sm:p-4 flex min-h-full items-center justify-center">
           {/* Full-screen Dark Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 bg-slate-950/70"
+            className="fixed inset-0 bg-slate-950/70 w-full h-full"
             onClick={onClose}
           />
 
@@ -56,7 +56,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 10 }}
           transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-          className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden z-10 text-slate-900 max-h-[92vh] flex flex-col my-auto"
+          className="relative w-full max-w-lg mx-auto bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden z-10 text-slate-900 max-h-[92vh] flex flex-col my-auto"
         >
           {/* Top Banner with Dark Gradient & Logo */}
           <div className="relative bg-gradient-to-br from-[#1c130d] via-[#2a1a10] to-[#170e08] p-4 sm:p-5 text-center text-white overflow-hidden border-b border-amber-900/30 shrink-0">

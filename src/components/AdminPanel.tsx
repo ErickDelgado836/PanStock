@@ -882,64 +882,64 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
   const paginatedHistoryMovements = filteredHistoryMovements.slice(historyStartIndex, historyEndIndex);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8 overflow-hidden">
       {/* Top Title Card */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-red-950 text-white rounded-2xl p-6 shadow-xl mb-6 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
-        <div>
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-red-950 text-white rounded-2xl p-4 sm:p-6 shadow-xl mb-6 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 overflow-hidden">
+        <div className="min-w-0 flex-1">
           <div className="inline-flex items-center gap-2 bg-red-500/20 text-red-300 text-xs font-bold px-3 py-1 rounded-full border border-red-500/30 mb-2">
             <Shield className="w-3.5 h-3.5 text-amber-400" />
             <span>MODO ADMINISTRADOR</span>
           </div>
-          <h1 className="text-2xl font-black tracking-tight">Gestión del Sistema y Permisos</h1>
-          <p className="text-xs text-slate-300 mt-1">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight">Gestión del Sistema y Permisos</h1>
+          <p className="text-xs text-slate-300 mt-1 leading-relaxed">
             Cree usuarios, asigne contraseñas, habilite o deshabilite funciones por perfil, configure categorías y limpie historiales.
           </p>
         </div>
 
         {/* Tab Switchers */}
-        <div className="flex flex-wrap overflow-x-auto scrollbar-none scrollbar-hide touch-auto bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/80 gap-1">
+        <div className="w-full md:w-auto grid grid-cols-2 sm:grid-cols-2 lg:flex lg:flex-wrap bg-slate-800/80 p-1 sm:p-1.5 rounded-xl border border-slate-700/80 gap-1.5 shrink-0">
           <button
             onClick={() => setActiveTab('USERS')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'USERS'
                 ? 'bg-red-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Users className="w-4 h-4" />
+            <Users className="w-4 h-4 shrink-0" />
             <span>Usuarios y Permisos</span>
           </button>
           <button
             onClick={() => setActiveTab('CATEGORIES')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'CATEGORIES'
                 ? 'bg-red-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Tag className="w-4 h-4" />
+            <Tag className="w-4 h-4 shrink-0" />
             <span>Categorías</span>
           </button>
           <button
             onClick={() => setActiveTab('PRODUCTS')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'PRODUCTS'
                 ? 'bg-red-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Box className="w-4 h-4" />
-            <span>Artículos de Inventario y Servicios</span>
+            <Box className="w-4 h-4 shrink-0" />
+            <span>Artículos y Servicios</span>
           </button>
           <button
             onClick={() => setActiveTab('HISTORY_PURGE')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'HISTORY_PURGE'
                 ? 'bg-red-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-4 h-4 shrink-0" />
             <span>Limpiar Historiales</span>
           </button>
         </div>
@@ -1089,10 +1089,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
             )}
           </AnimatePresence>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
             {/* User Creator Form */}
             <div
-              className={`lg:col-span-6 bg-white rounded-2xl p-6 border transition-all duration-200 ${
+              className={`lg:col-span-6 bg-white rounded-2xl p-4 sm:p-6 border transition-all duration-200 overflow-hidden ${
                 editingUsername
                   ? 'border-blue-400 bg-blue-50/20 shadow-lg ring-2 ring-blue-400/30'
                   : 'border-slate-200 shadow-sm'
@@ -1182,71 +1182,71 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
                   <span>Permisos Operativos Habilitados</span>
                 </h3>
 
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   <button
                     type="button"
                     onClick={() => togglePermission('canEntries')}
-                    className={`p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all ${
+                    className={`w-full p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all min-w-0 ${
                       newPermissions.canEntries
                         ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
                         : 'bg-slate-50 border-slate-200 text-slate-400'
                     }`}
                   >
-                    <span>ENTRADAS (Ingresos)</span>
-                    <span className="font-extrabold">{newPermissions.canEntries ? 'SÍ' : 'NO'}</span>
+                    <span className="truncate pr-1">ENTRADAS (Ingresos)</span>
+                    <span className="font-extrabold shrink-0">{newPermissions.canEntries ? 'SÍ' : 'NO'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => togglePermission('canExits')}
-                    className={`p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all ${
+                    className={`w-full p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all min-w-0 ${
                       newPermissions.canExits
                         ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
                         : 'bg-slate-50 border-slate-200 text-slate-400'
                     }`}
                   >
-                    <span>SALIDAS (Descargos)</span>
-                    <span className="font-extrabold">{newPermissions.canExits ? 'SÍ' : 'NO'}</span>
+                    <span className="truncate pr-1">SALIDAS (Descargos)</span>
+                    <span className="font-extrabold shrink-0">{newPermissions.canExits ? 'SÍ' : 'NO'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => togglePermission('canTransfers')}
-                    className={`p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all ${
+                    className={`w-full p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all min-w-0 ${
                       newPermissions.canTransfers
                         ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
                         : 'bg-slate-50 border-slate-200 text-slate-400'
                     }`}
                   >
-                    <span>TRASLADOS</span>
-                    <span className="font-extrabold">{newPermissions.canTransfers ? 'SÍ' : 'NO'}</span>
+                    <span className="truncate pr-1">TRASLADOS</span>
+                    <span className="font-extrabold shrink-0">{newPermissions.canTransfers ? 'SÍ' : 'NO'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => togglePermission('canSales')}
-                    className={`p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all ${
+                    className={`w-full p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all min-w-0 ${
                       newPermissions.canSales
                         ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
                         : 'bg-slate-50 border-slate-200 text-slate-400'
                     }`}
                   >
-                    <span>PRODUCTOS VENDIDOS</span>
-                    <span className="font-extrabold">{newPermissions.canSales ? 'SÍ' : 'NO'}</span>
+                    <span className="truncate pr-1">PRODUCTOS VENDIDOS</span>
+                    <span className="font-extrabold shrink-0">{newPermissions.canSales ? 'SÍ' : 'NO'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => togglePermission('canExpiry')}
-                    className={`p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all ${
+                    className={`w-full p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all min-w-0 ${
                       newPermissions.canExpiry
                         ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
                         : 'bg-slate-50 border-slate-200 text-slate-400'
                     }`}
                   >
-                    <div className="text-left">
-                      <span className="block text-xs">FECHA VENCIMIENTO (VER)</span>
-                      <span className="text-[10px] font-normal text-slate-500 block">Módulo Vencimientos</span>
+                    <div className="text-left min-w-0 flex-1 pr-1">
+                      <span className="block text-xs truncate">FECHA VENCIMIENTO</span>
+                      <span className="text-[10px] font-normal text-slate-500 block truncate">Módulo Vencimientos</span>
                     </div>
                     <span className="font-extrabold text-xs shrink-0 ml-1">{newPermissions.canExpiry ? 'SÍ' : 'NO'}</span>
                   </button>
@@ -1254,15 +1254,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
                   <button
                     type="button"
                     onClick={() => togglePermission('canEditExpiry')}
-                    className={`p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all ${
+                    className={`w-full p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all min-w-0 ${
                       newPermissions.canEditExpiry !== false
                         ? 'bg-amber-50 border-amber-300 text-amber-900'
                         : 'bg-slate-50 border-slate-200 text-slate-400'
                     }`}
                   >
-                    <div className="text-left">
-                      <span className="block text-xs">EDICIÓN VENCIMIENTO</span>
-                      <span className="text-[10px] font-normal text-slate-500 block">Crear/Editar/Borrar Lotes</span>
+                    <div className="text-left min-w-0 flex-1 pr-1">
+                      <span className="block text-xs truncate">EDICIÓN VENCIMIENTO</span>
+                      <span className="text-[10px] font-normal text-slate-500 block truncate">Crear/Editar Lotes</span>
                     </div>
                     <span className="font-extrabold text-xs shrink-0 ml-1">{newPermissions.canEditExpiry !== false ? 'SÍ' : 'NO'}</span>
                   </button>
@@ -1270,14 +1270,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
                   <button
                     type="button"
                     onClick={() => togglePermission('canPhysicalInventory')}
-                    className={`p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all ${
+                    className={`w-full p-2.5 rounded-xl border font-bold flex items-center justify-between transition-all min-w-0 ${
                       newPermissions.canPhysicalInventory
                         ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
                         : 'bg-slate-50 border-slate-200 text-slate-400'
                     }`}
                   >
-                    <span>INVENTARIO FÍSICO</span>
-                    <span className="font-extrabold">{newPermissions.canPhysicalInventory ? 'SÍ' : 'NO'}</span>
+                    <span className="truncate pr-1">INVENTARIO FÍSICO</span>
+                    <span className="font-extrabold shrink-0">{newPermissions.canPhysicalInventory ? 'SÍ' : 'NO'}</span>
                   </button>
                 </div>
               </div>
@@ -1339,24 +1339,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
           </div>
 
           {/* Users List Card */}
-          <div className="lg:col-span-6 bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <div className="lg:col-span-6 bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 overflow-hidden">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-red-600" />
-                <span>Usuarios Registrados ({users.filter((u) => !u.isDeleted).length})</span>
+                <Users className="w-5 h-5 text-red-600 shrink-0" />
+                <span className="truncate">Usuarios ({users.filter((u) => !u.isDeleted).length})</span>
               </h2>
-              <span className="text-xs text-slate-500 font-medium">Control Total de Accesos</span>
+              <span className="text-xs text-slate-500 font-medium shrink-0">Control de Accesos</span>
             </div>
 
             {/* Search Filter & Status Controls */}
-            <div className="space-y-3 mb-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+            <div className="space-y-3 mb-4 bg-slate-50 p-3 sm:p-3.5 rounded-2xl border border-slate-200 overflow-hidden">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={userSearchQuery}
                   onChange={(e) => setUserSearchQuery(e.target.value)}
-                  placeholder="Buscar usuario por nombre o rol/cargo..."
+                  placeholder="Buscar usuario o cargo..."
                   className="w-full pl-9 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 shadow-2xs"
                 />
                 {userSearchQuery && (
@@ -1369,20 +1369,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                 <div className="flex flex-wrap gap-1">
                   {(['ALL', 'ACTIVE', 'SUSPENDED', 'DELETED'] as const).map((st) => (
                     <button
                       key={st}
                       type="button"
                       onClick={() => setUserStatusFilter(st)}
-                      className={`px-2.5 py-1 rounded-lg font-bold border transition-all text-[11px] ${
+                      className={`px-2 py-1 rounded-lg font-bold border transition-all text-[11px] ${
                         userStatusFilter === st
                           ? 'bg-red-600 text-white border-red-700 shadow-xs'
                           : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                       }`}
                     >
-                      {st === 'ALL' && `Activos/Todos (${users.filter((u) => !u.isDeleted).length})`}
+                      {st === 'ALL' && `Todos (${users.filter((u) => !u.isDeleted).length})`}
                       {st === 'ACTIVE' && `Activos (${users.filter((u) => !u.isSuspended && !u.isDeleted).length})`}
                       {st === 'SUSPENDED' && `Suspendidos (${users.filter((u) => u.isSuspended && !u.isDeleted).length})`}
                       {st === 'DELETED' && `Eliminados (${users.filter((u) => u.isDeleted).length})`}
@@ -1390,16 +1390,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-1.5 text-slate-600 text-[11px] font-bold">
+                <div className="flex items-center gap-1.5 text-slate-600 text-[11px] font-bold self-end sm:self-auto">
                   <span>Mostrar:</span>
                   <select
                     value={userItemsPerPage}
                     onChange={(e) => setUserItemsPerPage(Number(e.target.value))}
                     className="bg-white border border-slate-300 rounded-lg px-2 py-0.5 text-xs font-black text-slate-800 focus:outline-none shadow-2xs"
                   >
-                    <option value={3}>3 por pág</option>
-                    <option value={5}>5 por pág</option>
-                    <option value={10}>10 por pág</option>
+                    <option value={3}>3</option>
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
                   </select>
                 </div>
               </div>
@@ -1419,7 +1419,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
                   return (
                     <div
                       key={user.username}
-                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col justify-between gap-3 shadow-xs relative overflow-hidden ${
+                      className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all flex flex-col justify-between gap-3 shadow-xs relative overflow-hidden ${
                         isEditingThis
                           ? 'bg-blue-50/80 border-blue-500 ring-2 ring-blue-400/30'
                           : user.isDeleted
@@ -1436,8 +1436,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
                           </div>
                         )}
                     <div>
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
                           <span className="font-black text-slate-900 text-sm">
                             {user.username}
                           </span>
@@ -1465,7 +1465,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = () => {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                        <div className="flex flex-wrap items-center gap-1.5 shrink-0 mt-1 sm:mt-0">
                           <button
                             type="button"
                             onClick={() => handleEditUser(user)}

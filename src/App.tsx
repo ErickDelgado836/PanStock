@@ -313,7 +313,7 @@ export default function App() {
 
   return (
     <>
-      <div className={`min-h-screen bg-slate-100/70 font-sans text-slate-900 flex flex-col selection:bg-red-500 selection:text-white transition-all duration-500 ${isModalOverlayActive ? 'filter blur-sm md:blur-md pointer-events-none select-none' : ''}`}>
+      <div className={`min-h-screen w-full max-w-full overflow-x-hidden bg-slate-100/70 font-sans text-slate-900 flex flex-col selection:bg-red-500 selection:text-white transition-all duration-500 ${isModalOverlayActive ? 'filter blur-sm md:blur-md pointer-events-none select-none' : ''}`}>
         {/* Top Header */}
         <Header
           currentUser={currentUser}
@@ -399,7 +399,7 @@ export default function App() {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 pb-16 relative">
+      <main className="flex-1 pb-16 relative w-full max-w-full overflow-x-hidden">
         <AnimatePresence mode="wait">
           {activeTab === 'INICIO' && (
             <motion.div
@@ -528,6 +528,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
+              className="w-full max-w-full overflow-x-hidden"
             >
               <PermissionGuard
                 hasPermission={currentUser.isAdmin}
