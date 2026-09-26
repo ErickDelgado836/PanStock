@@ -80,14 +80,6 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
     }
   };
 
-  const handleFillAllWithSystemStock = () => {
-    const updated: { [key: string]: number | string } = {};
-    products.forEach((p) => {
-      updated[p.id] = p.stockByWarehouse[warehouse.id] || 0;
-    });
-    setPhysicalCounts(updated);
-  };
-
   const handleSetProductToSystemStock = (productId: string, sysStock: number) => {
     setPhysicalCounts((prev) => ({
       ...prev,
@@ -189,17 +181,10 @@ export const PhysicalAuditModal: React.FC<PhysicalAuditModalProps> = ({
 
             {/* Content Table */}
             <div className="flex-1 overflow-y-auto p-5 sm:p-6 min-h-0">
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
-                <p className="text-slate-600 max-w-xl">
+              <div className="mb-4 bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200 text-xs">
+                <p className="text-slate-600 leading-relaxed">
                   Ingrese la cantidad física real presente en el almacén hoy. El sistema calcula la diferencia automáticamente contra la existencia actual ({warehouse.code}) y registrará este nuevo corte.
                 </p>
-                <button
-                  type="button"
-                  onClick={handleFillAllWithSystemStock}
-                  className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-300 rounded-lg shadow-2xs text-[11px] transition-all shrink-0"
-                >
-                  Copiar Todo de Existencia Actual
-                </button>
               </div>
 
               {/* Internal Search Filter */}
