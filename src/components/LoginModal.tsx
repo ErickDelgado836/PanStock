@@ -170,35 +170,35 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#0f0c0a] text-slate-100 flex items-center justify-center p-5 xs:p-6 sm:p-6 relative overflow-y-auto font-sans selection:bg-amber-500 selection:text-white">
+    <div className="fixed inset-0 z-0 bg-[#0f0c0a] text-slate-100 flex items-center justify-center p-3 sm:p-6 overflow-y-auto overflow-x-hidden font-sans selection:bg-amber-500 selection:text-white">
       {/* Background Wallpaper PANES.jpg with Warm Atmospheric Bakery Lighting */}
       <div 
-        className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-cover bg-center"
+        className="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-cover bg-center"
         style={{ backgroundImage: 'url("/PANES.jpg")' }}
       >
         <img
           src="/PANES.jpg"
           alt="Fondo Panadería"
-          className="w-full h-full object-cover filter brightness-[0.88] contrast-[1.05] scale-[1.02] transition-transform duration-1000 ease-out"
+          className="w-full h-full object-cover filter brightness-[0.88] contrast-[1.05]"
         />
         {/* Soft Contrast Gradient to Enhance Legibility & Warmth */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0f0c0a]/80 via-[#0f0c0a]/30 to-[#0f0c0a]/50" />
       </div>
 
-      {/* High-Class Ambient Bakery Lighting & Warm Gradients */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,#3d1408_0%,transparent_60%)] pointer-events-none" />
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-amber-600/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-red-600/15 rounded-full blur-3xl pointer-events-none" />
-
-      {/* Subtle Grain Overlay */}
-      <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
+      {/* High-Class Ambient Bakery Lighting & Warm Gradients strictly contained */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,#3d1408_0%,transparent_60%)]" />
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-amber-600/15 rounded-full blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-red-600/15 rounded-full blur-3xl" />
+        <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px]" />
+      </div>
 
       {/* Main Luxury Container */}
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-[340px] xs:max-w-[370px] sm:max-w-md md:max-w-lg bg-white/85 backdrop-blur-xl rounded-3xl sm:rounded-[2.5rem] shadow-2xl shadow-black/80 border border-white/40 overflow-hidden relative z-10 text-slate-900 max-h-[94vh] flex flex-col my-auto"
+        className="w-full max-w-[340px] xs:max-w-[370px] sm:max-w-md md:max-w-lg bg-white/85 backdrop-blur-xl rounded-3xl sm:rounded-[2.5rem] shadow-2xl shadow-black/80 border border-white/40 overflow-hidden relative z-10 text-slate-900 my-auto shrink-0"
       >
         {/* Top Header Card: YEYÉ NUEVO LOGO Hero Presentation */}
         <div className="relative bg-gradient-to-b from-[#18110c]/95 via-[#221812]/95 to-[#1a120d]/95 p-3.5 sm:p-5 text-white text-center border-b border-amber-950/40 overflow-hidden shrink-0">
@@ -241,7 +241,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </div>
 
         {/* Form Body - Translucent Glassmorphism */}
-        <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 bg-white/70 backdrop-blur-md overflow-y-auto flex-1">
+        <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 bg-white/70 backdrop-blur-md">
           {/* Segmented Mode Selector (Operativo vs. Administrador) */}
           <div className="bg-slate-200/60 backdrop-blur-md p-1 sm:p-1.5 rounded-2xl flex items-center border border-slate-300/70 shadow-inner">
             <button
