@@ -401,7 +401,7 @@ export const PhysicalAuditReport: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="w-full md:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 relative z-10 shrink-0">
           <button
             onClick={async () => {
               if (isSyncing) return;
@@ -415,32 +415,32 @@ export const PhysicalAuditReport: React.FC = () => {
               }
             }}
             disabled={isSyncing}
-            className="px-4 py-2.5 bg-white/10 hover:bg-white/15 active:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 select-none cursor-pointer"
+            className="w-full sm:w-auto justify-center px-4 py-2.5 bg-white/10 hover:bg-white/15 active:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 select-none cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
             <span>{isSyncing ? 'Sincronizando...' : 'Actualizar Datos'}</span>
           </button>
 
-          {/* Dual Export Options: PDF & Excel */}
-          <div className="inline-flex items-center p-1 bg-white/10 rounded-xl border border-white/20 gap-1 shadow-sm">
+          {/* Dual Export Options: PDF & Excel - fully responsive on mobile */}
+          <div className="w-full sm:w-auto grid grid-cols-2 sm:flex sm:items-center p-1 bg-white/10 rounded-xl border border-white/20 gap-1.5 shadow-sm">
             <button
               type="button"
               onClick={handleExportPDF}
-              className="px-3.5 py-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-extrabold text-xs rounded-lg shadow-xs flex items-center gap-1.5 transition-all shrink-0 active:scale-95 cursor-pointer"
+              className="px-2.5 sm:px-3.5 py-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-extrabold text-[11px] sm:text-xs rounded-lg shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
               title="Descargar reporte oficial en formato PDF para impresión o archivo"
             >
-              <Download className="w-4 h-4" />
-              <span>Descargar Reporte PDF</span>
+              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="truncate">Descargar PDF</span>
             </button>
 
             <button
               type="button"
               onClick={handleExportExcel}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs rounded-lg shadow-xs flex items-center gap-1.5 transition-all shrink-0 active:scale-95 cursor-pointer"
+              className="px-2.5 sm:px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-[11px] sm:text-xs rounded-lg shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
               title="Descargar reporte completo estructurado en archivo Excel (.xlsx)"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
-              <span>Descargar Excel</span>
+              <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-100 shrink-0" />
+              <span className="truncate">Descargar Excel</span>
             </button>
           </div>
         </div>

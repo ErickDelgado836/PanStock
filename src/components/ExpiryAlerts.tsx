@@ -368,29 +368,29 @@ export const ExpiryAlerts: React.FC<{ currentUser?: UserProfile }> = ({ currentU
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0 flex-wrap">
           {/* Dual Export Options: PDF & Excel */}
-          <div className="inline-flex items-center p-1 bg-slate-800/90 rounded-2xl border border-slate-700/80 gap-1 shadow-lg">
+          <div className="w-full sm:w-auto grid grid-cols-2 sm:flex sm:items-center p-1 bg-slate-800/90 rounded-2xl border border-slate-700/80 gap-1 shadow-lg">
             <button
               onClick={handleExportPDF}
               disabled={isExportingPDF || filteredLots.length === 0}
-              className="px-3.5 py-2.5 bg-red-600/90 hover:bg-red-600 active:bg-red-700 text-white font-extrabold rounded-xl transition-all flex items-center justify-center gap-2 text-xs md:text-sm cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-2.5 sm:px-3.5 py-2.5 bg-red-600/90 hover:bg-red-600 active:bg-red-700 text-white font-extrabold rounded-xl transition-all flex items-center justify-center gap-1.5 text-[11px] sm:text-xs md:text-sm cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Descargar reporte oficial en formato PDF para imprimir"
             >
               {isExportingPDF ? (
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
               ) : (
-                <Download className="w-4 h-4 text-white" />
+                <Download className="w-4 h-4 text-white shrink-0" />
               )}
-              <span>{isExportingPDF ? 'Generando PDF...' : 'Descargar PDF'}</span>
+              <span className="truncate">{isExportingPDF ? 'Generando...' : 'Descargar PDF'}</span>
             </button>
 
             <button
               onClick={handleExportExcel}
               disabled={filteredLots.length === 0}
-              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold rounded-xl transition-all flex items-center justify-center gap-2 text-xs md:text-sm cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+              className="px-2.5 sm:px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold rounded-xl transition-all flex items-center justify-center gap-1.5 text-[11px] sm:text-xs md:text-sm cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
               title="Descargar reporte completo estructurado en archivo Excel (.xlsx)"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
-              <span>Descargar Excel</span>
+              <FileSpreadsheet className="w-4 h-4 text-emerald-100 shrink-0" />
+              <span className="truncate">Descargar Excel</span>
             </button>
           </div>
 
