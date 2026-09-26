@@ -391,6 +391,7 @@ export async function generateAuditReportPDF(
 
   // Items Table Header
   const startY = 72;
+  let pageStartY = startY;
   const drawTableHeader = (y: number) => {
     doc.setFillColor(20, 30, 60);
     doc.rect(14, y, 182, 7.5, 'F');
@@ -441,8 +442,15 @@ export async function generateAuditReportPDF(
 
     // Check page overflow
     if (currentY + rowHeight > 275) {
+      // Close side and bottom borders for the current page table before breaking page
+      doc.setDrawColor(210, 215, 225);
+      doc.line(14, pageStartY, 14, currentY);
+      doc.line(196, pageStartY, 196, currentY);
+      doc.line(14, currentY, 196, currentY);
+
       doc.addPage();
       currentY = 20;
+      pageStartY = 20;
       drawTableHeader(currentY);
       currentY += 7.5;
       doc.setFont('helvetica', 'normal');
@@ -532,9 +540,11 @@ export async function generateAuditReportPDF(
     currentY += rowHeight;
   });
 
-  // Border around table
-  doc.setDrawColor(200, 200, 200);
-  doc.rect(14, startY, 182, Math.min(currentY - startY, 200));
+  // Close side and bottom borders for the final page table
+  doc.setDrawColor(210, 215, 225);
+  doc.line(14, pageStartY, 14, currentY);
+  doc.line(196, pageStartY, 196, currentY);
+  doc.line(14, currentY, 196, currentY);
 
   // Multi-page Footers with Page Numbers
   const totalAuditPages = doc.getNumberOfPages();
@@ -679,6 +689,7 @@ export async function generateExpiryReportPDF(
 
   // Items Table Header
   const startY = 74;
+  let pageStartY = startY;
   const drawTableHeader = (y: number) => {
     doc.setFillColor(20, 30, 60);
     doc.rect(14, y, 182, 7.5, 'F');
@@ -705,8 +716,15 @@ export async function generateExpiryReportPDF(
     const rowHeight = Math.max(7.5, 3.8 + whCount * 3.8);
 
     if (currentY + rowHeight > 275) {
+      // Close side and bottom borders for the current page table before breaking page
+      doc.setDrawColor(210, 215, 225);
+      doc.line(14, pageStartY, 14, currentY);
+      doc.line(196, pageStartY, 196, currentY);
+      doc.line(14, currentY, 196, currentY);
+
       doc.addPage();
       currentY = 20;
+      pageStartY = 20;
       drawTableHeader(currentY);
       currentY += 7.5;
     }
@@ -784,9 +802,11 @@ export async function generateExpiryReportPDF(
     currentY += rowHeight;
   });
 
-  // Border around table
-  doc.setDrawColor(180, 180, 180);
-  doc.rect(14, startY, 182, Math.min(currentY - startY, 255));
+  // Close side and bottom borders for the final page table
+  doc.setDrawColor(210, 215, 225);
+  doc.line(14, pageStartY, 14, currentY);
+  doc.line(196, pageStartY, 196, currentY);
+  doc.line(14, currentY, 196, currentY);
 
   // Multi-page Footers with Page Numbers
   const totalPages = doc.getNumberOfPages();
