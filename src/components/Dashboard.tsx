@@ -181,43 +181,51 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* Quick Action Buttons */}
         <div className="flex flex-wrap items-center gap-3">
           {currentUser.permissions.canEntries && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               onClick={onOpenEntradas}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center gap-2"
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
             >
               <ArrowDownLeft className="w-4 h-4 text-emerald-200" />
               <span>Entrada (Ingreso)</span>
-            </button>
+            </motion.button>
           )}
 
           {currentUser.permissions.canTransfers && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               onClick={onOpenTraslados}
-              className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center gap-2"
+              className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
             >
               <ArrowRightLeft className="w-4 h-4 text-amber-200" />
               <span>Traslado Interno</span>
-            </button>
+            </motion.button>
           )}
 
           {currentUser.permissions.canExits && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               onClick={onOpenDescargos}
-              className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center gap-2"
+              className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
             >
               <ArrowUpRight className="w-4 h-4 text-rose-200" />
               <span>Descargo (Salida)</span>
-            </button>
+            </motion.button>
           )}
 
           {currentUser.permissions.canSales && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => onNavigateToTab('VENTAS')}
-              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center gap-2"
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
             >
               <ShoppingCart className="w-4 h-4 text-blue-200" />
               <span>Productos Vendidos</span>
-            </button>
+            </motion.button>
           )}
         </div>
       </div>
@@ -468,7 +476,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           <button
             onClick={() => onNavigateToTab('NOTAS')}
-            className="text-xs font-bold text-red-600 hover:underline"
+            className="text-xs font-bold text-red-600 hover:underline cursor-pointer"
           >
             Ver todos los comprobantes &rarr;
           </button>

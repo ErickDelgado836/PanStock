@@ -40,26 +40,36 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden p-3 sm:p-4 flex min-h-full items-center justify-center">
-          {/* Full-screen Dark Backdrop */}
+          {/* Full-screen Frosted Glass Dark Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="fixed inset-0 bg-slate-950/70 w-full h-full"
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="fixed inset-0 bg-slate-950/75 backdrop-blur-md w-full h-full"
             onClick={onClose}
           />
 
-        {/* Modal Card */}
+        {/* Modal Card with Apple Spring Motion & Progressive Staging */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 10 }}
+          initial={{ opacity: 0, scale: 0.88, y: 32 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 10 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-          className="relative w-full max-w-lg mx-auto bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden z-10 text-slate-900 max-h-[92vh] flex flex-col my-auto"
+          exit={{ opacity: 0, scale: 0.94, y: -12 }}
+          transition={{
+            type: 'spring',
+            damping: 25,
+            stiffness: 280,
+            mass: 0.85,
+          }}
+          className="relative w-full max-w-lg mx-auto bg-white rounded-3xl shadow-2xl shadow-black/60 border border-white/60 overflow-hidden z-10 text-slate-900 max-h-[92vh] flex flex-col my-auto"
         >
-          {/* Top Banner with Dark Gradient & Logo */}
-          <div className="relative bg-gradient-to-br from-[#1c130d] via-[#2a1a10] to-[#170e08] p-4 sm:p-5 text-center text-white overflow-hidden border-b border-amber-900/30 shrink-0">
+          {/* Top Banner with Dark Gradient & Logo (Stagger 1) */}
+          <motion.div
+            initial={{ opacity: 0, y: -16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.45, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+            className="relative bg-gradient-to-br from-[#1c130d] via-[#2a1a10] to-[#170e08] p-4 sm:p-5 text-center text-white overflow-hidden border-b border-amber-900/30 shrink-0"
+          >
             {/* Background Decorative Wheat Motif */}
             <div className="absolute -left-6 -top-6 text-amber-500/10 pointer-events-none">
               <Wheat className="w-28 h-28" />
@@ -69,13 +79,23 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
             </div>
 
             {/* Sparkles / System Badge */}
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/20 text-white text-[11px] font-black uppercase tracking-wider mb-2.5 shadow-sm">
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.15 }}
+              className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/20 text-white text-[11px] font-black uppercase tracking-wider mb-2.5 shadow-sm"
+            >
               <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0 animate-pulse" />
               <span className="text-white font-extrabold">PanStock • Panadería Española C.A</span>
-            </div>
+            </motion.div>
 
-            {/* Main Featured Logo Box (YEYE NUEVO LOGO) */}
-            <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-xl border border-amber-100 relative flex flex-col items-center justify-center transform transition-transform hover:scale-[1.01]">
+            {/* Main Featured Logo Box (YEYE NUEVO LOGO) with Apple spring pop */}
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 300, delay: 0.18 }}
+              className="bg-white rounded-2xl p-3 sm:p-4 shadow-xl border border-amber-100 relative flex flex-col items-center justify-center transform transition-transform hover:scale-[1.01]"
+            >
               <img
                 src="/YEYE NUEVO LOGO.png"
                 alt="Panadería Española - El Secreto del Mejor Pan!"
@@ -95,12 +115,18 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
               <div id="welcome-logo-fallback" style={{ display: 'none' }}>
                 <EspañolaFullLogo width={160} height={70} />
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           {/* Welcome Body Content */}
           <div className="p-5 sm:p-6 space-y-4 text-center overflow-y-auto flex-1">
-            <div className="space-y-1.5">
+            {/* Greeting Header (Stagger 2) */}
+            <motion.div
+              initial={{ opacity: 0, y: 14, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              transition={{ duration: 0.4, delay: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-1.5"
+            >
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 font-black shadow-inner mb-0.5">
                 <Building2 className="w-5 h-5 text-amber-600" />
               </div>
@@ -112,10 +138,15 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
               <p className="text-xs sm:text-sm font-semibold text-slate-600 max-w-sm mx-auto leading-relaxed">
                 Has iniciado sesión exitosamente en el sistema de gestión e inventario de <strong className="text-slate-800">Panadería Española C.A.</strong>
               </p>
-            </div>
+            </motion.div>
 
-            {/* User Access Profile Details Card */}
-            <div className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-3.5 text-left space-y-3 text-xs shadow-inner">
+            {/* User Access Profile Details Card (Stagger 3) */}
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.42, delay: 0.30, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-3.5 text-left space-y-3 text-xs shadow-inner"
+            >
               {/* Profile & Role Header */}
               <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
                 <div className="flex items-center gap-2">
@@ -212,17 +243,29 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
 
-            {/* Primary CTA Button to Enter App */}
-            <button
+            {/* Primary CTA Button to Enter App (Stagger 4 with Apple sheen & micro-bounce) */}
+            <motion.button
               type="button"
               onClick={onClose}
-              className="w-full py-3.5 px-6 bg-gradient-to-r from-red-600 via-amber-600 to-red-700 hover:from-red-700 hover:to-amber-700 text-white font-black rounded-2xl shadow-lg shadow-red-600/30 hover:shadow-red-600/40 active:scale-[0.98] transition-all flex items-center justify-center gap-3 text-sm sm:text-base group"
+              initial={{ opacity: 0, y: 16, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ type: 'spring', damping: 22, stiffness: 280, delay: 0.38 }}
+              whileHover={{ scale: 1.015, filter: 'brightness(1.06)' }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full relative overflow-hidden py-3.5 px-6 bg-gradient-to-r from-red-600 via-amber-600 to-red-700 hover:from-red-700 hover:to-amber-700 text-white font-black rounded-2xl shadow-xl shadow-red-600/30 hover:shadow-red-600/40 transition-all flex items-center justify-center gap-3 text-sm sm:text-base group cursor-pointer"
             >
-              <span>Empezar a utilizar PanStock</span>
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform shrink-0" />
-            </button>
+              {/* Apple-style subtle light sheen sweeping through */}
+              <motion.span
+                initial={{ x: '-100%' }}
+                animate={{ x: '200%' }}
+                transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut', delay: 1 }}
+                className="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 pointer-events-none"
+              />
+              <span className="relative z-10">Empezar a utilizar PanStock</span>
+              <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1.5 transition-transform shrink-0" />
+            </motion.button>
 
             {/* Footer Note */}
             <p className="text-[11px] font-bold text-slate-400">

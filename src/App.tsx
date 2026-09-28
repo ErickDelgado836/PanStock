@@ -313,7 +313,7 @@ export default function App() {
 
   return (
     <>
-      <div className={`min-h-screen w-full max-w-full overflow-x-hidden bg-slate-100/70 font-sans text-slate-900 flex flex-col selection:bg-red-500 selection:text-white transition-all duration-500 ${isModalOverlayActive ? 'filter blur-sm md:blur-md pointer-events-none select-none' : ''}`}>
+      <div className={`min-h-screen w-full max-w-full overflow-x-hidden bg-slate-100/70 font-sans text-slate-900 flex flex-col selection:bg-red-500 selection:text-white ${isModalOverlayActive ? 'pointer-events-none select-none' : ''}`}>
         {/* Top Header */}
         <Header
           currentUser={currentUser}
