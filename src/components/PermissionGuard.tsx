@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShieldAlert, X } from 'lucide-react';
+import { playActionBlockedSound } from '../utils/audio';
 
 interface PermissionGuardProps {
   hasPermission: boolean;
@@ -13,6 +14,12 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   moduleName = 'este módulo',
   children,
 }) => {
+  useEffect(() => {
+    if (!hasPermission) {
+      playActionBlockedSound();
+    }
+  }, [hasPermission]);
+
   if (!hasPermission) {
     return (
       <div className="max-w-xl mx-auto my-12 p-8 bg-white rounded-3xl shadow-xl border border-red-100 text-center">
@@ -44,6 +51,12 @@ export const PermissionGuardModal: React.FC<PermissionGuardModalProps> = ({
   onClose,
   message = 'Actualmente no está habilitado para esta función.',
 }) => {
+  useEffect(() => {
+    if (isOpen) {
+      playActionBlockedSound();
+    }
+  }, [isOpen]);
+
   return (
     <AnimatePresence>
       {isOpen && (

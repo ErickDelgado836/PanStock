@@ -1,3 +1,5 @@
+import { playActionBlockedSound } from './audio';
+
 export interface ToastMessage {
   id: string;
   title: string;
@@ -24,6 +26,10 @@ export function showToast(
   type: 'success' | 'info' | 'warning' | 'error' = 'success',
   duration = 4000
 ) {
+  if (type === 'error' || type === 'warning') {
+    playActionBlockedSound();
+  }
+
   const toast: ToastMessage = {
     id: Math.random().toString(36).substring(2, 9),
     title,

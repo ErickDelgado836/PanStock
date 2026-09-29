@@ -25,6 +25,7 @@ import { UserManual } from './components/UserManual';
 import { AdminPanel } from './components/AdminPanel';
 import { PermissionGuard } from './components/PermissionGuard';
 import { showToast } from './utils/toast';
+import { playLoginSuccessSound } from './utils/audio';
 
 // Modals
 import { EntradasModal } from './components/Movements/EntradasModal';
@@ -246,6 +247,7 @@ export default function App() {
   }, [selectedWarehouse, selectedWarehouseId]);
 
   const handleLoginSuccess = (user: UserProfile, fromAdminMode?: boolean) => {
+    playLoginSuccessSound();
     setLocalUser(user);
     setCurrentUser(user);
     setShowWelcomeModal(true); // Open personalized Welcome Announcement!

@@ -4,7 +4,6 @@ import { UserProfile } from '../types';
 import { EspañolaFullLogo } from './Logos';
 import { getWarehouses } from '../services/storage';
 import {
-  Sparkles,
   ArrowRight,
   Shield,
   Building2,
@@ -78,14 +77,13 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
               <Wheat className="w-28 h-28" />
             </div>
 
-            {/* Sparkles / System Badge */}
+            {/* System Badge */}
             <motion.div
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, delay: 0.15 }}
-              className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/20 text-white text-[11px] font-black uppercase tracking-wider mb-2.5 shadow-sm"
+              className="inline-flex items-center px-4 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-[11px] font-black uppercase tracking-wider mb-2.5 shadow-sm"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0 animate-pulse" />
               <span className="text-white font-extrabold">PanStock • Panadería Española C.A</span>
             </motion.div>
 
