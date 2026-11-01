@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Check, Search, X } from 'lucide-react';
+import { isClickOnScrollbar } from '../../utils/domUtils';
 
 export interface CustomSelectOption {
   value: string;
@@ -45,6 +46,11 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   // Close desktop/mobile dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      // Do not close if click was on any scrollbar
+      if (isClickOnScrollbar(event)) {
+        return;
+      }
+
       const target = event.target as Node;
       const clickedInsideContainer = containerRef.current && containerRef.current.contains(target);
       const clickedInsideMobileSheet = mobileSheetRef.current && mobileSheetRef.current.contains(target);

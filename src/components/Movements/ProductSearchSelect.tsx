@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Product, Category } from '../../types';
 import { Search, ChevronDown, Check, X, Filter, Tag, Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { isClickOnScrollbar } from '../../utils/domUtils';
 
 interface ProductSearchSelectProps {
   products: Product[];
@@ -36,16 +37,53 @@ export const ProductSearchSelect: React.FC<ProductSearchSelectProps> = ({
     }
   };
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click, but IGNORE scrollbar clicks
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      // If the user clicked on a scrollbar (modal scrollbar, form scrollbar, etc.), DO NOT close!
+      if (isClickOnScrollbar(event)) {
+        return;
+      }
+
+      const target = event.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target)) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  // When opening dropdown, ensure parent scrollable container smoothly reveals the items
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const timer = setTimeout(() => {
+        if (!containerRef.current) return;
+        const formParent = containerRef.current.closest('form');
+        if (formParent) {
+          const containerRect = containerRef.current.getBoundingClientRect();
+          const formRect = formParent.getBoundingClientRect();
+          // If dropdown goes past visible form bottom, smoothly scroll to reveal
+          const estimatedDropdownBottom = containerRect.bottom + 280;
+          if (estimatedDropdownBottom > formRect.bottom) {
+            formParent.scrollBy({
+              top: Math.min(estimatedDropdownBottom - formRect.bottom + 16, 220),
+              behavior: 'smooth',
+            });
+          }
+        }
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   const selectedProduct = products.find((p) => p.id === selectedProductId);
 
