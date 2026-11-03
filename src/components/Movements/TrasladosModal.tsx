@@ -11,7 +11,14 @@ import {
 } from '../../services/storage';
 import { ConfirmationModal } from '../ConfirmationModal';
 import { ProductSearchSelect } from './ProductSearchSelect';
-import { transferLotStock, getLotStockInWarehouse } from '../../utils/lotUtils';
+import {
+  transferLotStock,
+  getLotStockInWarehouse,
+  calculateFifoDistribution,
+  formatFifoDistributionSummary,
+  FifoAllocation,
+} from '../../utils/lotUtils';
+import { FifoDistributionPreview } from './FifoDistributionPreview';
 import { showToast } from '../../utils/toast';
 import { CustomSelect } from '../Common/CustomSelect';
 import { formatVE } from '../../utils/movementSearch';
@@ -46,6 +53,9 @@ interface MultiTransferItem {
   maxAvailable: number;
   quantity: number;
   unit: string;
+  selectedLotId?: string;
+  lotBreakdownSummary?: string;
+  allocations?: FifoAllocation[];
 }
 
 export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose, currentUser }) => {
@@ -75,6 +85,7 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
 
   // Add Item to Multiple List State
   const [addSelectedProdId, setAddSelectedProdId] = useState('');
+  const [addSelectedLotId, setAddSelectedLotId] = useState('');
   const [addQuantity, setAddQuantity] = useState<number | string>('');
   const [addUnit, setAddUnit] = useState<UnitOfMeasure>('unidades');
 
@@ -116,6 +127,7 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
       setSelectedLotId('');
       setIgnoreLotRestrictions(false);
       setAddSelectedProdId('');
+      setAddSelectedLotId('');
       setQuantity('');
       setAddQuantity('');
     }
@@ -124,6 +136,10 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
   useEffect(() => {
     setSelectedLotId('');
   }, [selectedProductId, sourceWhId]);
+
+  useEffect(() => {
+    setAddSelectedLotId('');
+  }, [addSelectedProdId, sourceWhId]);
 
   // Products available in source warehouse
   const sourceProducts = products.filter(
@@ -139,20 +155,11 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
 
   const getMaxSingleQty = () => {
     if (!selectedProduct) return 0;
-    if (ignoreLotRestrictions || activeLotsInSource.length === 0) {
+    if (ignoreLotRestrictions || !selectedLotId) {
       return maxAvailableSingle;
     }
-    if (selectedLotId) {
-      const chosenLot = activeLotsInSource.find((l) => l.id === selectedLotId);
-      return chosenLot ? getLotStockInWarehouse(chosenLot, sourceWhId) : 0;
-    } else {
-      // Auto FIFO
-      const sortedLots = [...activeLotsInSource].sort((a, b) =>
-        (a.expirationDate || '').localeCompare(b.expirationDate || '')
-      );
-      const firstLot = sortedLots[0];
-      return firstLot ? getLotStockInWarehouse(firstLot, sourceWhId) : 0;
-    }
+    const chosenLot = activeLotsInSource.find((l) => l.id === selectedLotId);
+    return chosenLot ? getLotStockInWarehouse(chosenLot, sourceWhId) : 0;
   };
 
   // Add item to multiple list
@@ -180,8 +187,20 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
 
     const stockInSource = prod.stockByWarehouse[sourceWhId] || 0;
 
+    // Check specific lot stock if chosen
+    if (addSelectedLotId) {
+      const chosenLot = (prod.lots || []).find((l) => l.id === addSelectedLotId);
+      const chosenLotQty = chosenLot ? getLotStockInWarehouse(chosenLot, sourceWhId) : 0;
+      if (parsedAddQty > chosenLotQty) {
+        setErrorMsg(
+          `La cantidad a trasladar (${parsedAddQty.toLocaleString('es-ES')}) supera las ${chosenLotQty.toLocaleString('es-ES')} ${prod.unit} disponibles en el lote seleccionado (Vence: ${chosenLot?.expirationDate || 'N/A'}).`
+        );
+        return;
+      }
+    }
+
     // Check if already in multi items list
-    const existingIndex = multiItems.findIndex((item) => item.productId === prod.id);
+    const existingIndex = multiItems.findIndex((item) => item.productId === prod.id && item.selectedLotId === (addSelectedLotId || undefined));
     let totalPlannedQty = parsedAddQty;
 
     if (existingIndex >= 0) {
@@ -196,12 +215,17 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
     }
 
     const cat = categories.find((c) => c.id === prod.categoryId);
+    const allocations = calculateFifoDistribution(prod, sourceWhId, parsedAddQty, addSelectedLotId || undefined);
+    const summary = formatFifoDistributionSummary(allocations, prod.unit);
 
     if (existingIndex >= 0) {
       // Update quantity
       const updated = [...multiItems];
       updated[existingIndex].quantity = totalPlannedQty;
       updated[existingIndex].unit = addUnit || prod.unit || 'unidades';
+      const newAllocations = calculateFifoDistribution(prod, sourceWhId, totalPlannedQty, addSelectedLotId || undefined);
+      updated[existingIndex].allocations = newAllocations;
+      updated[existingIndex].lotBreakdownSummary = formatFifoDistributionSummary(newAllocations, prod.unit);
       setMultiItems(updated);
     } else {
       setMultiItems((prev) => [
@@ -215,12 +239,16 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
           maxAvailable: stockInSource,
           quantity: parsedAddQty,
           unit: addUnit || prod.unit || 'unidades',
+          selectedLotId: addSelectedLotId || undefined,
+          lotBreakdownSummary: summary,
+          allocations,
         },
       ]);
     }
 
     // Reset add inputs
     setAddSelectedProdId('');
+    setAddSelectedLotId('');
     setAddQuantity('');
   };
 
@@ -267,30 +295,15 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
         return;
       }
 
-      // Check per-lot limits if restriction is active
-      if (!ignoreLotRestrictions && activeLotsInSource.length > 0) {
-        if (selectedLotId) {
-          const chosenLot = activeLotsInSource.find((l) => l.id === selectedLotId);
-          const chosenLotQty = chosenLot ? getLotStockInWarehouse(chosenLot, sourceWhId) : 0;
-          if (parsedQty > chosenLotQty) {
-            setErrorMsg(
-              `La cantidad a trasladar (${parsedQty.toLocaleString('es-ES')}) supera las ${chosenLotQty.toLocaleString('es-ES')} ${selectedProduct?.unit} disponibles en el lote seleccionado (Vence: ${chosenLot?.expirationDate || 'N/A'}). Si deseas abarcar más inventario de otros lotes, activa la opción 'Hacer operación total sin contar fechas de vencimiento'.`
-            );
-            return;
-          }
-        } else {
-          // Auto FIFO: check if requested qty exceeds the stock of the earliest lot when multiple lots exist
-          const sortedLots = [...activeLotsInSource].sort((a, b) =>
-            (a.expirationDate || '').localeCompare(b.expirationDate || '')
+      // Check per-lot limits if a specific lot was picked
+      if (selectedLotId && !ignoreLotRestrictions && activeLotsInSource.length > 0) {
+        const chosenLot = activeLotsInSource.find((l) => l.id === selectedLotId);
+        const chosenLotQty = chosenLot ? getLotStockInWarehouse(chosenLot, sourceWhId) : 0;
+        if (parsedQty > chosenLotQty) {
+          setErrorMsg(
+            `La cantidad a trasladar (${parsedQty.toLocaleString('es-ES')}) supera las ${chosenLotQty.toLocaleString('es-ES')} ${selectedProduct?.unit} disponibles en el lote seleccionado (Vence: ${chosenLot?.expirationDate || 'N/A'}). Para trasladar inventario de varios lotes automáticamente por orden de vencimiento, selecciona 'Auto FIFO'.`
           );
-          const firstLot = sortedLots[0];
-          const firstLotQty = firstLot ? getLotStockInWarehouse(firstLot, sourceWhId) : 0;
-          if (parsedQty > firstLotQty && activeLotsInSource.length > 1) {
-            setErrorMsg(
-              `La cantidad a trasladar (${parsedQty.toLocaleString('es-ES')}) abarca más de un lote con distinta fecha de vencimiento. El lote más próximo a vencer (${firstLot?.lotNumber || 'S/N'}, Exp: ${firstLot?.expirationDate}) sólo cuenta con ${firstLotQty.toLocaleString('es-ES')} ${selectedProduct?.unit}. Si deseas realizar el traslado total abarcando múltiples lotes, marca la casilla 'Hacer operación total sin contar fechas de vencimiento'.`
-            );
-            return;
-          }
+          return;
         }
       }
     } else {
@@ -343,8 +356,8 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
           const currentTargetStock = productInDb.stockByWarehouse[targetWhId] || 0;
           productInDb.stockByWarehouse[targetWhId] = currentTargetStock + qty;
 
-          // Transfer lot stock from source to target warehouse
-          transferLotStock(productInDb, sourceWhId, targetWhId, qty);
+          // Transfer lot stock from source to target warehouse with selected lot or Auto FIFO
+          transferLotStock(productInDb, sourceWhId, targetWhId, qty, item.selectedLotId);
 
           movementItemsList.push({
             productId: productInDb.id,
@@ -702,6 +715,23 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
                           </button>
                         </div>
                       </div>
+
+                      {/* Real-time FIFO allocation preview */}
+                      {selectedProduct && parseFloat(String(quantity).replace(',', '.')) > 0 && (
+                        <FifoDistributionPreview
+                          allocations={calculateFifoDistribution(
+                            selectedProduct,
+                            sourceWhId,
+                            parseFloat(String(quantity).replace(',', '.')) || 0,
+                            selectedLotId || undefined
+                          )}
+                          unit={selectedProduct.unit}
+                          requestedQty={parseFloat(String(quantity).replace(',', '.')) || 0}
+                          availableStock={maxAvailableSingle}
+                          isAutoFifo={!selectedLotId}
+                          accentColor="amber"
+                        />
+                      )}
                     </div>
                   )}
                 </div>
@@ -719,6 +749,7 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
                       selectedProductId={addSelectedProdId}
                       onSelectProduct={(id) => {
                         setAddSelectedProdId(id);
+                        setAddSelectedLotId('');
                         const p = products.find((prod) => prod.id === id);
                         if (p?.unit) {
                           setAddUnit(p.unit as UnitOfMeasure);
@@ -756,6 +787,65 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
                       </div>
                     </div>
 
+                    {/* Multiple Mode: Lots & Auto FIFO selector */}
+                    {(() => {
+                      const addProd = sourceProducts.find((p) => p.id === addSelectedProdId);
+                      const addLots = addProd
+                        ? (addProd.lots || []).filter((l) => getLotStockInWarehouse(l, sourceWhId) > 0)
+                        : [];
+
+                      if (!addProd || addLots.length === 0) return null;
+
+                      return (
+                        <div className="p-3 bg-amber-100/70 border border-amber-200/90 rounded-xl space-y-2">
+                          <div className="flex items-center justify-between text-[11px] font-black text-amber-950">
+                            <span className="flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-amber-700" />
+                              Lotes Disponibles en Origen ({warehouses.find((w) => w.id === sourceWhId)?.code || sourceWhId}):
+                            </span>
+                            <span className="bg-amber-200/80 text-amber-900 px-1.5 py-0.5 rounded text-[10px] font-black">
+                              {addLots.length} lote(s)
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+                            {addLots.map((lot) => (
+                              <div
+                                key={lot.id}
+                                className="p-1.5 bg-white/90 rounded-lg border border-amber-200/80 flex items-center justify-between text-xs"
+                              >
+                                <span className="font-extrabold text-slate-800">
+                                  Lote: <span className="font-mono">{lot.lotNumber || 'S/N'}</span>
+                                </span>
+                                <span className="text-amber-900 font-bold text-[11px]">
+                                  {lot.expirationDate ? `📅 ${lot.expirationDate}` : 'Sin Fecha'} ({getLotStockInWarehouse(lot, sourceWhId)} {addProd.unit})
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-black text-amber-950 uppercase mb-1">
+                              Criterio de Lote / Salida:
+                            </label>
+                            <select
+                              value={addSelectedLotId}
+                              onChange={(e) => setAddSelectedLotId(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500/40"
+                            >
+                              <option value="">Auto FIFO (Transferir del lote más próximo a vencer)</option>
+                              {addLots.map((lot) => (
+                                <option key={lot.id} value={lot.id}>
+                                  Lote: {lot.lotNumber || 'S/N'} — Vence: {lot.expirationDate || 'Sin Fecha'} ({getLotStockInWarehouse(lot, sourceWhId)} {addProd.unit})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Quantity Input */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-end pt-1">
                       <div>
                         <label className="block text-[10px] font-black text-slate-700 uppercase mb-1">
@@ -780,8 +870,15 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
                             type="button"
                             onClick={() => {
                               const addProd = sourceProducts.find((p) => p.id === addSelectedProdId);
-                              const maxAddAvailable = addProd ? addProd.stockByWarehouse[sourceWhId] || 0 : 0;
-                              setAddQuantity(maxAddAvailable);
+                              if (!addProd) return;
+                              if (addSelectedLotId) {
+                                const chosenLot = (addProd.lots || []).find((l) => l.id === addSelectedLotId);
+                                const maxLotStock = chosenLot ? getLotStockInWarehouse(chosenLot, sourceWhId) : 0;
+                                setAddQuantity(maxLotStock);
+                              } else {
+                                const maxAddAvailable = addProd.stockByWarehouse[sourceWhId] || 0;
+                                setAddQuantity(maxAddAvailable);
+                              }
                             }}
                             disabled={!addSelectedProdId}
                             className="absolute right-1 px-1.5 py-0.5 bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 text-white font-bold text-[10px] rounded transition-all active:scale-95 cursor-pointer"
@@ -800,6 +897,33 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
                         <span>Añadir al Traslado</span>
                       </button>
                     </div>
+
+                    {/* Real-time preview for Multiple item to add */}
+                    {(() => {
+                      const addProd = sourceProducts.find((p) => p.id === addSelectedProdId);
+                      const parsedAddQty = parseFloat(String(addQuantity).replace(',', '.')) || 0;
+                      if (!addProd || parsedAddQty <= 0) return null;
+                      const allocs = calculateFifoDistribution(
+                        addProd,
+                        sourceWhId,
+                        parsedAddQty,
+                        addSelectedLotId || undefined
+                      );
+                      const maxStock = addSelectedLotId
+                        ? getLotStockInWarehouse((addProd.lots || []).find((l) => l.id === addSelectedLotId)!, sourceWhId)
+                        : addProd.stockByWarehouse[sourceWhId] || 0;
+
+                      return (
+                        <FifoDistributionPreview
+                          allocations={allocs}
+                          unit={addProd.unit}
+                          requestedQty={parsedAddQty}
+                          availableStock={maxStock}
+                          isAutoFifo={!addSelectedLotId}
+                          accentColor="amber"
+                        />
+                      );
+                    })()}
                   </div>
 
                   {/* Multi Items Table */}
@@ -843,6 +967,11 @@ export const TrasladosModal: React.FC<TrasladosModalProps> = ({ isOpen, onClose,
                                   <div className="text-[10px] text-slate-500 uppercase font-black">
                                     {item.categoryName} • Disponible: {item.maxAvailable} {item.unit}
                                   </div>
+                                  {item.lotBreakdownSummary && (
+                                    <div className="text-[10px] font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 mt-1 inline-block">
+                                      {item.lotBreakdownSummary}
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="p-2.5 text-right font-black text-amber-800">
                                   {item.quantity} {item.unit}

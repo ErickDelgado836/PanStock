@@ -86,6 +86,116 @@ export function addLotStockOnEntry(
 }
 
 /**
+ * Compares two lots for FIFO (First-In, First-Out by Expiration Date).
+ * - If preferredLotId is specified, that lot is prioritized first.
+ * - Lots WITH an expiration date are sorted earliest-first (nearest to expire first).
+ * - Lots WITHOUT an expiration date ("Sin Fecha") are ordered after dated lots.
+ */
+export function compareLotsByFIFO(a: ProductLot, b: ProductLot, preferredLotId?: string): number {
+  if (preferredLotId) {
+    if (a.id === preferredLotId) return -1;
+    if (b.id === preferredLotId) return 1;
+  }
+  const dateA = a.expirationDate?.trim() || '';
+  const dateB = b.expirationDate?.trim() || '';
+
+  // Both have expiration dates -> sort ascending (earliest expiring first)
+  if (dateA && dateB) {
+    return dateA.localeCompare(dateB);
+  }
+  // If one has date and the other doesn't, dated lot comes first
+  if (dateA && !dateB) return -1;
+  if (!dateA && dateB) return 1;
+
+  // Neither has date -> sort by lot number
+  return (a.lotNumber || '').localeCompare(b.lotNumber || '');
+}
+
+export interface FifoAllocation {
+  lotId?: string;
+  lotNumber: string;
+  expirationDate?: string;
+  quantity: number;
+  availableInLot: number;
+  isUnassigned?: boolean;
+}
+
+/**
+ * Calculates the exact allocation of quantity across lots according to Auto FIFO
+ * or a specific preferred lot, detailing how many units come from each date / lot or without date.
+ */
+export function calculateFifoDistribution(
+  product: Product,
+  warehouseId: string,
+  quantity: number,
+  preferredLotId?: string
+): FifoAllocation[] {
+  if (quantity <= 0 || !product) return [];
+
+  const allocations: FifoAllocation[] = [];
+  let remaining = quantity;
+
+  const totalWhStock = product.stockByWarehouse?.[warehouseId] || 0;
+  const activeLots = (product.lots || [])
+    .filter((l) => getLotStockInWarehouse(l, warehouseId) > 0)
+    .sort((a, b) => compareLotsByFIFO(a, b, preferredLotId));
+
+  let totalLotStockInWh = 0;
+
+  for (const lot of activeLots) {
+    if (remaining <= 0) break;
+    const available = getLotStockInWarehouse(lot, warehouseId);
+    totalLotStockInWh += available;
+
+    const allocQty = Math.min(remaining, available);
+    if (allocQty > 0) {
+      allocations.push({
+        lotId: lot.id,
+        lotNumber: lot.lotNumber || 'S/N',
+        expirationDate: lot.expirationDate?.trim() || undefined,
+        quantity: allocQty,
+        availableInLot: available,
+      });
+      remaining -= allocQty;
+    }
+  }
+
+  // If there is still quantity remaining and the warehouse has unassigned stock
+  if (remaining > 0) {
+    const unassignedStock = Math.max(0, totalWhStock - totalLotStockInWh);
+    if (unassignedStock > 0) {
+      const allocUnassigned = Math.min(remaining, unassignedStock);
+      allocations.push({
+        lotNumber: 'S/N',
+        quantity: allocUnassigned,
+        availableInLot: unassignedStock,
+        isUnassigned: true,
+      });
+      remaining -= allocUnassigned;
+    }
+  }
+
+  return allocations;
+}
+
+/**
+ * Formats a short readable breakdown summary for tables or notifications:
+ * e.g. "Auto FIFO: 4 kg (15/12/2026) + 6 kg (04/01/2027)"
+ */
+export function formatFifoDistributionSummary(
+  allocations: FifoAllocation[],
+  unit: string
+): string {
+  if (allocations.length === 0) return 'Sin asignación';
+  return allocations
+    .map((a) => {
+      const dateText = a.expirationDate ? `Vence: ${a.expirationDate}` : 'Sin Fecha';
+      return `${a.quantity} ${unit} (${a.lotNumber} • ${dateText})`;
+    })
+    .join(' + ');
+}
+
+/**
  * Synchronizes lot quantities during a Traslado (Transfer).
  * Deducts `quantity` from `sourceWhId` and adds it to `targetWhId`.
  * If `preferredLotId` is provided, transfers from that lot first, then remaining using FIFO.
@@ -115,13 +225,7 @@ export function transferLotStock(
 
   let remaining = quantity;
   // Sort lots by preferredLotId first, then expiration date (FIFO)
-  const sortedLots = [...product.lots].sort((a, b) => {
-    if (preferredLotId) {
-      if (a.id === preferredLotId) return -1;
-      if (b.id === preferredLotId) return 1;
-    }
-    return (a.expirationDate || '').localeCompare(b.expirationDate || '');
-  });
+  const sortedLots = [...product.lots].sort((a, b) => compareLotsByFIFO(a, b, preferredLotId));
 
   for (const lot of sortedLots) {
     if (remaining <= 0) break;
@@ -157,13 +261,7 @@ export function deductLotStock(
   }
 
   let remaining = quantity;
-  const sortedLots = [...product.lots].sort((a, b) => {
-    if (preferredLotId) {
-      if (a.id === preferredLotId) return -1;
-      if (b.id === preferredLotId) return 1;
-    }
-    return (a.expirationDate || '').localeCompare(b.expirationDate || '');
-  });
+  const sortedLots = [...product.lots].sort((a, b) => compareLotsByFIFO(a, b, preferredLotId));
 
   for (const lot of sortedLots) {
     if (remaining <= 0) break;

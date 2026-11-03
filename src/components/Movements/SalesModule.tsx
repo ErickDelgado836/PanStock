@@ -13,7 +13,13 @@ import {
 import { ConfirmationModal } from '../ConfirmationModal';
 import { showToast } from '../../utils/toast';
 import { CustomSelect } from '../Common/CustomSelect';
-import { deductLotStock, getLotStockInWarehouse } from '../../utils/lotUtils';
+import {
+  deductLotStock,
+  getLotStockInWarehouse,
+  calculateFifoDistribution,
+  compareLotsByFIFO,
+} from '../../utils/lotUtils';
+import { FifoDistributionPreview } from './FifoDistributionPreview';
 import { formatVE, parseAnyDate } from '../../utils/movementSearch';
 import {
   ShoppingCart,
@@ -219,7 +225,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
       if (dbProduct && dbProduct.lots && dbProduct.lots.length > 0) {
         const activeLotsInWh = dbProduct.lots
           .filter((l) => getLotStockInWarehouse(l, selectedWarehouseId) > 0)
-          .sort((a, b) => (a.expirationDate || '').localeCompare(b.expirationDate || ''));
+          .sort(compareLotsByFIFO);
 
         if (!item.ignoreLotRestrictions && activeLotsInWh.length > 0) {
           if (item.selectedLotId) {
@@ -227,16 +233,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
             const chosenLotQty = chosenLot ? getLotStockInWarehouse(chosenLot, selectedWarehouseId) : 0;
             if (numQty > chosenLotQty) {
               setErrorMsg(
-                `La cantidad a vender de "${dbProduct.name}" (${numQty.toLocaleString('es-ES')}) supera las ${chosenLotQty.toLocaleString('es-ES')} ${dbProduct.unit} disponibles en el lote seleccionado (Vence: ${chosenLot?.expirationDate || 'N/A'}). Si deseas abarcar más inventario de otros lotes, activa la opción 'Hacer operación total sin contar fechas de vencimiento'.`
-              );
-              return;
-            }
-          } else {
-            const firstLot = activeLotsInWh[0];
-            const firstLotQty = firstLot ? getLotStockInWarehouse(firstLot, selectedWarehouseId) : 0;
-            if (numQty > firstLotQty && activeLotsInWh.length > 1) {
-              setErrorMsg(
-                `La cantidad a vender de "${dbProduct.name}" (${numQty.toLocaleString('es-ES')}) abarca más de un lote con distinta fecha de vencimiento. El lote más próximo a vencer (${firstLot?.lotNumber || 'S/N'}, Exp: ${firstLot?.expirationDate || 'N/A'}) sólo cuenta con ${firstLotQty.toLocaleString('es-ES')} ${dbProduct.unit}. Si deseas realizar la venta total abarcando múltiples lotes, marca la casilla 'Hacer operación total sin contar fechas de vencimiento' o selecciona el lote específico que deseas vender.`
+                `La cantidad a vender de "${dbProduct.name}" (${numQty.toLocaleString('es-ES')}) supera las ${chosenLotQty.toLocaleString('es-ES')} ${dbProduct.unit} disponibles en el lote seleccionado (Vence: ${chosenLot?.expirationDate || 'N/A'}). Si deseas abarcar más inventario de otros lotes, activa la opción 'Hacer operación total sin contar fechas de vencimiento' o selecciona Auto FIFO.`
               );
               return;
             }
@@ -787,10 +784,15 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
                 </div>
               ) : (
                 cart.map((item) => {
-                  const stockInWh = item.product.stockByWarehouse[selectedWarehouseId] || 0;
-                  const activeLotsInWh = (item.product.lots || [])
+                  const dbProduct = products.find((p) => p.id === item.product.id) || item.product;
+                  const stockInWh = dbProduct.stockByWarehouse[selectedWarehouseId] || 0;
+                  const activeLotsInWh = (dbProduct.lots || [])
                     .filter((l) => getLotStockInWarehouse(l, selectedWarehouseId) > 0)
-                    .sort((a, b) => (a.expirationDate || '').localeCompare(b.expirationDate || ''));
+                    .sort(compareLotsByFIFO);
+                  const numQty =
+                    typeof item.quantityToSell === 'number'
+                      ? item.quantityToSell
+                      : parseFloat(String(item.quantityToSell).replace(',', '.')) || 0;
 
                   return (
                     <div key={item.product.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
@@ -885,7 +887,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
                               className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
                             >
                               <option value="">
-                                Automático FEFO (Lote más próximo a vencer)
+                                Auto FIFO (Despachar del lote más próximo a vencer)
                               </option>
                               {activeLotsInWh.map((lot) => {
                                 const lStock = getLotStockInWarehouse(lot, selectedWarehouseId);
@@ -918,6 +920,25 @@ export const SalesModule: React.FC<SalesModuleProps> = ({ currentUser }) => {
                               Hacer operación total sin contar fechas de vencimiento (abarca múltiples lotes)
                             </span>
                           </label>
+                        </div>
+                      )}
+
+                      {/* Real-time FIFO allocation preview */}
+                      {dbProduct && numQty > 0 && (
+                        <div className="pt-2">
+                          <FifoDistributionPreview
+                            allocations={calculateFifoDistribution(
+                              dbProduct,
+                              selectedWarehouseId,
+                              numQty,
+                              item.selectedLotId || undefined
+                            )}
+                            unit={item.product.unit}
+                            requestedQty={numQty}
+                            availableStock={stockInWh}
+                            isAutoFifo={!item.selectedLotId}
+                            accentColor="blue"
+                          />
                         </div>
                       )}
                     </div>
